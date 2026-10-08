@@ -79,20 +79,18 @@ body {
     align-items: center;
     gap: 11px;
     padding: 20px 18px 14px;
+    cursor: pointer;
+    border-radius: 10px;
+    transition: background .15s;
 }
+
+.brand:hover { background: var(--line-soft); }
 
 .brand-logo {
     width: 38px;
     height: 38px;
     border-radius: 8px;
-    background: var(--ink);
-    color: #f6f4ef;
-    font-family: var(--serif);
-    font-weight: 700;
-    font-size: 15px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    object-fit: cover;
     flex-shrink: 0;
 }
 
@@ -392,11 +390,15 @@ body {
 }
 
 .msg.agent .avatar {
-    background: var(--ink);
-    color: #f6f4ef;
-    font-family: var(--serif);
-    font-size: 12px;
-    font-weight: 700;
+    background: transparent;
+    overflow: hidden;
+}
+
+.avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
 }
 
 .bubble {
@@ -644,14 +646,8 @@ body {
     height: 58px;
     margin: 0 auto 14px;
     border-radius: 14px;
-    background: var(--ink);
-    color: #f6f4ef;
-    font-family: var(--serif);
-    font-weight: 700;
-    font-size: 21px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    object-fit: cover;
+    display: block;
 }
 
 .hero h3 {
@@ -841,6 +837,49 @@ body {
 .author-card .author-links a:hover { background: var(--accent); color: #fff; }
 
 .author-card .author-license { font-size: 11px; color: var(--muted); margin-bottom: 0; }
+
+.author-card .author-license a { color: var(--accent); text-decoration: none; font-weight: 600; }
+.author-card .author-license a:hover { text-decoration: underline; }
+
+/* NEW 徽标 */
+.new-badge {
+    display: inline-block;
+    font-family: var(--sans);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    color: #fff;
+    background: var(--accent);
+    border-radius: 4px;
+    padding: 1px 5px;
+    vertical-align: 2px;
+    margin-left: 4px;
+}
+
+/* 底部备案信息栏 */
+.beian-bar {
+    margin-top: 18px;
+    padding: 14px 18px;
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+    background: var(--panel);
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 6px 10px;
+}
+
+.beian-bar a {
+    color: var(--muted);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--line);
+}
+
+.beian-bar a:hover { color: var(--accent); border-bottom-color: var(--accent); }
 
 .hint-bar {
     margin-top: 20px;

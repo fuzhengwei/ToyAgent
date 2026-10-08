@@ -360,40 +360,40 @@
       );
     }).join("");
 
-    // 进阶实战：教程实战篇章（可跳转在线阅读）+ 星球实战工程
+    // 进阶实战：与 ai-agent-guide 官网「实战项目」板块保持一致，全部可点击跳转
     const GUIDE_SITE = "https://ai-agent-guide.xiaofuge.cn";
-    const GUIDE_CHAPTERS = [
-      { tag: "第12章", name: "RAG：检索增强生成", desc: "文档切分、向量化、GraphRAG 与 Agentic RAG，给智能体装上外挂知识库" },
-      { tag: "第22章", name: "CLI Agent 命令行智能助手", desc: "终端 Agent 实战：工具链集成、NL2Shell、SSH Agent，让模型操作本地工具" },
-      { tag: "第23章", name: "GUI Agent 浏览器自动化", desc: "Computer Use、Playwright 操作与截图理解，智能体学会动手点屏幕" },
-      { tag: "第11章", name: "工业级 Harness 解剖", desc: "deepseek-harness-java 源码级拆解：大脑的工程化外壳如何构造" },
-      { tag: "第13章", name: "LLM-Wiki 知识编译", desc: "知识编译与持久化：把零散文档沉淀成智能体可检索的技能库" }
+    const LEARN_ROUTE = [
+      { icon: "🎓", name: "AI Agent 应用开发工程师学习计划", desc: "系统化学习路线，从基础到实战的完整成长路径", href: "https://bugstack.cn/md/zsxq/material/student-learn-ai.html", tag: "学习路线" }
     ];
-    const guideCards = GUIDE_CHAPTERS.map((p) =>
-      '<div class="card adv guide" data-href="' + GUIDE_SITE + '">' +
-      '<div class="card-top"><span class="card-num">' + p.tag + "</span><h4>" + p.name + "</h4></div>" +
-      "<p>" + p.desc + "</p>" +
-      '<div class="card-chapters"><span class="chip mono-chip">📗 ai-agent-guide.xiaofuge.cn</span></div>' +
-      "</div>"
-    ).join("");
-
-    const ADV_PROJECTS = [
-      { repo: "ai-agent", name: "AI Agent Station", desc: "DDD 架构的 AI 智能体平台：Auto Agent 自动对话、流式响应，把玩具智能体做成真实工程" },
-      { repo: "ai-agent-scaffold", name: "企业级 Agent 脚手架", desc: "生产级智能体工程骨架，含 lite 版与 Maven Archetype，一键拉起你自己的 Agent 项目" },
-      { repo: "ai-mcp-gateway", name: "AI MCP 网关", desc: "MCP 协议网关实战：client / server / 代理三种形态，把工具生态标准化接入" },
-      { repo: "ai-new-paradigm", name: "AI 新范式", desc: "Skills 技能的开发与使用，体验 AI 编程范式从对话到工程的跃迁" }
+    const GUIDE_PROJECTS = [
+      { icon: "🛡️", name: "WaLiAPI - AI LLM LocalGateway 本地网关系统", desc: "渠道分发、日志留存、日志审计、知识库", href: "https://bugstack.cn/md/project/waliapi/waliapi.html" },
+      { icon: "🖥️", name: "WaLiSSH - AI Shell 智能终端", desc: "AI 驱动的 Shell 智能终端，对话式操作云服务器", href: "https://bugstack.cn/md/project/walissh/walissh.html" },
+      { icon: "🤖", name: "WaLiCode - AI Coding 辅助编码", desc: "AI 辅助编程助手，智能代码生成与审查", href: "https://bugstack.cn/md/project/walicode/walicode.html" },
+      { icon: "🌐", name: "AI MCP Gateway 网关服务系统", desc: "MCP 协议网关，统一管理 AI 工具调用", href: "https://bugstack.cn/md/project/ai-mcp-gateway/ai-mcp-gateway.html" },
+      { icon: "🧩", name: "AI Agent 脚手架 + 场景应用", desc: "Spring AI + LangChain4j + Google ADK，智能体架构方案", href: "https://bugstack.cn/md/project/ai-agent-scaffold/ai-agent-scaffold.html" },
+      { icon: "🔗", name: "AI Agent 拖拉拽 + 动态配置", desc: "RAG、MCP、Prompt 动态编排与配置", href: "https://bugstack.cn/md/project/ai-knowledge/ai-knowledge.html" },
+      { icon: "🔍", name: "OpenAI 代码自动评审组件", desc: "AI 驱动的代码评审，自动发现代码问题", href: "https://bugstack.cn/md/zsxq/project/openai-code-review.html" },
+      { icon: "🔑", name: "OpenAI 大模型微服务应用体系构建", desc: "API-SDK、鉴权、公众号、微信支付", href: "https://bugstack.cn/md/zsxq/project/chatbot-api.html" },
+      { icon: "💬", name: "AI 智能问答助手", desc: "小型项目，对接知识星球", href: "https://bugstack.cn/md/zsxq/project/chatbot-api.html" },
+      { icon: "⚙️", name: "DSH Java · 智能体运行时基座", desc: "deepseek-harness-java：Java Agent 运行时与插件体系（新项目）", href: "https://dsh-java.xiaofuge.cn/", isNew: true }
     ];
-    const advCards = ADV_PROJECTS.map((p) =>
-      '<div class="card adv" title="项目位于 KnowledgePlanet/' + p.repo + '">' +
-      '<div class="card-top"><span class="card-num">实战</span><h4>' + p.name + "</h4></div>" +
+    const NEW_PARADIGM = [
+      { icon: "🚀", name: "AI 新范式（0编码）", desc: "Vibe Coding 方式开发 + 运维（部署、压测、调优）", href: "https://bugstack.cn/md/project/ai-new-paradigm/ai-new-paradigm.html" }
+    ];
+    const linkCard = (p) =>
+      '<div class="card adv guide" data-href="' + p.href + '">' +
+      '<div class="card-top"><span class="card-num">' + (p.icon || "📗") + "</span><h4>" + p.name +
+      (p.isNew ? ' <span class="new-badge">NEW</span>' : "") + "</h4></div>" +
       "<p>" + p.desc + "</p>" +
-      '<div class="card-chapters"><span class="chip mono-chip">📦 ' + p.repo + "</span></div>" +
-      "</div>"
-    ).join("");
+      '<div class="card-chapters"><span class="chip mono-chip">↗ ' + p.href.replace(/^https?:\/\//, "").replace(/\/$/, "").split("/")[0] + "</span></div>" +
+      "</div>";
+    const learnCards = LEARN_ROUTE.map(linkCard).join("");
+    const projCards = GUIDE_PROJECTS.map(linkCard).join("");
+    const paradigmCards = NEW_PARADIGM.map(linkCard).join("");
 
     wrap.innerHTML =
       '<div class="hero">' +
-      '<div class="logo-big">TA</div>' +
+      '<img class="logo-big" src="logo.png" alt="ToyAgent Logo">' +
       "<h3>用 13 个接口类讲清楚智能体</h3>" +
       "<p>剥掉所有概念外衣，智能体的灵魂只有一个方法。13 个场景由浅入深，前 12 个各讲一种能力，最后一个把所有能力装回同一台机器。</p>" +
       '<div class="soul">Agent.chat(String input) —— 输入一句话，输出一句话</div>' +
@@ -407,11 +407,13 @@
       '<div class="sec-title">🗺 场景学习地图</div>' +
       '<div class="card-grid">' + cards + "</div>" +
       '<div class="sec-title">🚀 学完之后 · 进阶实战</div>' +
-      '<p class="adv-lede">ToyAgent 刻意保持极简，帮你建立概念骨架。往下走有两条路：跟着教程实战篇章继续动手，或进入星球完整工程，让能力在真实项目里长出来。</p>' +
-      '<div class="adv-sub">📖 教程实战篇章 · 点击卡片在线阅读</div>' +
-      '<div class="card-grid">' + guideCards + "</div>" +
-      '<div class="adv-sub">🧭 星球实战工程 · 码农会锁 AI 系列</div>' +
-      '<div class="card-grid">' + advCards + "</div>" +
+      '<p class="adv-lede">ToyAgent 刻意保持极简，帮你建立概念骨架。往下走有两条路：跟着「AI Agent 应用开发工程师学习计划」系统进阶，或进入星球完整工程，让能力在真实项目里长出来。</p>' +
+      '<div class="adv-sub">🎓 学习路线 · 系统化成长路径</div>' +
+      '<div class="card-grid">' + learnCards + "</div>" +
+      '<div class="adv-sub">🏗️ 实战项目 · 码农会锁 AI 系列</div>' +
+      '<div class="card-grid">' + projCards + "</div>" +
+      '<div class="adv-sub">🚀 AI 新范式</div>' +
+      '<div class="card-grid">' + paradigmCards + "</div>" +
       '<div class="hint-bar">点击卡片进入对应场景 · 左下角 <span class="kbd">⚙</span> 可配置你自己的模型 · 回答附带实时执行轨迹</div>' +
       '<div class="author-card">' +
       '<div class="author-line"><b>👨‍💻 关于作者</b></div>' +
@@ -421,7 +423,16 @@
       '<a href="https://github.com/fuzhengwei" target="_blank" rel="noopener">🐙 GitHub @fuzhengwei</a>' +
       '<a href="https://bugstack.cn" target="_blank" rel="noopener">🐛 博客 bugstack.cn</a>' +
       "</p>" +
-      '<p class="author-license">ToyAgent 为教程配套练习项目 · Apache-2.0 © 2025 小傅哥</p>' +
+      '<p class="author-license">ToyAgent 为教程配套练习项目 · <a href="https://github.com/fuzhengwei/ToyAgent" target="_blank" rel="noopener">GitHub 仓库 ↗</a></p>' +
+      "</div>" +
+      '<div class="beian-bar">' +
+      '<a href="https://github.com/fuzhengwei/ai-agent-guide" target="_blank" rel="noopener">配套教程 ai-agent-guide</a>' +
+      "<span>·</span>" +
+      '<a href="http://beian.miit.gov.cn" target="_blank" rel="noopener">津ICP备2025037015号-1</a>' +
+      "<span>·</span>" +
+      '<a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=11010102000001" target="_blank" rel="noopener">公安备案 京公网安备11010102000001号</a>' +
+      "<span>·</span>" +
+      "<span>MIT 协议 © 2023-2026 小傅哥，All rights reserved.</span>" +
       "</div>";
 
     chatArea.appendChild(wrap);
@@ -768,7 +779,7 @@
     const div = document.createElement("div");
     div.className = "msg " + role;
     div.innerHTML =
-      '<div class="avatar">' + (role === "user" ? "🙋" : "TA") + "</div>" +
+      '<div class="avatar">' + (role === "user" ? "🙋" : '<img class="avatar-img" src="logo.png" alt="TA">') + "</div>" +
       '<div class="bubble"></div>';
     const bubble = div.querySelector(".bubble");
     if (isError) {
@@ -791,7 +802,7 @@
     const div = document.createElement("div");
     div.className = "msg agent";
     div.innerHTML =
-      '<div class="avatar">TA</div>' +
+      '<div class="avatar"><img class="avatar-img" src="logo.png" alt="TA"></div>' +
       '<div class="bubble"><span class="typing"><i></i><i></i><i></i></span></div>';
     chatArea.appendChild(div);
     chatArea.scrollTop = chatArea.scrollHeight;
@@ -1022,6 +1033,12 @@
     }
   });
   input.addEventListener("input", autoGrow);
+
+  // 侧栏品牌区：点击回到首页（总览）
+  $("#brandHome").addEventListener("click", () => {
+    location.hash = "home";
+    $("#sidebar").classList.remove("open");
+  });
 
   $("#modelBadge").addEventListener("click", openModelModal);
   $("#closeModelModal").addEventListener("click", () => (modelModal.hidden = true));
