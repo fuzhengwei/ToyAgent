@@ -170,6 +170,14 @@ const SCENARIOS = [
     title: "事件溯源",
     subtitle: "会话即日志：JSONL 事件流 + 回放投影重建状态",
     samples: ["我叫小傅哥", "我叫什么名字？", "再聊两句", "看看日志里有什么"]
+  },
+  {
+    id: "step21",
+    num: "21",
+    group: "生态扩展",
+    title: "插件机制",
+    subtitle: "AgentPlugin 契约 + 隔离 ClassLoader：能力即插即拔",
+    samples: ["安装插件", "查看工具清单", "掷一次硬币", "宿主运行多久了", "卸载插件", "再看看工具清单"]
   }
 ];
 

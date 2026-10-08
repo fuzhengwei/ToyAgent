@@ -6,8 +6,8 @@
 const ARTICLES = {
 
   home: {
-    title: "ToyAgent：用 20 个接口类讲清楚智能体",
-    lede: "一个接口类，就是一个智能体实现的最小 MVP。由浅入深 20 个场景，覆盖《AI Agent 通识教程》核心内容。",
+    title: "ToyAgent：用 21 个接口类讲清楚智能体",
+    lede: "一个接口类，就是一个智能体实现的最小 MVP。由浅入深 21 个场景，覆盖《AI Agent 通识教程》核心内容。",
     chapters: [],
     html: `
 <h2>一句话读懂本项目</h2>
@@ -19,10 +19,10 @@ const ARTICLES = {
 <div class="callout core">
   <div class="co-title">💡 核心公式</div>
   智能体 = 大模型（大脑）+ 工具（手脚）+ 记忆（延续）+ 循环（节拍）+ 工程化（兜底）。<br>
-  20 个场景，就是这个公式逐项展开的过程。
+  21 个场景，就是这个公式逐项展开的过程。
 </div>
 
-<h2>20 个场景的演进地图</h2>
+<h2>21 个场景的演进地图</h2>
 <table>
   <tr><th>场景</th><th>接口类</th><th>新增能力</th><th>对应教程</th></tr>
   <tr><td>01 对话</td><td><code>ChatAgent</code></td><td>最小 MVP：接通模型</td><td>ch01-03</td></tr>
@@ -45,6 +45,7 @@ const ARTICLES = {
   <tr><td>18 审批门禁</td><td><code>ApprovalAgent</code></td><td>风险分级 + 审批挂起 + 会话免审</td><td>dsh-java</td></tr>
   <tr><td>19 沙箱</td><td><code>SandboxAgent</code></td><td>纵深防御四层拦截</td><td>dsh-java</td></tr>
   <tr><td>20 事件溯源</td><td><code>EventSourcedAgent</code></td><td>JSONL 事件流 + 回放投影</td><td>dsh-java</td></tr>
+  <tr><td>21 插件机制</td><td><code>PluginAgent</code></td><td>AgentPlugin 契约 + 隔离 ClassLoader，能力即插即拔</td><td>dsh-java</td></tr>
 </table>
 
 <h2>教程章节怎么对上？</h2>
@@ -54,7 +55,7 @@ const ARTICLES = {
   <li><strong>ch13 Dify/Coze 可视化编排</strong> → 场景 12 的节点 + 条件边就是可视化编排的后端本质</li>
   <li><strong>ch14 CLI Agent / ch15 GUI Agent</strong> → 工具侧换成 Shell / 浏览器执行器即可，骨架同场景 04</li>
   <li><strong>ch17 评估 / ch19 部署 / ch20 推理框架</strong> → 工程化运维篇，模型换 Ollama/vLLM 端点即可（本项目零依赖，改 <code>config.properties</code> 即接入）</li>
-  <li><strong>ch23-27 展望篇</strong> → 读完 20 个场景的代码，回头看展望篇会非常轻松</li>
+  <li><strong>ch23-27 展望篇</strong> → 读完 21 个场景的代码，回头看展望篇会非常轻松</li>
 </ul>
 
 <h2>怎么跑起来</h2>
@@ -1132,6 +1133,75 @@ if (cmd.contains(".."))              // 第 4 层：规范化后复查，../ 逃
   聊两轮后打开 <code>events/step20-events.jsonl</code> 看原始事件流；点「重置」会删掉日志 —— 记忆归零，因为状态只存在于日志里。<strong>删日志 = 删状态</strong>，这正是事件溯源的题眼。
 </div>
 <p>生产对照：dsh-java 有 16 种 sealed 领域事件（含 TOOL_CALLED、审批、压缩、子代理等）+ 校验和防篡改；教学版 4 种足够看清骨架。</p>
+`
+  },
+
+  step21: {
+    title: "插件机制：让能力即插即拔",
+    lede: "Step15 解决「工具怎么注册」，本步解决「工具从哪来」—— 插件是一批工具的动态载体：安装即批量注册，卸载即批量注销。",
+    chapters: ["dsh-java · JavaPluginLoader / PluginToolBridgeService"],
+    html: `
+<h2>为什么需要插件</h2>
+<p>工具写死在宿主里，每加一个能力都要重新编译、重新部署。<strong>插件机制把「能力」变成运行时可安装、可卸载的包</strong>：第三方作者按契约实现一个接口，宿主加载后模型立刻「看见」新工具。</p>
+<div class="callout core">
+  <div class="co-title">💡 一句话理解</div>
+  插件 = 工具的 JAR 包。dsh-java 的整个插件生态（安装 / 激活 / 运行 / 管理 / 查询五条流水线 + maven archetype 脚手架）都建立在这句话上。
+</div>
+
+<h2>dsh-java 的四层设计</h2>
+<table>
+  <tr><th>层次</th><th>dsh-java 组件</th><th>职责</th></tr>
+  <tr><td>契约</td><td><code>JavaHarnessPlugin</code> + <code>PluginManifest</code></td><td>onStart/onStop/tools() + META-INF/plugin.yaml 声明入口</td></tr>
+  <tr><td>加载</td><td><code>JavaPluginLoader</code></td><td>独立 URLClassLoader 隔离加载；entrypoint 优先，Java SPI 兜底</td></tr>
+  <tr><td>生命周期</td><td><code>PluginHotReloader</code> / <code>JavaPluginRuntimeManager</code></td><td>安装→激活→运行→卸载，热插拔</td></tr>
+  <tr><td>桥接</td><td><code>PluginToolBridgeService</code></td><td>插件工具批量注册进 ToolRegistry，disposers 按 pluginId 归档</td></tr>
+</table>
+<p>另有 <code>JsonRpcPluginToolBridge</code> 支持进程外插件（JSON-RPC 桥接），进程内 / 进程外双模式。</p>
+
+<h2>本场景的骨架</h2>
+<div class="flow">
+  <span class="fnode">1. 释放插件包</span><span class="farrow">→</span>
+  <span class="fnode">2. 隔离加载</span><span class="farrow">→</span>
+  <span class="fnode">3. onStart + 收集工具</span><span class="farrow">→</span>
+  <span class="fnode">4. 批量注册</span>
+</div>
+<pre><code data-lang="java">// 1. 契约：插件作者唯一要实现的东西
+public interface AgentPlugin {
+    String id();  String version();
+    default void onStart() {}
+    default void onStop() {}
+    List&lt;ToolDefinition&gt; tools();   // 插件带来的工具
+}
+
+// 2. 隔离加载：parent 指向宿主，插件类只从 plugins/ 目录来
+URLClassLoader cl = new URLClassLoader(
+    new URL[]{dir.toUri().toURL()}, PluginAgent.class.getClassLoader());
+AgentPlugin plugin = (AgentPlugin) Class
+    .forName(entrypoint, true, cl)
+    .getDeclaredConstructor().newInstance();
+plugin.onStart();
+
+// 3. 工具桥接：注册 + disposer 按 pluginId 归档（卸载即批量注销）
+for (ToolDefinition tool : plugin.tools())
+    disposers.add(registry.register(tool));
+
+// 4. 卸载三步回收：批量 disposer → onStop → cl.close()</code></pre>
+
+<h2>和 Step15 的分工</h2>
+<table>
+  <tr><th>维度</th><th>15 · 工具注册表</th><th>21 · 插件机制</th></tr>
+  <tr><td>回答的问题</td><td>工具怎么注册、怎么被发现</td><td>工具从哪来、怎么装进来、怎么卸掉</td></tr>
+  <tr><td>工具生命周期</td><td>单个工具级（注册 / 注销）</td><td>插件级批量（整包安装 / 整包回收）</td></tr>
+  <tr><td>类加载</td><td>同 ClassLoader</td><td><strong>独立 ClassLoader 隔离</strong>，卸载即关闭</td></tr>
+</table>
+
+<h2>试试这样玩</h2>
+<ul>
+  <li>「安装插件」—— 观察轨迹四步：落盘 → 隔离加载 → onStart → 批量注册；</li>
+  <li>「掷一次硬币」「宿主运行多久了」—— 模型自动看见并调用插件工具；</li>
+  <li>「卸载插件」→「再看看工具清单」—— 工具消失，再掷硬币会命中「注册表未命中」。</li>
+</ul>
+<p>生产化路径：插件包换成真 JAR（maven archetype 一键生成骨架）、plugin.yaml 换 MANIFEST、加版本冲突校验与签名验证、双模式桥接（进程内 / JSON-RPC 进程外）。</p>
 `
   }
 };

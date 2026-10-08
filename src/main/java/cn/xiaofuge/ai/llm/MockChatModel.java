@@ -48,6 +48,7 @@ public final class MockChatModel implements ChatModel {
             case "step18" -> mockApproval(last);
             case "step19" -> mockSandbox(last);
             case "step20" -> mockEvent(all, last);
+            case "step21" -> mockPlugin(all, last);
             default -> "（Mock 模型）收到：" + last;
         };
     }
@@ -452,6 +453,24 @@ public final class MockChatModel implements ChatModel {
         return Json.write(Map.of(
                 "final", "（Mock 模型）本轮会话由事件日志回放重建。多聊几轮再看 events/step20-events.jsonl，"
                         + "每一条对话都是不可变事件；「重置」删掉日志，记忆归零。"));
+    }
+
+    // ------------------------------------------------------------- step21 插件机制
+
+    /** 插件机制剧本：安装后正常决策调用插件工具；未安装/已卸载时由注册表未命中路径兜底。 */
+    private String mockPlugin(String all, String last) {
+        if (last.contains("执行结果")) {
+            String fact = extractAfter(last, "执行结果");
+            return "根据插件工具返回的结果：" + (fact.isBlank() ? clip(last) : clip(fact))
+                    + " —— 这个工具不在宿主代码里，而是插件经独立 ClassLoader 装进注册表的。";
+        }
+        if (last.contains("掷") || last.contains("硬币") || last.contains("coin")) {
+            return Json.write(Map.of("tool", "coin_flip", "arguments", Map.of()));
+        }
+        if (last.contains("运行") || last.contains("多久") || last.contains("uptime")) {
+            return Json.write(Map.of("tool", "uptime", "arguments", Map.of()));
+        }
+        return "（Mock 模型）先「安装插件」，工具才会出现在我的清单里；「卸载插件」后我再也看不见它们 —— 能力即插即拔。";
     }
 
     // ------------------------------------------------------------- 工具方法
