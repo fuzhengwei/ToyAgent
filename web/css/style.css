@@ -313,12 +313,12 @@ body {
 .src-link {
     display: inline-flex;
     align-items: center;
-    padding: 7px 12px;
+    padding: 6px 13px;
     border-radius: 8px;
-    border: 1px dashed var(--muted);
-    background: transparent;
-    color: var(--ink-2);
-    font-size: 12.5px;
+    border: 1px solid var(--accent-border);
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 12px;
     font-weight: 600;
     text-decoration: none;
     white-space: nowrap;
@@ -326,9 +326,9 @@ body {
 }
 
 .src-link:hover {
-    color: var(--accent);
+    color: #f6f4ef;
+    background: var(--accent);
     border-color: var(--accent);
-    background: var(--accent-soft, rgba(154, 74, 30, .06));
 }
 
 .btn {
