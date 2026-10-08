@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ToyAgent · 用 13 个接口类讲清楚智能体</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="layout">
+
+    <!-- ==================== 左侧：场景导航 ==================== -->
+    <aside class="sidebar" id="sidebar">
+        <div class="brand">
+            <div class="brand-logo">TA</div>
+            <div class="brand-text">
+                <h1>ToyAgent</h1>
+                <p>一个接口类 = 一个智能体 MVP</p>
+            </div>
+        </div>
+
+        <button class="model-badge" id="modelBadge" title="点击配置模型">
+            <span class="dot"></span>
+            <span id="modelText">加载中…</span>
+            <span class="gear">⚙</span>
+        </button>
+
+        <nav class="nav" id="nav"><!-- 场景列表由 app.js 渲染 --></nav>
+
+        <div class="sidebar-foot">
+            <p>配套教程 <a class="guide-link" href="https://ai-agent-guide.xiaofuge.cn/" target="_blank" rel="noopener"><b>ai-agent-guide</b> ↗</a><br>26 章渐进式可视化</p>
+            <p class="foot-author">作者 · <a href="https://github.com/fuzhengwei" target="_blank" rel="noopener">小傅哥 fuzhengwei</a></p>
+            <div class="theme-row" id="themeRow">
+                <span class="theme-label">主题</span>
+                <button class="theme-dot" data-theme="paper" title="纸面 · 赭石" style="--dot:#9a4a1e"></button>
+                <button class="theme-dot" data-theme="mist" title="青瓷 · 苔绿" style="--dot:#2e6e5c"></button>
+                <button class="theme-dot" data-theme="ink" title="玄墨 · 极简" style="--dot:#262626"></button>
+                <button class="theme-dot" data-theme="dusk" title="暮蓝 · 靛青" style="--dot:#33528a"></button>
+                <button class="theme-dot" data-theme="snow" title="纯白 · 极简" style="--dot:#e9e9ee; box-shadow: inset 0 0 0 1px #c9c9cf;"></button>
+                <button class="theme-dot" data-theme="latte" title="咖啡 · 奶棕" style="--dot:#8c5a2e"></button>
+                <button class="theme-dot" data-theme="sakura" title="樱粉 · 柔和" style="--dot:#b04a68"></button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ==================== 中间：对话测试区 ==================== -->
+    <main class="main">
+        <header class="main-header">
+            <button class="btn icon-btn only-mobile" id="toggleSidebar" title="场景目录">☰</button>
+            <div class="scenario-title">
+                <span class="step-chip" id="stepChip">00</span>
+                <div>
+                    <h2 id="stepTitle">ToyAgent 总览</h2>
+                    <p id="stepSubtitle">从最小 MVP 到生产级运行时</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="btn ghost" id="resetBtn" title="清空场景内部状态（记忆等）">重置</button>
+                <button class="btn ghost only-mobile" id="toggleArticle">文章</button>
+            </div>
+        </header>
+
+        <section class="chat-area" id="chatArea"><!-- 内容由 app.js 渲染 --></section>
+
+        <div class="samples" id="samples"><!-- 示例问题 --></div>
+
+        <footer class="composer">
+            <div class="composer-inner">
+                <textarea id="input" rows="1" placeholder="输入消息，Enter 发送，Shift+Enter 换行"></textarea>
+                <button class="btn primary" id="sendBtn">发送</button>
+            </div>
+        </footer>
+    </main>
+
+    <!-- ==================== 右侧：文章解读 ==================== -->
+    <aside class="article-panel" id="articlePanel">
+        <div class="panel-resizer" id="panelResizer" title="拖动调整宽度，双击复位"><span class="grip"></span></div>
+        <div class="article-head">
+            <span class="article-tag">📖 原理文章</span>
+            <button class="btn ghost only-mobile" id="closeArticle">收起</button>
+        </div>
+        <article class="article-body" id="articleBody"><!-- 文章由 app.js 渲染 --></article>
+    </aside>
+
+</div>
+
+<!-- ==================== 模型设置弹窗 ==================== -->
+<div class="modal-mask" id="modelModal" hidden>
+    <div class="modal">
+        <div class="modal-head">
+            <h3>⚙ 模型配置</h3>
+            <button class="btn ghost" id="closeModelModal">✕</button>
+        </div>
+        <p class="modal-tip">填写任意 <b>OpenAI 兼容</b>接口（DeepSeek / 通义 / 智谱 / GLM / Ollama…），保存后立即热生效并持久化到 config.properties。</p>
+
+        <label class="field">
+            <span>接口地址 base-url</span>
+            <input id="cfgBaseUrl" placeholder="http://127.0.0.1:8777/v1">
+        </label>
+        <label class="field">
+            <span>API Key</span>
+            <input id="cfgApiKey" type="password" placeholder="留空表示沿用已保存的 Key">
+        </label>
+        <label class="field">
+            <span>模型名称 model</span>
+            <input id="cfgModel" placeholder="glm-5.3-flash">
+        </label>
+
+        <div class="modal-status" id="modelStatus"></div>
+
+        <div class="modal-actions">
+            <button class="btn ghost" id="testModelBtn">测试连接</button>
+            <button class="btn ghost" id="useMockBtn">使用 Mock 演示</button>
+            <span class="flex-space"></span>
+            <button class="btn primary" id="saveModelBtn">保存并生效</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="js/data.js"></script>
+<script src="js/articles.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

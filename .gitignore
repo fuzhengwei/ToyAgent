@@ -1,0 +1,6 @@
+target/
+*.class
+config.properties
+.DS_Store
+.idea/
+*.iml

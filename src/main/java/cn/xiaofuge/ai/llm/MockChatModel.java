@@ -1,0 +1,331 @@
+package cn.xiaofuge.ai.llm;
+
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * 教学演示用 Mock 模型：不联网、不花钱，让 12 个场景开箱即跑。
+ * <p>
+ * 它并非"真智能"，而是按场景预设了符合协议的返回（例如工具调用时
+ * 返回 JSON 决策、ReAct 时返回 Thought/Action），让学习者可以完整
+ * 观察智能体的「骨架」如何运转。配置真实 API Key 后骨架不变，
+ * 换上真大脑即可。
+ */
+public final class MockChatModel implements ChatModel {
+
+    private final String scenario;
+
+    public MockChatModel(String scenario) {
+        this.scenario = scenario;
+    }
+
+    @Override
+    public String chat(List<Message> messages) {
+        String system = messages.get(0).content();
+        String last = lastUserText(messages);
+        String all = messages.stream().map(Message::content).reduce("", (a, b) -> a + "\n" + b);
+
+        return switch (scenario) {
+            case "step01" -> mockChat(last);
+            case "step02" -> mockPrompt(last, system);
+            case "step03" -> mockReAct(all, last);
+            case "step04" -> mockToolCall(last);
+            case "step05" -> mockMemory(all, last);
+            case "step06" -> mockRouter(last);
+            case "step07" -> mockMcp(last);
+            case "step08" -> mockSkill(all, last);
+            case "step09" -> mockRag(all, last);
+            case "step10" -> mockMulti(all, system);
+            case "step11" -> mockLoop(last, all);
+            case "step12" -> mockWorkflow(all, last);
+            case "step13" -> mockFull(all, last);
+            default -> "（Mock 模型）收到：" + last;
+        };
+    }
+
+    private String lastUserText(List<Message> messages) {
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            if (messages.get(i).role().equals("user")) return messages.get(i).content();
+        }
+        return "";
+    }
+
+    // ------------------------------------------------------------- step01 对话
+
+    private String mockChat(String input) {
+        if (input.contains("你好") || input.contains("hi") || input.contains("hello")) {
+            return "你好！我是 ToyAgent 里的最小智能体。我的全部实现只有一个方法：chat(input)。输入进来，模型处理，回答出去 —— 这就是智能体的最小 MVP。";
+        }
+        return "（Mock 模型）已收到你的消息：「" + clip(input) + "」。\n"
+                + "Step01 的实现没有策略、没有工具、没有记忆 —— 每次对话都是一次独立的「输入 → 模型 → 输出」。\n"
+                + "配置真实 API Key 后，这句回复将由真实大模型生成。继续试试右边的示例问题吧。";
+    }
+
+    // ------------------------------------------------------------- step02 提示词
+
+    private String mockPrompt(String input, String system) {
+        boolean oneLine = input.contains("一句话");
+        if (oneLine) {
+            return "好的，遵守「一句话」约束：智能体就是一个用大模型做决策、用工具做执行的程序。";
+        }
+        return "好的，我是你的技术助理（角色由系统提示词设定）。「" + clip(input) + "」可以这样理解：\n\n"
+                + "1. 定义 —— 智能体 = 大模型(大脑) + 工具(手脚) + 循环(节拍)。\n"
+                + "2. 原理 —— 模型根据系统提示词中的人设与约束来组织回答，本条回复就是模板化输出的效果。\n"
+                + "3. 建议 —— 好提示词 = 明确角色 + 交代背景 + 给出任务与约束，这正是 Step02 代码里 systemPrompt 的三层结构。\n\n"
+                + "（Mock 模型按系统提示词的格式约定作答；真实模型会表现出同样的角色倾向。）";
+    }
+
+    // ------------------------------------------------------------- step13 全流程
+
+    /** 与 step03 同一套 ReAct JSON 协议，但画像信息会让回答更「有记忆」。 */
+    private String mockFull(String all, String last) {
+        String portrait = "";
+        if (all.contains("名字={")) {
+            portrait = "，" + extractAfter(all, "名字={").replaceFirst("\\}.*", "") + "同学";
+        } else if (all.contains("喜好={")) {
+            portrait = "，还记得你喜欢" + extractAfter(all, "喜好={").replaceFirst("\\}.*", "");
+        }
+        if (all.contains("Observation:")) {
+            String obs = extractAfter(all, "Observation:");
+            return Json.write(Map.of(
+                    "thought", "工具结果已返回，结合记忆与观察结果组织最终回答",
+                    "final", clip(obs) + " —— 本轮完整走过了：守卫 → 记忆 → 循环 → 工具 → 输出校验 → 回写记忆" + (portrait.isEmpty() ? "。" : "（" + portrait.replaceFirst("，", "") + "）。")));
+        }
+        if (last.matches(".*\\d+\\s*[+\\-*/]\\s*\\d+.*")) {
+            Matcher m = Pattern.compile("(\\d+\\s*[+\\-*/]\\s*\\d+)").matcher(last);
+            String expr = m.find() ? m.group(1) : "1+1";
+            return Json.write(Map.of(
+                    "thought", "有算式，调用计算器工具，不能靠心算",
+                    "action", "calculator",
+                    "action_input", expr));
+        }
+        String city = findCity(last);
+        if (!city.equals("北京") || last.contains("天气")) {
+            return Json.write(Map.of(
+                    "thought", "问题需要实时数据，先调天气工具",
+                    "action", "get_weather",
+                    "action_input", city));
+        }
+        return Json.write(Map.of(
+                "thought", "普通寒暄无需工具，直接结合记忆回答",
+                "final", "你好" + (portrait.isEmpty() ? "！" : portrait + "！")
+                        + "我是全流程智能体：守卫已放行你的输入，记忆里" + (portrait.isEmpty() ? "还没有你的档案" : "有你的画像")
+                        + "，本轮无需调用工具即可作答。"));
+    }
+
+    // ------------------------------------------------------------- step03 ReAct
+
+    private String mockReAct(String all, String last) {
+        if (all.contains("Observation:")) {
+            String obs = extractAfter(all, "Observation:");
+            return Json.write(Map.of(
+                    "thought", "已拿到工具观察结果，可以回答用户了",
+                    "final", "根据工具查询结果：" + clip(obs) + " —— 这就是 ReAct：先想（Thought）、再做（Action）、看结果（Observation），直到能给出最终答案（Final Answer）。"));
+        }
+        if (last.matches(".*\\d+\\s*[+\\-*/]\\s*\\d+.*")) {
+            Matcher m = Pattern.compile("(\\d+\\s*[+\\-*/]\\s*\\d+)").matcher(last);
+            String expr = m.find() ? m.group(1) : "1+1";
+            return Json.write(Map.of(
+                    "thought", "这是一个算式，我不能心算，应该调用计算器工具保证准确",
+                    "action", "calculator",
+                    "action_input", expr));
+        }
+        String city = findCity(last);
+        return Json.write(Map.of(
+                "thought", "用户询问了天气相关的问题，我需要先调用天气工具获取实时数据",
+                "action", "get_weather",
+                "action_input", city));
+    }
+
+    // ------------------------------------------------------------- step04 工具调用
+
+    private String mockToolCall(String last) {
+        // 工具结果回填轮：不再发起调用，基于事实生成回答
+        if (last.contains("执行结果") || last.contains("Observation")) {
+            String fact = extractAfter(last, "执行结果");
+            return "根据工具返回的结果：" + (fact.isBlank() ? clip(last) : clip(fact)) + "，这就是你要的答案 —— 工具调用链闭环完成。";
+        }
+        if (last.contains("天气") || last.contains("weather")) {
+            return Json.write(Map.of(
+                    "tool", "get_weather",
+                    "arguments", Map.of("city", findCity(last))));
+        }
+        Matcher m = Pattern.compile("(\\d+\\s*[+\\-*/]\\s*\\d+)").matcher(last);
+        if (m.find()) {
+            return Json.write(Map.of(
+                    "tool", "calculator",
+                    "arguments", Map.of("expression", m.group(1))));
+        }
+        return "这个问题不需要调用工具，我直接回答：「" + clip(last) + "」—— 工具调用的关键在于：模型自己判断「要不要用工具、用哪个、参数是什么」。";
+    }
+
+    // ------------------------------------------------------------- step05 记忆
+
+    private String mockMemory(String all, String last) {
+        // 从完整对话历史里找"我叫X"，真实体现"记忆 = 把历史放进上下文"
+        Matcher m = Pattern.compile("我叫([\\u4e00-\\u9fa5A-Za-z0-9]{1,10})").matcher(all);
+        String remembered = null;
+        while (m.find()) remembered = m.group(1);
+
+        if (last.contains("我叫")) {
+            return "你好，" + remembered + "！我已把你的名字放进对话历史（注意看右侧的「记忆窗口」计数）。";
+        }
+        if (last.contains("叫什么") || last.contains("记得") || last.contains("谁")) {
+            return remembered != null
+                    ? "当然记得，你叫「" + remembered + "」。我没有数据库 —— 是因为之前那轮对话还在上下文窗口里，这就是短期记忆的全部秘密。"
+                    : "目前的历史里还没有你的名字，先告诉我「我叫XX」吧。";
+        }
+        if (last.contains("压缩") || last.contains("总结")) {
+            return "已对历史对话做了压缩摘要：保留关键事实（如你的名字、讨论主题），丢弃寒暄与重复内容 —— 滑窗 + 摘要，就是上下文工程最常用的两板斧。";
+        }
+        return "（Mock 模型）这一轮我带着 " + countHistory(all) + " 条历史消息在工作。多轮对话 = 每次都把「系统提示词 + 全部历史 + 新输入」发给模型。";
+    }
+
+    private long countHistory(String all) {
+        return all.lines().filter(l -> !l.isBlank()).count();
+    }
+
+    // ------------------------------------------------------------- step06 路由
+
+    private String mockRouter(String last) {
+        String intent;
+        if (last.contains("天气") || last.contains("weather")) intent = "weather";
+        else if (last.matches(".*\\d+\\s*[+\\-*/]\\s*\\d+.*")) intent = "math";
+        else intent = "chat";
+        return Json.write(Map.of(
+                "intent", intent,
+                "reason", "根据用户输入关键词与语义判断下一步走向"));
+    }
+
+    // ------------------------------------------------------------- step07 MCP
+
+    private String mockMcp(String last) {
+        // 工具结果回填轮：不再发起调用
+        if (last.contains("工具结果") || last.contains("Observation")) {
+            String fact = extractAfter(last, "工具结果");
+            return "基于 MCP Server 返回的事实：" + (fact.isBlank() ? clip(last) : clip(fact)) + " —— 标准协议下的调用链闭环完成。";
+        }
+        if (last.contains("天气") || last.contains("weather")) {
+            return Json.write(Map.of(
+                    "method", "tools/call",
+                    "params", Map.of("name", "get_weather", "arguments", Map.of("city", findCity(last)))));
+        }
+        return "（Mock 模型）MCP 的核心是把「工具」标准化：统一注册、统一发现（tools/list）、统一调用（tools/call）。这个问题我直接回答即可，无需调用工具。";
+    }
+
+    // ------------------------------------------------------------- step08 技能
+
+    private String mockSkill(String all, String last) {
+        // 技能执行轮：travel_plan 技能内的模型调用按角色作答
+        if (all.contains("旅行顾问")) {
+            return "杭州出行攻略：① 当前晴，27℃，适宜户外；② 建议上午游西湖，下午避晒逛馆；③ 早晚温差小，轻装出行即可。（由 L1 技能组合天气与时间工具产出）";
+        }
+        String skill;
+        if (last.contains("旅行") || last.contains("攻略") || last.contains("旅游")) skill = "travel_plan";
+        else if (last.contains("天气")) skill = "weather_report";
+        else skill = "free_chat";
+        return Json.write(Map.of(
+                "skill", skill,
+                "reason", "依据输入语义匹配已注册技能"));
+    }
+
+    // ------------------------------------------------------------- step09 RAG
+
+    private String mockRag(String all, String last) {
+        String ctx = extractAfter(all, "【参考资料】");
+        if (!ctx.isBlank()) {
+            String firstLine = ctx.lines().findFirst().orElse("相关资料");
+            return "根据检索到的资料：「" + clip(firstLine) + "」……\n\n"
+                    + "回答基于知识库片段 [1][2] 生成 —— 模型只负责「戴着资料说话」，事实由检索保证，这就是 RAG 解决模型幻觉与知识过期的思路。";
+        }
+        return "（Mock 模型）知识库中未命中相关片段时，我会如实回答不知道，而不是编造 —— 拒答也是 RAG 的重要能力。";
+    }
+
+    // ------------------------------------------------------------- step10 多智能体
+
+    private String mockMulti(String all, String system) {
+        if (system.contains("规划者")) {
+            return Json.write(Map.of(
+                    "plan", List.of(
+                            Map.of("role", "研究员", "task", "围绕主题收集要点"),
+                            Map.of("role", "写手", "task", "把要点组织成一篇短文"),
+                            Map.of("role", "审查员", "task", "检查事实与结构，不通过则打回"))));
+        }
+        if (system.contains("研究员")) {
+            return "研究笔记：① 智能体的本质是模型驱动的循环；② 工具扩展了模型的行动边界；③ 工程化决定上限。";
+        }
+        if (system.contains("审查员")) {
+            return Json.write(Map.of("pass", true, "comment", "结构完整、表述准确，建议保留要点式风格"));
+        }
+        if (all.contains("研究笔记")) {
+            return "短文：智能体并不神秘 —— 它是一个让大模型「边想边做」的循环程序：模型负责决策，工具负责执行，记忆负责延续，工程负责兜底。（由写手智能体基于研究笔记产出）";
+        }
+        return "（Mock 模型）已收到任务。";
+    }
+
+    // ------------------------------------------------------------- step11 Loop + 守卫
+
+    private String mockLoop(String last, String all) {
+        if (all.contains("Observation:")) {
+            String obs = extractAfter(all, "Observation:");
+            return Json.write(Map.of(
+                    "thought", "信息足够，输出最终答案",
+                    "final", "循环结束，最终回答：" + clip(obs)));
+        }
+        return Json.write(Map.of(
+                "thought", "进入运行时循环，先获取所需信息",
+                "action", "get_weather",
+                "action_input", findCity(last)));
+    }
+
+    // ------------------------------------------------------------- step12 工作流
+
+    private String mockWorkflow(String all, String last) {
+        if (all.contains("[节点:classify]")) {
+            String next = last.contains("天气") || last.matches(".*\\d+\\s*[+\\-*/].*") ? "tool" : "faq";
+            return Json.write(Map.of("next", next, "reason", "意图分类节点给出路由"));
+        }
+        if (all.contains("[节点:tool]")) {
+            if (last.matches(".*\\d+\\s*[+\\-*/]\\s*\\d+.*")) {
+                Matcher m = Pattern.compile("(\\d+\\s*[+\\-*/]\\s*\\d+)").matcher(last);
+                return Json.write(Map.of("tool", "calculator", "arguments", Map.of("expression", m.find() ? m.group(1) : "1+1")));
+            }
+            return Json.write(Map.of("tool", "get_weather", "arguments", Map.of("city", findCity(last))));
+        }
+        if (all.contains("Observation:")) {
+            return "综合以上节点结果，这里是最终回答：" + clip(extractAfter(all, "Observation:")) + "（由 polish 节点整理输出）。";
+        }
+        if (all.contains("[节点:polish]")) {
+            String base = extractAfter(all, "前序产出: ").lines().findFirst().orElse("");
+            return base.isBlank() ? "润色完成：「" + clip(last) + "」。" : "润色完成：" + clip(base);
+        }
+        return "这是 FAQ 节点的直接回答。「" + clip(last) + "」属于常见问题，无需工具，命中预设答案后进入 polish 润色。";
+    }
+
+    // ------------------------------------------------------------- 工具方法
+
+    private static final Map<String, String> CITIES = Map.of(
+            "北京", "晴，26℃", "上海", "多云，28℃", "广州", "雷阵雨，31℃",
+            "深圳", "阵雨，30℃", "杭州", "晴，27℃", "成都", "阴，22℃");
+
+    private String findCity(String text) {
+        for (String city : CITIES.keySet()) {
+            if (text.contains(city)) return city;
+        }
+        return "北京";
+    }
+
+    private String extractAfter(String text, String marker) {
+        int idx = text.lastIndexOf(marker);
+        if (idx < 0) return "";
+        return text.substring(idx + marker.length()).replaceFirst("^[\\s:：]+", "").trim();
+    }
+
+    private String clip(String s) {
+        String one = s.replaceAll("\\s+", " ").trim();
+        return one.length() > 60 ? one.substring(0, 60) + "…" : one;
+    }
+}

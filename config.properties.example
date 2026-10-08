@@ -1,0 +1,12 @@
+# ToyAgent 模型配置示例
+# 复制本文件为 config.properties 并填入你的 OpenAI 兼容 API 信息。
+# 若不配置（api-key 留空），项目自动切换为 Mock 模型，所有场景仍可完整演示。
+
+# OpenAI 兼容接口地址（DeepSeek / 通义 / 智谱 / 火山方舟 等均可）
+base-url=https://api.deepseek.com/v1
+
+# API Key（留空则使用 Mock 模型）
+api-key=
+
+# 模型名称
+model=deepseek-chat
