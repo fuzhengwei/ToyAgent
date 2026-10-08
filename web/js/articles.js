@@ -6,8 +6,8 @@
 const ARTICLES = {
 
   home: {
-    title: "ToyAgent：用 14 个接口类讲清楚智能体",
-    lede: "一个接口类，就是一个智能体实现的最小 MVP。由浅入深 14 个场景，覆盖《AI Agent 通识教程》核心内容。",
+    title: "ToyAgent：用 16 个接口类讲清楚智能体",
+    lede: "一个接口类，就是一个智能体实现的最小 MVP。由浅入深 16 个场景，覆盖《AI Agent 通识教程》核心内容。",
     chapters: [],
     html: `
 <h2>一句话读懂本项目</h2>
@@ -19,10 +19,10 @@ const ARTICLES = {
 <div class="callout core">
   <div class="co-title">💡 核心公式</div>
   智能体 = 大模型（大脑）+ 工具（手脚）+ 记忆（延续）+ 循环（节拍）+ 工程化（兜底）。<br>
-  12 个场景，就是这个公式逐项展开的过程。
+  16 个场景，就是这个公式逐项展开的过程。
 </div>
 
-<h2>14 个场景的演进地图</h2>
+<h2>16 个场景的演进地图</h2>
 <table>
   <tr><th>场景</th><th>接口类</th><th>新增能力</th><th>对应教程</th></tr>
   <tr><td>01 对话</td><td><code>ChatAgent</code></td><td>最小 MVP：接通模型</td><td>ch01-03</td></tr>
@@ -39,16 +39,18 @@ const ARTICLES = {
   <tr><td>12 工作流</td><td><code>WorkflowAgent</code></td><td>状态机编排（LangGraph 思想）</td><td>ch11b/15</td></tr>
   <tr><td>13 全流程</td><td><code>FullAgent</code></td><td>守卫+记忆+ReAct+工具一条链路</td><td>ch21/22</td></tr>
   <tr><td>14 LLM-Wiki</td><td><code>WikiAgent</code></td><td>知识编译与持久化</td><td>ch13/26</td></tr>
+  <tr><td>15 工具注册表</td><td><code>RegistryAgent</code></td><td>ToolDefinition 协议 + 注册/注销</td><td>dsh-java</td></tr>
+  <tr><td>16 ReAct 运行时</td><td><code>RuntimeAgent</code></td><td>turn/step 循环 + 上下文裁剪 + TurnEndReason</td><td>dsh-java</td></tr>
 </table>
 
 <h2>教程章节怎么对上？</h2>
-<p>左侧 14 个场景覆盖了教程中<strong>「能用一个接口类实现」</strong>的部分（概念篇、大脑篇、手脚篇、神经系统篇、RAG）。教程中偏平台与工程化的章节，对应的工程手段已内嵌在场景实现里：</p>
+<p>左侧 16 个场景覆盖了教程中<strong>「能用一个接口类实现」</strong>的部分（概念篇、大脑篇、手脚篇、神经系统篇、RAG）。教程中偏平台与工程化的章节，对应的工程手段已内嵌在场景实现里：</p>
 <ul>
   <li><strong>ch09 提示词工程 / ch22 Harness</strong> → 场景 02 的三层提示词 + 场景 11 的运行时外壳</li>
   <li><strong>ch13 Dify/Coze 可视化编排</strong> → 场景 12 的节点 + 条件边就是可视化编排的后端本质</li>
   <li><strong>ch14 CLI Agent / ch15 GUI Agent</strong> → 工具侧换成 Shell / 浏览器执行器即可，骨架同场景 04</li>
   <li><strong>ch17 评估 / ch19 部署 / ch20 推理框架</strong> → 工程化运维篇，模型换 Ollama/vLLM 端点即可（本项目零依赖，改 <code>config.properties</code> 即接入）</li>
-  <li><strong>ch23-27 展望篇</strong> → 读完 14 个场景的代码，回头看展望篇会非常轻松</li>
+  <li><strong>ch23-27 展望篇</strong> → 读完 16 个场景的代码，回头看展望篇会非常轻松</li>
 </ul>
 
 <h2>怎么跑起来</h2>
@@ -848,6 +850,107 @@ runNode("polish", state);</code></pre>
   <div class="co-title">🗺 进阶路径</div>
   消化完这个场景，回到总览页的「学完之后 · 进阶实战」：教程实战篇章（RAG / CLI Agent / GUI Agent）继续拓宽度，星球工程（ai-agent / ai-agent-scaffold）里看这些环节的工业级写法。
 </div>
+`
+  },
+
+  step15: {
+    title: "工具注册表：一个接口 = 一个工具",
+    lede: "把工具从写死的 switch 里解放出来：统一协议 + 注册表，注册即生效、注销即消失。",
+    chapters: ["dsh-java · ToolDefinition / ToolRegistry"],
+    html: `
+<h2>switch 的天花板</h2>
+<p>Step03/04 里加一个工具要改两处：系统提示词的清单 + 执行器的 switch 分支。工具多了以后，这两处必然失同步 —— 提示词说有的工具执行器没有，或者反过来。</p>
+<div class="callout core">
+  <div class="co-title">💡 解法：协议 + 注册表</div>
+  参考 deepseek-harness-java 的 ToolDefinition（70 行接口）+ ToolRegistry：<strong>实现协议四件套，注册进注册表，模型就能"看见"</strong>。提示词清单由注册表自动渲染，永远与实际可调用工具一致。
+</div>
+
+<h2>协议四件套</h2>
+<pre><code data-lang="java">public interface ToolDefinition {
+    String name();                          // 模型调用标识
+    String description();                   // 用途：模型选工具的唯一依据
+    Map&lt;String, String&gt; parameters();       // 参数说明（生产中是 JSON Schema）
+    String execute(Map&lt;String, Object&gt; args); // 执行手脚
+    default boolean concurrencySafe() { return false; } // 可否并行（预留）
+}
+
+// 一个 record 就是一个工具
+record WeatherTool() implements ToolDefinition {
+    public String name() { return "get_weather"; }
+    public String description() { return "查询指定城市的实时天气"; }
+    public String execute(Map&lt;String, Object&gt; args) { ... }
+}</code></pre>
+
+<h2>注册表的三职责</h2>
+<table>
+  <tr><th>职责</th><th>方法</th><th>关键设计</th></tr>
+  <tr><td>注册</td><td><code>register(tool)</code></td><td>返回<strong>注销器 Runnable</strong> —— 持有它才能摘除工具，"注册-回收对称性"</td></tr>
+  <tr><td>发现</td><td><code>lookup(name)</code></td><td>执行器只查表不认具体工具</td></tr>
+  <tr><td>清单生成</td><td><code>promptCatalog()</code></td><td>自动渲染成系统提示词工具清单，<strong>注册即生效、注销即消失</strong></td></tr>
+</table>
+<pre><code data-lang="java">Runnable disposer = registry.register(new WeatherTool());
+disposer.run();   // 注销：模型下一次对话就"看不见"这个工具了</code></pre>
+
+<h2>试试这样玩</h2>
+<ul>
+  <li>发「查看工具清单」—— 看注册表内容，它就是模型每次看到的清单；</li>
+  <li>发「卸载：get_time」—— 注销器执行，工具被摘除；</li>
+  <li>再问「现在几点了？」—— 模型查无此工具，只能如实说没有。</li>
+</ul>
+<p>生产对照：dsh-java 里插件停止/卸载时，宿主正是靠注销器回收工具、系统提示词与 Hook 注册项 —— <strong>插件贡献的每一样东西都能被完整收回</strong>。MCP 协议（场景 07）则是这套协议的跨进程标准化版本。</p>
+`
+  },
+
+  step16: {
+    title: "ReAct 运行时：turn/step 两级循环 + 上下文裁剪",
+    lede: "参考 deepseek-harness-java 的 ReactLoopAgent（994 行）拆出的教学骨架：循环只能以 TurnEndReason 收场。",
+    chapters: ["dsh-java · ReactLoopAgent / TurnEndReason"],
+    html: `
+<h2>从"循环"到"运行时"</h2>
+<p>Step03 的 ReAct 循环只有一个 while。真实的运行时（dsh-java 的 ReactLoopAgent，994 行）多了三样东西：<strong>两级循环、上下文预算、统一的结束原因</strong>。本场景把这三样拆出来讲。</p>
+
+<h2>机制一：turn/step 两级循环</h2>
+<div class="flow">
+  <span class="fnode">chat() = 1 个 turn</span><span class="farrow">→</span>
+  <span class="fnode">while = step 循环</span><span class="farrow">→</span>
+  <span class="fnode">模型 / 工具续步</span><span class="farrow">→</span>
+  <span class="fnode">TurnEndReason 收场</span>
+</div>
+<p>与 Step03 的关键区别：工具执行完<strong>不结束回合，而是续步</strong>（mid-turn continuation）—— 观察结果进历史，循环继续，直到出现结束原因。</p>
+<pre><code data-lang="java">private TurnEndReason runTurn(String input) {
+    for (long step = 1; step &lt;= MAX_STEPS_PER_TURN; step++) {
+        String raw = model.chat(buildRequest());   // 系统提示词 + 裁剪后的历史
+        // 模型给出 final → Completed；发起工具 → 执行后续步
+        if (hasFinal(raw)) return new TurnEndReason.Completed("模型给出最终答案");
+        String obs = executeTool(raw);
+        history.add(Message.user("Observation: " + obs));  // 观察回填 → 续步
+    }
+    return new TurnEndReason.MaxSteps(MAX_STEPS_PER_TURN); // 保险丝
+}</code></pre>
+
+<div class="callout core">
+  <div class="co-title">💡 TurnEndReason：sealed 封闭类型</div>
+  <code>sealed interface TurnEndReason permits Completed, MaxSteps, Error</code> —— 所有"循环为什么停"被收敛成一个封闭代数类型。sealed 保证编译器穷尽检查：新增结束原因时，所有处理它的地方都会被编译器提醒补分支。
+</div>
+
+<h2>机制二：上下文裁剪 truncateToBudget</h2>
+<pre><code data-lang="java">// token 估算：教学化近似 token ≈ 字符数 / 4（dsh-java 同款）
+int tokens = history.stream().mapToInt(m -&gt; m.content().length() / 4).sum();
+// 超预算：从最老的消息开始丢，保底留最近 4 条
+while (tokens &gt; BUDGET &amp;&amp; history.size() &gt; KEEP_MIN) history.remove(0);</code></pre>
+<p>历史跨对话累积，多聊几轮后轨迹里会出现「上下文裁剪」事件 —— 这就是 dsh-java 在每次调模型前做的事（它还叠了 LLM 摘要压缩，见场景 05 与 14）。</p>
+
+<h2>机制三：步数保险丝</h2>
+<p>单回合最多 6 步（dsh-java 生产值 50）。发「死循环测试」—— Mock 模型会永远发起 echo 工具调用，亲眼看到 MAX_STEPS 保险丝起跳，回合以 <code>TurnEndReason.MaxSteps</code> 收场。</p>
+
+<h2>和场景 11 的分工</h2>
+<table>
+  <tr><th></th><th>11 · Loop 运行时</th><th>16 · ReAct 运行时</th></tr>
+  <tr><td>关注点</td><td>输入/输出守卫、异常兜底</td><td>循环结构本身：两级驱动 + 预算 + 结束原因</td></tr>
+  <tr><td>回答的问题</td><td>"跑飞了怎么办"</td><td>"循环怎么停、上下文怎么管"</td></tr>
+  <tr><td>对应 dsh-java</td><td>Guard / Harness 层</td><td>ReactLoopAgent（994 行）教学骨架</td></tr>
+</table>
+<p>消化完这两个场景，再去看 dsh-java 源码：ToolDefinition（70 行）→ ToolRegistry → ReactLoopAgent → ToolCallExecutor（763 行并行调度），就是从玩具到工业级的完整阶梯。</p>
 `
   }
 };

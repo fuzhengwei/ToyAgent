@@ -42,6 +42,8 @@ public final class MockChatModel implements ChatModel {
             case "step11" -> mockLoop(last, all);
             case "step12" -> mockWorkflow(all, last);
             case "step13" -> mockFull(all, last);
+            case "step15" -> mockRegistry(last);
+            case "step16" -> mockRuntime(all, last);
             default -> "（Mock 模型）收到：" + last;
         };
     }
@@ -303,6 +305,68 @@ public final class MockChatModel implements ChatModel {
             return base.isBlank() ? "润色完成：「" + clip(last) + "」。" : "润色完成：" + clip(base);
         }
         return "这是 FAQ 节点的直接回答。「" + clip(last) + "」属于常见问题，无需工具，命中预设答案后进入 polish 润色。";
+    }
+
+    // ------------------------------------------------------------- step15 工具注册表
+
+    /** 与 step04 同一套 {"tool","arguments"} 协议，但工具清单来自注册表。 */
+    private String mockRegistry(String last) {
+        if (last.contains("执行结果")) {
+            String fact = extractAfter(last, "执行结果");
+            return "根据工具返回的结果：" + (fact.isBlank() ? clip(last) : clip(fact)) + " —— 执行器全程只查注册表，不认识任何具体工具。";
+        }
+        if (last.contains("天气") || last.contains("weather")) {
+            return Json.write(Map.of("tool", "get_weather", "arguments", Map.of("city", findCity(last))));
+        }
+        Matcher m = Pattern.compile("(\\d+\\s*[+\\-*/]\\s*\\d+)").matcher(last);
+        if (m.find()) {
+            return Json.write(Map.of("tool", "calculator", "arguments", Map.of("expression", m.group(1))));
+        }
+        if (last.contains("几点") || last.contains("时间")) {
+            return Json.write(Map.of("tool", "get_time", "arguments", Map.of()));
+        }
+        return "这个问题不需要调用工具，直接回答即可 —— 工具清单由注册表动态生成，注册即生效、注销即消失。";
+    }
+
+    // ------------------------------------------------------------- step16 ReAct 运行时
+
+    /** ReAct 协议；「死循环测试」会永远发起 echo 工具调用，触发 MAX_STEPS 保险丝。 */
+    private String mockRuntime(String all, String last) {
+        // echo 的观察结果继续发起 echo —— 模拟失控场景，直到保险丝起跳
+        if (last.startsWith("Observation: echo:")) {
+            return Json.write(Map.of(
+                    "thought", "任务还没完成，继续调用 echo（模拟失控）",
+                    "action", "echo",
+                    "action_input", "tick"));
+        }
+        if (last.contains("死循环") || last.contains("循环测试")) {
+            return Json.write(Map.of(
+                    "thought", "这个任务永远做不完（模拟失控场景）",
+                    "action", "echo",
+                    "action_input", "tick"));
+        }
+        if (all.contains("Observation:")) {
+            String obs = extractAfter(all, "Observation:");
+            return Json.write(Map.of(
+                    "thought", "已拿到观察结果，信息足够，结束本回合",
+                    "final", "根据工具查询结果：" + clip(obs) + "（turn 以 TurnEndReason.Completed 收场）"));
+        }
+        Matcher m = Pattern.compile("(\\d+\\s*[+\\-*/]\\s*\\d+)").matcher(last);
+        if (m.find()) {
+            return Json.write(Map.of(
+                    "thought", "有算式，调用计算器，不能心算",
+                    "action", "calculator",
+                    "action_input", m.group(1)));
+        }
+        if (last.contains("天气") || last.contains("weather")) {
+            return Json.write(Map.of(
+                    "thought", "需要实时数据，先调天气工具",
+                    "action", "get_weather",
+                    "action_input", findCity(last)));
+        }
+        return Json.write(Map.of(
+                "thought", "普通对话无需工具，直接作答",
+                "final", "（Mock 模型）本轮 " + countHistory(all) + " 条历史的上下文已按预算裁剪后发给模型。多聊几轮，可在轨迹里看到「上下文裁剪」事件。"));
     }
 
     // ------------------------------------------------------------- 工具方法

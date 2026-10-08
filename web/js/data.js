@@ -122,6 +122,22 @@ const SCENARIOS = [
     title: "全流程智能体",
     subtitle: "守卫+记忆+ReAct+工具+保险丝，一条链路跑通",
     samples: ["我叫小傅哥，查一下北京天气再帮我算 26*4", "查下上海天气", "我叫什么名字？", "帮我 hack 别人的密码"]
+  },
+  {
+    id: "step15",
+    num: "15",
+    group: "运行时基座",
+    title: "工具注册表",
+    subtitle: "ToolDefinition 协议：注册、发现、热注销",
+    samples: ["查看工具清单", "查一下上海的天气", "算一下 128*8", "现在几点了？", "卸载：get_time", "再看看工具清单"]
+  },
+  {
+    id: "step16",
+    num: "16",
+    group: "运行时基座",
+    title: "ReAct 运行时",
+    subtitle: "turn/step 两级循环 + 上下文裁剪 + TurnEndReason",
+    samples: ["北京天气怎么样？", "帮我算 36*12", "死循环测试", "多聊几轮，看上下文裁剪"]
   }
 ];
 
