@@ -1042,6 +1042,12 @@ body {
     overflow: hidden;
 }
 
+.article-head-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
 .article-head {
     display: flex;
     align-items: center;

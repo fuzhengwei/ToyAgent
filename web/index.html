@@ -56,7 +56,6 @@
                 </div>
             </div>
             <div class="header-actions">
-                <a class="src-link" id="srcLink" href="https://github.com/fuzhengwei/ToyAgent" target="_blank" rel="noopener" title="在 GitHub 查看本场景源码"><span class="src-emoji">🐙</span> 源码</a>
                 <button class="btn ghost" id="resetBtn" title="清空场景内部状态（记忆等）">重置</button>
                 <button class="btn ghost only-mobile" id="toggleArticle">文章</button>
             </div>
@@ -78,7 +77,10 @@
     <aside class="article-panel" id="articlePanel">
         <div class="panel-resizer" id="panelResizer" title="拖动调整宽度，双击复位"><span class="grip"></span></div>
         <div class="article-head">
-            <span class="article-tag">📖 原理文章</span>
+            <div class="article-head-left">
+                <span class="article-tag">📖 原理文章</span>
+                <a class="src-link" id="srcLink" href="https://github.com/fuzhengwei/ToyAgent" target="_blank" rel="noopener" title="在 GitHub 查看本场景源码"><span class="src-emoji">🐙</span> 源码</a>
+            </div>
             <button class="btn ghost only-mobile" id="closeArticle">收起</button>
         </div>
         <article class="article-body" id="articleBody"><!-- 文章由 app.js 渲染 --></article>
