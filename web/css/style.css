@@ -228,6 +228,10 @@ body {
 
 .sidebar-foot b { color: var(--ink-2); }
 
+.sidebar-foot p { margin: 0; }
+
+.sidebar-foot p + p { margin-top: 4px; }
+
 .sidebar-foot .guide-link {
     color: var(--ink-2);
     text-decoration: none;
