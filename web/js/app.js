@@ -296,10 +296,10 @@
     const srcLink = $("#srcLink");
     if (id === "home") {
       srcLink.href = REPO;
-      srcLink.textContent = "⌘ GitHub 仓库";
+      srcLink.textContent = "🐙 GitHub 仓库";
     } else {
       srcLink.href = REPO + "/tree/main/src/main/java/cn/xiaofuge/ai/agent/" + id;
-      srcLink.textContent = "⌘ 源码 " + meta.num;
+      srcLink.textContent = "🐙 源码 " + meta.num;
     }
 
     // 示例问题

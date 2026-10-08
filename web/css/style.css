@@ -313,22 +313,23 @@ body {
 .src-link {
     display: inline-flex;
     align-items: center;
+    gap: 2px;
     padding: 6px 13px;
     border-radius: 8px;
-    border: 1px solid var(--accent-border);
-    background: var(--accent-soft);
-    color: var(--accent);
+    border: 1px solid var(--ink);
+    background: var(--ink);
+    color: #f6f4ef;
     font-size: 12px;
     font-weight: 600;
     text-decoration: none;
     white-space: nowrap;
-    transition: color .15s, border-color .15s, background .15s;
+    transition: background .15s, border-color .15s;
 }
 
 .src-link:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
     color: #f6f4ef;
-    background: var(--accent);
-    border-color: var(--accent);
 }
 
 .btn {
