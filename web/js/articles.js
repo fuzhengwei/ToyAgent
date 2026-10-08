@@ -6,8 +6,8 @@
 const ARTICLES = {
 
   home: {
-    title: "ToyAgent：用 13 个接口类讲清楚智能体",
-    lede: "一个接口类，就是一个智能体实现的最小 MVP。由浅入深 13 个场景，覆盖《AI Agent 通识教程》核心内容。",
+    title: "ToyAgent：用 14 个接口类讲清楚智能体",
+    lede: "一个接口类，就是一个智能体实现的最小 MVP。由浅入深 14 个场景，覆盖《AI Agent 通识教程》核心内容。",
     chapters: [],
     html: `
 <h2>一句话读懂本项目</h2>
@@ -22,7 +22,7 @@ const ARTICLES = {
   12 个场景，就是这个公式逐项展开的过程。
 </div>
 
-<h2>13 个场景的演进地图</h2>
+<h2>14 个场景的演进地图</h2>
 <table>
   <tr><th>场景</th><th>接口类</th><th>新增能力</th><th>对应教程</th></tr>
   <tr><td>01 对话</td><td><code>ChatAgent</code></td><td>最小 MVP：接通模型</td><td>ch01-03</td></tr>
@@ -37,16 +37,18 @@ const ARTICLES = {
   <tr><td>10 多智能体</td><td><code>MultiAgent</code></td><td>规划-执行-审查协作</td><td>ch10/14</td></tr>
   <tr><td>11 运行时</td><td><code>LoopAgent</code></td><td>守卫 + 保险丝 + 异常兜底</td><td>ch08b/18/21</td></tr>
   <tr><td>12 工作流</td><td><code>WorkflowAgent</code></td><td>状态机编排（LangGraph 思想）</td><td>ch11b/15</td></tr>
+  <tr><td>13 全流程</td><td><code>FullAgent</code></td><td>守卫+记忆+ReAct+工具一条链路</td><td>ch21/22</td></tr>
+  <tr><td>14 LLM-Wiki</td><td><code>WikiAgent</code></td><td>知识编译与持久化</td><td>ch13/26</td></tr>
 </table>
 
 <h2>教程章节怎么对上？</h2>
-<p>左侧 13 个场景覆盖了教程中<strong>「能用一个接口类实现」</strong>的部分（概念篇、大脑篇、手脚篇、神经系统篇、RAG）。教程中偏平台与工程化的章节，对应的工程手段已内嵌在场景实现里：</p>
+<p>左侧 14 个场景覆盖了教程中<strong>「能用一个接口类实现」</strong>的部分（概念篇、大脑篇、手脚篇、神经系统篇、RAG）。教程中偏平台与工程化的章节，对应的工程手段已内嵌在场景实现里：</p>
 <ul>
   <li><strong>ch09 提示词工程 / ch22 Harness</strong> → 场景 02 的三层提示词 + 场景 11 的运行时外壳</li>
   <li><strong>ch13 Dify/Coze 可视化编排</strong> → 场景 12 的节点 + 条件边就是可视化编排的后端本质</li>
   <li><strong>ch14 CLI Agent / ch15 GUI Agent</strong> → 工具侧换成 Shell / 浏览器执行器即可，骨架同场景 04</li>
   <li><strong>ch17 评估 / ch19 部署 / ch20 推理框架</strong> → 工程化运维篇，模型换 Ollama/vLLM 端点即可（本项目零依赖，改 <code>config.properties</code> 即接入）</li>
-  <li><strong>ch23-27 展望篇</strong> → 读完 13 个场景的代码，回头看展望篇会非常轻松</li>
+  <li><strong>ch23-27 展望篇</strong> → 读完 14 个场景的代码，回头看展望篇会非常轻松</li>
 </ul>
 
 <h2>怎么跑起来</h2>
@@ -536,6 +538,59 @@ String answer = model.chat(List.of(
 
 <h2>拒答也是能力</h2>
 <p>试试问「量子力学的泡利不相容原理」—— 知识库没命中时，模型按约定如实拒答，而不是硬编。<strong>允许模型说「不知道」，是 RAG 工程里最容易被忽略、却最重要的设计</strong>。</p>
+`,
+  },
+
+  step14: {
+    title: "LLM-Wiki：知识编译与持久化",
+    lede: "RAG 每次提问都从头翻文档；LLM-Wiki 把项目知识编译成条目、持久维护 —— 编译一次，持续复用。",
+    chapters: ["ch13 LLM-Wiki", "ch26 知识编译与持久化"],
+    html: `
+<h2>RAG 之外的另一种知识</h2>
+<p>教程第 13 章（LLM-Wiki，源自 Andrej Karpathy 的提法）区分了两类知识：</p>
+<ul>
+  <li><strong>检索型知识</strong> —— 文档、手册、网页，量大且杂，适合 <strong>RAG</strong>（场景 09）每次检索；</li>
+  <li><strong>项目知识</strong> —— 架构约定、代码规范、部署流程、业务规则。它不该每次都"翻箱倒柜"，而应<strong>编译成结构化条目，随启动直接加载</strong>。</li>
+</ul>
+<div class="callout core">
+  <div class="co-title">💡 一句话区分</div>
+  RAG：知识躺着，问一次查一次；LLM-Wiki：知识被<strong>编译一次、持久保存、增量维护</strong>。AGENTS.md / CLAUDE.md 就是它的工程形态。
+</div>
+
+<h2>本场景的骨架</h2>
+<div class="flow">
+  <span class="fnode">1. 加载 Wiki</span><span class="farrow">→</span>
+  <span class="fnode">2. 命中条目</span><span class="farrow">→</span>
+  <span class="fnode">3. 增强生成</span>
+</div>
+<pre><code data-lang="java">// 基础 Wiki：启动时编译一次（生产中来自仓库里的 AGENTS.md）
+private static final Map&lt;String, String&gt; BASE_WIKI = Map.of(
+    "架构约定", "ToyAgent 是零依赖教学项目……",
+    "代码规范", "Java 17 语法；中文 Javadoc……",
+    "部署流程", "javac 编译后启动，默认端口 8099……");
+
+// 编译指令：把对话中的知识沉淀进 Wiki 并持久化
+if (input.startsWith("编译：")) {
+    String topic = ..., content = ...;
+    userWiki.put(topic, content);   // 增量条目
+    persistUserWiki();              // 写入 wiki/user-wiki.md，重启不丢
+}</code></pre>
+
+<h2>和 RAG 场景的三个不同</h2>
+<table>
+  <tr><th>维度</th><th>09 · RAG</th><th>14 · LLM-Wiki</th></tr>
+  <tr><td>知识来源</td><td>静态文档集合，只读</td><td>内置条目 + 对话中<strong>增量编译</strong></td></tr>
+  <tr><td>生命周期</td><td>每次提问重新检索</td><td><strong>持久化</strong>（wiki/user-wiki.md），启动即恢复</td></tr>
+  <tr><td>典型问题</td><td>"这份文档里说了什么"</td><td>"这个项目的约定是什么"</td></tr>
+</table>
+
+<h2>试试这样玩</h2>
+<ul>
+  <li>先问「项目用什么代码规范？」—— 命中内置条目，回答带来源；</li>
+  <li>再说「编译：发布流程：每周三灰度，周五全量上线」—— 新条目持久化；</li>
+  <li>接着问「发布流程是什么？」—— 刚编译的知识立刻可用；点「重置」清空编译条目。</li>
+</ul>
+<p>生产化路径：条目存仓库（AGENTS.md）、bigram 换 Embedding、编译动作交给 Agent 自主维护（自我更新 Wiki）。</p>
 `
   },
 
