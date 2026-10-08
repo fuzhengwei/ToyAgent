@@ -93,7 +93,7 @@
             <h3>⚙ 模型配置</h3>
             <button class="btn ghost" id="closeModelModal">✕</button>
         </div>
-        <p class="modal-tip">填写任意 <b>OpenAI 兼容</b>接口（DeepSeek / 通义 / 智谱 / GLM / Ollama…），保存后立即热生效并持久化到 config.properties。</p>
+        <p class="modal-tip">填写任意 <b>OpenAI 兼容</b>接口（DeepSeek / 通义 / 智谱 / GLM / Ollama…）。配置只保存在<b>你自己的浏览器</b>（localStorage），随请求生效，不影响其他人。</p>
 
         <label class="field">
             <span>接口地址 base-url</span>
@@ -113,6 +113,7 @@
         <div class="modal-actions">
             <button class="btn ghost" id="testModelBtn">测试连接</button>
             <button class="btn ghost" id="useMockBtn">使用 Mock 演示</button>
+            <button class="btn ghost" id="clearModelBtn" title="删除本浏览器保存的配置，回到服务端默认">清除本地配置</button>
             <span class="flex-space"></span>
             <button class="btn primary" id="saveModelBtn">保存并生效</button>
         </div>

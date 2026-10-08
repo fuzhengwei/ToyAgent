@@ -93,6 +93,11 @@ public final class Models {
         return new OpenAiChatModel(baseUrlArg, keyArg, modelArg);
     }
 
+    /** 服务端默认 Key（只供服务端内部回填，不下发页面）。 */
+    public static String serverApiKey() {
+        return apiKey == null ? "" : apiKey;
+    }
+
     private static void save() {
         Properties props = new Properties();
         props.setProperty("base-url", baseUrl == null ? "" : baseUrl);

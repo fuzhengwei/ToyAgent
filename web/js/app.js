@@ -894,7 +894,7 @@
       const resp = await fetch("/api/" + currentId + "/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text })
+        body: JSON.stringify({ message: text, model: readLocalModelCfg() || undefined })
       });
       const data = await resp.json();
       typing.remove();
@@ -930,13 +930,38 @@
     input.style.height = Math.min(input.scrollHeight, 140) + "px";
   }
 
-  // ============================================================ 模型配置
+  // ============================================================ 模型配置（浏览器级：存各自浏览器，互不干扰）
 
+  const MODEL_CFG_KEY = "toyagent-model-config";
+
+  function readLocalModelCfg() {
+    try {
+      const raw = localStorage.getItem(MODEL_CFG_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+
+  function writeLocalModelCfg(cfg) {
+    try { localStorage.setItem(MODEL_CFG_KEY, JSON.stringify(cfg)); } catch (e) { /* 隐私模式忽略 */ }
+  }
+
+  /** 顶部徽标：优先展示本浏览器配置，未配置时回落服务端默认。 */
   async function loadModelBadge() {
+    const badge = $("#modelBadge");
+    const local = readLocalModelCfg();
+    if (local && local.mock) {
+      badge.classList.add("mock");
+      $("#modelText").textContent = "Mock 模型 · 本浏览器 · 点击配置";
+      return;
+    }
+    if (local && local.baseUrl && local.model) {
+      badge.classList.remove("mock");
+      $("#modelText").textContent = "真实模型 · " + local.model + " · 本浏览器";
+      return;
+    }
     try {
       const resp = await fetch("/api/config");
       const data = await resp.json();
-      const badge = $("#modelBadge");
       badge.classList.toggle("mock", data.mode !== "real");
       $("#modelText").textContent =
         data.mode === "real" ? "真实模型 · " + data.model : "Mock 模型 · 点击配置";
@@ -945,17 +970,30 @@
     }
   }
 
-  function openModelModal() {
+  async function openModelModal() {
     modelModal.hidden = false;
     setStatus("", "");
-    fetch("/api/model").then((r) => r.json()).then((d) => {
-      $("#cfgBaseUrl").value = d.baseUrl || "";
-      $("#cfgApiKey").value = "";
-      $("#cfgApiKey").placeholder = d.apiKeyMasked
-        ? "已保存: " + d.apiKeyMasked + "（留空沿用）"
-        : "sk-...";
-      $("#cfgModel").value = d.model || "";
-    });
+    // 先用本浏览器已保存的配置回填
+    const local = readLocalModelCfg();
+    if (local) {
+      $("#cfgBaseUrl").value = local.baseUrl || "";
+      $("#cfgApiKey").value = local.apiKey || "";
+      $("#cfgApiKey").placeholder = local.apiKey ? "已保存（留空沿用）" : "sk-...（留空则用服务端默认 Key）";
+      $("#cfgModel").value = local.model || "";
+      if (local.mock) setStatus("当前本浏览器使用 Mock 演示模型", "");
+    }
+    // 再取服务端默认做兜底提示
+    try {
+      const d = await fetch("/api/model").then((r) => r.json());
+      if (!local) {
+        $("#cfgBaseUrl").value = d.baseUrl || "";
+        $("#cfgApiKey").value = "";
+        $("#cfgApiKey").placeholder = d.apiKeyMasked
+          ? "服务端已有 Key: " + d.apiKeyMasked + "（留空沿用）"
+          : "sk-...";
+        $("#cfgModel").value = d.model || "";
+      }
+    } catch (e) { /* 服务未连接时仅编辑本地 */ }
   }
 
   function setStatus(msg, cls) {
@@ -998,39 +1036,20 @@
       setStatus("接口地址与模型名称不能为空", "err");
       return;
     }
-    setStatus("⏳ 保存中…", "");
-    try {
-      const resp = await fetch("/api/model", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ baseUrl, apiKey, model })
-      });
-      const data = await resp.json();
-      if (data.ok) {
-        setStatus("", "");
-        modelModal.hidden = true;
-        loadModelBadge();
-        toast("模型已切换: " + model + "，13 个场景热生效", "ok");
-      } else {
-        setStatus("❌ " + (data.error || "保存失败"), "err");
-      }
-    } catch (e) {
-      setStatus("❌ " + e.message, "err");
-    }
+    // 只保存到本浏览器 localStorage，不改服务端全局配置
+    writeLocalModelCfg({ baseUrl, apiKey, model });
+    setStatus("", "");
+    modelModal.hidden = true;
+    loadModelBadge();
+    toast("已保存到本浏览器: " + model + "，仅对你的浏览器生效", "ok");
   }
 
   async function useMock() {
-    try {
-      const resp = await fetch("/api/model/mock", { method: "POST" });
-      const data = await resp.json();
-      if (data.ok) {
-        modelModal.hidden = true;
-        loadModelBadge();
-        toast("已切换为 Mock 演示模型（无需 API Key）", "ok");
-      }
-    } catch (e) {
-      toast("切换失败: " + e.message, "err");
-    }
+    // 本浏览器切 Mock：写入本地，不影响其他人
+    writeLocalModelCfg({ mock: true });
+    modelModal.hidden = true;
+    loadModelBadge();
+    toast("本浏览器已切换为 Mock 演示模型（无需 API Key）", "ok");
   }
 
   // ============================================================ 事件与路由
@@ -1052,6 +1071,14 @@
   });
 
   $("#modelBadge").addEventListener("click", openModelModal);
+  $("#clearModelBtn").addEventListener("click", () => {
+    try { localStorage.removeItem(MODEL_CFG_KEY); } catch (e) { /* 忽略 */ }
+    $("#cfgBaseUrl").value = "";
+    $("#cfgApiKey").value = "";
+    $("#cfgModel").value = "";
+    loadModelBadge();
+    toast("已清除本浏览器配置，回到服务端默认模型", "ok");
+  });
   $("#closeModelModal").addEventListener("click", () => (modelModal.hidden = true));
   modelModal.addEventListener("click", (e) => {
     if (e.target === modelModal) modelModal.hidden = true;

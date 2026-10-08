@@ -16,6 +16,7 @@ import cn.xiaofuge.ai.agent.step12.WorkflowAgent;
 import cn.xiaofuge.ai.agent.step13.FullAgent;
 import cn.xiaofuge.ai.llm.ChatModel;
 import cn.xiaofuge.ai.llm.Json;
+import cn.xiaofuge.ai.llm.ModelScope;
 import cn.xiaofuge.ai.llm.Models;
 import cn.xiaofuge.ai.llm.OpenAiChatModel;
 import com.sun.net.httpserver.HttpExchange;
@@ -38,7 +39,7 @@ import java.util.concurrent.Executors;
  * 使用 JDK 自带 HttpServer（零依赖）做三件事：
  * 1. 托管 web/ 目录下的静态页面（测试界面）；
  * 2. 暴露 /api/{stepId}/chat 与 /api/{stepId}/reset，把 12 个场景接入页面；
- * 3. 模型管理：/api/model 支持「页面配置 → 持久化 → 热切换」。
+ * 3. 模型管理：配置保存在各人浏览器 localStorage，随请求携带、线程级生效，互不覆盖。
  * <p>
  * 启动：java cn.xiaofuge.ai.Application（默认端口 8099，可用 TOY_AGENT_PORT 覆盖）
  */
@@ -63,25 +64,31 @@ public final class Application {
         System.out.println("==============================================");
     }
 
-    /** 按当前配置装配 12 个场景：真实模型优先，无 Key 则装配 Mock 模型。 */
+    /** 按当前配置装配 12 个场景：真实模型优先，无 Key 则装配 Mock 模型；每个模型再包一层浏览器级作用域。 */
     private static synchronized void rebuildAgents() {
-        Map<String, Agent> map = new LinkedHashMap<>();
         ChatModel real = Models.openAiOrNull();
-        map.put("step01", new ChatAgent.Impl(real != null ? real : Models.mock("step01")));
-        map.put("step02", new PromptAgent.Impl(real != null ? real : Models.mock("step02")));
-        map.put("step03", new ReActAgent.Impl(real != null ? real : Models.mock("step03")));
-        map.put("step04", new ToolCallAgent.Impl(real != null ? real : Models.mock("step04")));
-        map.put("step05", new MemoryAgent.Impl(real != null ? real : Models.mock("step05")));
-        map.put("step06", new RouterAgent.Impl(real != null ? real : Models.mock("step06")));
-        map.put("step07", new McpAgent.Impl(real != null ? real : Models.mock("step07")));
-        map.put("step08", new SkillAgent.Impl(real != null ? real : Models.mock("step08")));
-        map.put("step09", new RagAgent.Impl(real != null ? real : Models.mock("step09")));
-        map.put("step10", new MultiAgent.Impl(real != null ? real : Models.mock("step10")));
-        map.put("step11", new LoopAgent.Impl(real != null ? real : Models.mock("step11")));
-        map.put("step12", new WorkflowAgent.Impl(real != null ? real : Models.mock("step12")));
-        map.put("step13", new FullAgent.Impl(real != null ? real : Models.mock("step13")));
+        Map<String, Agent> map = new LinkedHashMap<>();
+        map.put("step01", new ChatAgent.Impl(scoped("step01", real)));
+        map.put("step02", new PromptAgent.Impl(scoped("step02", real)));
+        map.put("step03", new ReActAgent.Impl(scoped("step03", real)));
+        map.put("step04", new ToolCallAgent.Impl(scoped("step04", real)));
+        map.put("step05", new MemoryAgent.Impl(scoped("step05", real)));
+        map.put("step06", new RouterAgent.Impl(scoped("step06", real)));
+        map.put("step07", new McpAgent.Impl(scoped("step07", real)));
+        map.put("step08", new SkillAgent.Impl(scoped("step08", real)));
+        map.put("step09", new RagAgent.Impl(scoped("step09", real)));
+        map.put("step10", new MultiAgent.Impl(scoped("step10", real)));
+        map.put("step11", new LoopAgent.Impl(scoped("step11", real)));
+        map.put("step12", new WorkflowAgent.Impl(scoped("step12", real)));
+        map.put("step13", new FullAgent.Impl(scoped("step13", real)));
         agents = map;
         System.out.println("[ToyAgent] 场景已装配，模型模式: " + (Models.isRealModel() ? Models.modelName() : "mock"));
+    }
+
+    /** 服务端默认模型（真实优先，否则 Mock）+ 浏览器级作用域包装。 */
+    private static ChatModel scoped(String stepId, ChatModel real) {
+        ChatModel fallback = real != null ? real : Models.mock(stepId);
+        return ModelScope.wrap(fallback, stepId);
     }
 
     // ------------------------------------------------------------------ 路由
@@ -193,10 +200,12 @@ public final class Application {
             return;
         }
 
-        // 解析请求体 {"message": "..."}
+        // 解析请求体 {"message": "...", "model": {浏览器级配置，可选}}
         String message;
+        Object body = null;
         try {
-            message = Json.str(Json.parse(readBody(exchange)), "message");
+            body = Json.parse(readBody(exchange));
+            message = Json.str(body, "message");
         } catch (Exception e) {
             message = null;
         }
@@ -204,6 +213,9 @@ public final class Application {
             respond(exchange, 400, errorJson("message 不能为空"));
             return;
         }
+
+        // 浏览器级模型配置：随请求携带，只对本次对话生效（多人共用服务互不覆盖）
+        bindBrowserModel(body);
 
         long start = System.currentTimeMillis();
         try {
@@ -218,7 +230,25 @@ public final class Application {
             respond(exchange, 200, Json.write(resp));
         } catch (Exception e) {
             respond(exchange, 500, errorJson("智能体执行失败: " + e.getMessage()));
+        } finally {
+            ModelScope.clear();
         }
+    }
+
+    /** 从请求体里取浏览器携带的模型配置，绑定到当前线程；没有则保持服务端默认。 */
+    private static void bindBrowserModel(Object body) {
+        if (!(body instanceof Map<?, ?> map)) return;
+        Object m = map.get("model");
+        if (!(m instanceof Map<?, ?> cfg)) return;
+        boolean mock = Boolean.TRUE.equals(cfg.get("mock"));
+        String baseUrl = str(cfg.get("baseUrl"));
+        String model = str(cfg.get("model"));
+        if (!mock && (baseUrl == null || baseUrl.isBlank() || model == null || model.isBlank())) return;
+        ModelScope.bind(new ModelScope.Config(baseUrl, str(cfg.get("apiKey")), model, mock));
+    }
+
+    private static String str(Object v) {
+        return v == null ? null : String.valueOf(v);
     }
 
     // ------------------------------------------------------------------ 静态资源
