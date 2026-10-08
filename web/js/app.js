@@ -291,6 +291,17 @@
     $("#stepSubtitle").textContent = meta.subtitle;
     document.title = meta.title + " · ToyAgent";
 
+    // 本场景源码直达链接（GitHub 仓库对应 step 包）
+    const REPO = "https://github.com/fuzhengwei/ToyAgent";
+    const srcLink = $("#srcLink");
+    if (id === "home") {
+      srcLink.href = REPO;
+      srcLink.textContent = "⌘ GitHub 仓库";
+    } else {
+      srcLink.href = REPO + "/tree/main/src/main/java/cn/xiaofuge/ai/agent/" + id;
+      srcLink.textContent = "⌘ 源码 " + meta.num;
+    }
+
     // 示例问题
     const samples = $("#samples");
     samples.innerHTML = "";
