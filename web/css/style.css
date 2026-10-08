@@ -262,7 +262,9 @@ body {
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    padding: 13px 24px;
+    height: 64px;
+    padding: 0 24px;
+    flex-shrink: 0;
     background: color-mix(in srgb, var(--bg) 88%, transparent);
     backdrop-filter: blur(8px);
     border-bottom: 1px solid var(--line);
@@ -1037,7 +1039,9 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 15px 22px;
+    height: 64px;
+    padding: 0 22px;
+    flex-shrink: 0;
     border-bottom: 1px solid var(--line);
     background: var(--bg);
 }
