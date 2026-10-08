@@ -45,7 +45,7 @@ import java.util.concurrent.Executors;
  * <p>
  * 使用 JDK 自带 HttpServer（零依赖）做三件事：
  * 1. 托管 web/ 目录下的静态页面（测试界面）；
- * 2. 暴露 /api/{stepId}/chat 与 /api/{stepId}/reset，把 12 个场景接入页面；
+ * 2. 暴露 /api/{stepId}/chat 与 /api/{stepId}/reset，把 20 个场景接入页面；
  * 3. 模型管理：配置保存在各人浏览器 localStorage，随请求携带、线程级生效，互不覆盖。
  * <p>
  * 启动：java cn.xiaofuge.ai.Application（默认端口 8099，可用 TOY_AGENT_PORT 覆盖）

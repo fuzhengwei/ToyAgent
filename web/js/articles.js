@@ -547,58 +547,6 @@ String answer = model.chat(List.of(
 `,
   },
 
-  step14: {
-    title: "LLM-Wiki：知识编译与持久化",
-    lede: "RAG 每次提问都从头翻文档；LLM-Wiki 把项目知识编译成条目、持久维护 —— 编译一次，持续复用。",
-    chapters: ["ch13 LLM-Wiki", "ch26 知识编译与持久化"],
-    html: `
-<h2>RAG 之外的另一种知识</h2>
-<p>教程第 13 章（LLM-Wiki，源自 Andrej Karpathy 的提法）区分了两类知识：</p>
-<ul>
-  <li><strong>检索型知识</strong> —— 文档、手册、网页，量大且杂，适合 <strong>RAG</strong>（场景 09）每次检索；</li>
-  <li><strong>项目知识</strong> —— 架构约定、代码规范、部署流程、业务规则。它不该每次都"翻箱倒柜"，而应<strong>编译成结构化条目，随启动直接加载</strong>。</li>
-</ul>
-<div class="callout core">
-  <div class="co-title">💡 一句话区分</div>
-  RAG：知识躺着，问一次查一次；LLM-Wiki：知识被<strong>编译一次、持久保存、增量维护</strong>。AGENTS.md / CLAUDE.md 就是它的工程形态。
-</div>
-
-<h2>本场景的骨架</h2>
-<div class="flow">
-  <span class="fnode">1. 加载 Wiki</span><span class="farrow">→</span>
-  <span class="fnode">2. 命中条目</span><span class="farrow">→</span>
-  <span class="fnode">3. 增强生成</span>
-</div>
-<pre><code data-lang="java">// 基础 Wiki：启动时编译一次（生产中来自仓库里的 AGENTS.md）
-private static final Map&lt;String, String&gt; BASE_WIKI = Map.of(
-    "架构约定", "ToyAgent 是零依赖教学项目……",
-    "代码规范", "Java 17 语法；中文 Javadoc……",
-    "部署流程", "javac 编译后启动，默认端口 8099……");
-
-// 编译指令：把对话中的知识沉淀进 Wiki 并持久化
-if (input.startsWith("编译：")) {
-    String topic = ..., content = ...;
-    userWiki.put(topic, content);   // 增量条目
-    persistUserWiki();              // 写入 wiki/user-wiki.md，重启不丢
-}</code></pre>
-
-<h2>和 RAG 场景的三个不同</h2>
-<table>
-  <tr><th>维度</th><th>09 · RAG</th><th>14 · LLM-Wiki</th></tr>
-  <tr><td>知识来源</td><td>静态文档集合，只读</td><td>内置条目 + 对话中<strong>增量编译</strong></td></tr>
-  <tr><td>生命周期</td><td>每次提问重新检索</td><td><strong>持久化</strong>（wiki/user-wiki.md），启动即恢复</td></tr>
-  <tr><td>典型问题</td><td>"这份文档里说了什么"</td><td>"这个项目的约定是什么"</td></tr>
-</table>
-
-<h2>试试这样玩</h2>
-<ul>
-  <li>先问「项目用什么代码规范？」—— 命中内置条目，回答带来源；</li>
-  <li>再说「编译：发布流程：每周三灰度，周五全量上线」—— 新条目持久化；</li>
-  <li>接着问「发布流程是什么？」—— 刚编译的知识立刻可用；点「重置」清空编译条目。</li>
-</ul>
-<p>生产化路径：条目存仓库（AGENTS.md）、bigram 换 Embedding、编译动作交给 Agent 自主维护（自我更新 Wiki）。</p>
-`
-  },
 
   step10: {
     title: "多智能体：从一个大脑到一支团队",
@@ -854,6 +802,59 @@ runNode("polish", state);</code></pre>
   <div class="co-title">🗺 进阶路径</div>
   消化完这个场景，回到总览页的「学完之后 · 进阶实战」：教程实战篇章（RAG / CLI Agent / GUI Agent）继续拓宽度，星球工程（ai-agent / ai-agent-scaffold）里看这些环节的工业级写法。
 </div>
+`
+  },
+
+  step14: {
+    title: "LLM-Wiki：知识编译与持久化",
+    lede: "RAG 每次提问都从头翻文档；LLM-Wiki 把项目知识编译成条目、持久维护 —— 编译一次，持续复用。",
+    chapters: ["ch13 LLM-Wiki", "ch26 知识编译与持久化"],
+    html: `
+<h2>RAG 之外的另一种知识</h2>
+<p>教程第 13 章（LLM-Wiki，源自 Andrej Karpathy 的提法）区分了两类知识：</p>
+<ul>
+  <li><strong>检索型知识</strong> —— 文档、手册、网页，量大且杂，适合 <strong>RAG</strong>（场景 09）每次检索；</li>
+  <li><strong>项目知识</strong> —— 架构约定、代码规范、部署流程、业务规则。它不该每次都"翻箱倒柜"，而应<strong>编译成结构化条目，随启动直接加载</strong>。</li>
+</ul>
+<div class="callout core">
+  <div class="co-title">💡 一句话区分</div>
+  RAG：知识躺着，问一次查一次；LLM-Wiki：知识被<strong>编译一次、持久保存、增量维护</strong>。AGENTS.md / CLAUDE.md 就是它的工程形态。
+</div>
+
+<h2>本场景的骨架</h2>
+<div class="flow">
+  <span class="fnode">1. 加载 Wiki</span><span class="farrow">→</span>
+  <span class="fnode">2. 命中条目</span><span class="farrow">→</span>
+  <span class="fnode">3. 增强生成</span>
+</div>
+<pre><code data-lang="java">// 基础 Wiki：启动时编译一次（生产中来自仓库里的 AGENTS.md）
+private static final Map&lt;String, String&gt; BASE_WIKI = Map.of(
+    "架构约定", "ToyAgent 是零依赖教学项目……",
+    "代码规范", "Java 17 语法；中文 Javadoc……",
+    "部署流程", "javac 编译后启动，默认端口 8099……");
+
+// 编译指令：把对话中的知识沉淀进 Wiki 并持久化
+if (input.startsWith("编译：")) {
+    String topic = ..., content = ...;
+    userWiki.put(topic, content);   // 增量条目
+    persistUserWiki();              // 写入 wiki/user-wiki.md，重启不丢
+}</code></pre>
+
+<h2>和 RAG 场景的三个不同</h2>
+<table>
+  <tr><th>维度</th><th>09 · RAG</th><th>14 · LLM-Wiki</th></tr>
+  <tr><td>知识来源</td><td>静态文档集合，只读</td><td>内置条目 + 对话中<strong>增量编译</strong></td></tr>
+  <tr><td>生命周期</td><td>每次提问重新检索</td><td><strong>持久化</strong>（wiki/user-wiki.md），启动即恢复</td></tr>
+  <tr><td>典型问题</td><td>"这份文档里说了什么"</td><td>"这个项目的约定是什么"</td></tr>
+</table>
+
+<h2>试试这样玩</h2>
+<ul>
+  <li>先问「项目用什么代码规范？」—— 命中内置条目，回答带来源；</li>
+  <li>再说「编译：发布流程：每周三灰度，周五全量上线」—— 新条目持久化；</li>
+  <li>接着问「发布流程是什么？」—— 刚编译的知识立刻可用；点「重置」清空编译条目。</li>
+</ul>
+<p>生产化路径：条目存仓库（AGENTS.md）、bigram 换 Embedding、编译动作交给 Agent 自主维护（自我更新 Wiki）。</p>
 `
   },
 
