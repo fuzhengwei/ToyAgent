@@ -315,11 +315,12 @@ body {
 .src-link {
     display: inline-flex;
     align-items: center;
-    gap: 2px;
-    padding: 6px 13px;
+    gap: 3px;
+    height: 31px;
+    padding: 0 13px;
     border-radius: 8px;
-    border: 1px solid var(--ink);
-    background: var(--ink);
+    border: 1px solid #3f3f3f;
+    background: #3f3f3f;
     color: #f6f4ef;
     font-size: 12px;
     font-weight: 600;
@@ -328,9 +329,11 @@ body {
     transition: background .15s, border-color .15s;
 }
 
+.src-emoji { font-size: 11px; line-height: 1; }
+
 .src-link:hover {
-    background: var(--accent-hover);
-    border-color: var(--accent-hover);
+    background: #262626;
+    border-color: #262626;
     color: #f6f4ef;
 }
 
