@@ -44,6 +44,10 @@ public final class MockChatModel implements ChatModel {
             case "step13" -> mockFull(all, last);
             case "step15" -> mockRegistry(last);
             case "step16" -> mockRuntime(all, last);
+            case "step17" -> mockAsk(all, last);
+            case "step18" -> mockApproval(last);
+            case "step19" -> mockSandbox(last);
+            case "step20" -> mockEvent(all, last);
             default -> "（Mock 模型）收到：" + last;
         };
     }
@@ -367,6 +371,87 @@ public final class MockChatModel implements ChatModel {
         return Json.write(Map.of(
                 "thought", "普通对话无需工具，直接作答",
                 "final", "（Mock 模型）本轮 " + countHistory(all) + " 条历史的上下文已按预算裁剪后发给模型。多聊几轮，可在轨迹里看到「上下文裁剪」事件。"));
+    }
+
+    // ------------------------------------------------------------- step17 人工介入
+
+    /** 缺关键信息时发起 ask_user_question；「人工答复：」回填后带着完整信息完成任务。 */
+    private String mockAsk(String all, String last) {
+        if (all.contains("人工答复：")) {
+            String ans = extractAfter(all, "人工答复：").lines().findFirst().orElse("上海");
+            String from = ans.contains("上海") ? "上海" : ans.contains("杭州") ? "杭州" : ans.contains("广州") ? "广州" : clip(ans);
+            return Json.write(Map.of(
+                    "final", "已为你预订：" + from + " → 北京，明日 08:30 起飞，经济舱 ¥1,280（模拟出票）。"
+                            + "刚才缺出发地时我没有瞎猜，而是问了人 —— 这就是 ask_user_question 的人机协同闭环。"));
+        }
+        if (last.contains("机票") || last.contains("订") || last.contains("出行")) {
+            return Json.write(Map.of(
+                    "ask", "预订机票需要确认出发地 —— 请问从哪个城市出发？（可选：北京 / 上海 / 杭州 / 广州）"));
+        }
+        return Json.write(Map.of(
+                "final", "（Mock 模型）信息完整的问题我直接回答。想看人工介入：发「帮我订一张去北京的机票」，我会停下来向你确认出发地。"));
+    }
+
+    // ------------------------------------------------------------- step18 审批门禁
+
+    private String mockApproval(String last) {
+        if (last.contains("执行结果") || last.contains("审批结果")) {
+            return Json.write(Map.of(
+                    "final", "任务完成：" + clip(last) + " —— 注意轨迹里的权限矩阵：安全工具自动放行，"
+                            + "高危工具必须过审批门禁，这是生产级智能体与玩具的分水岭。"));
+        }
+        if (last.contains("邮件") || last.contains("发送") || last.contains("发一封") || last.contains("发一封")) {
+            return Json.write(Map.of(
+                    "tool", "send_email",
+                    "arguments", "to=team@xiaofuge.cn, content=本周周报"));
+        }
+        if (last.contains("删除") || last.contains("清理")) {
+            return Json.write(Map.of(
+                    "tool", "delete_file",
+                    "arguments", "path=workspace/tmp/old.log"));
+        }
+        if (last.contains("天气")) {
+            return Json.write(Map.of("tool", "get_weather", "arguments", "city=" + findCity(last)));
+        }
+        return Json.write(Map.of(
+                "final", "（Mock 模型）想看审批门禁：发「给团队发一封周报邮件」（高危，会请求审批），"
+                        + "回复「批准 / 拒绝 / 批准并记住」观察三种走向。"));
+    }
+
+    // ------------------------------------------------------------- step19 沙箱
+
+    private String mockSandbox(String last) {
+        if (last.contains("执行结果") || last.contains("已拦截") || last.contains("沙箱内")) {
+            return Json.write(Map.of("final", clip(last)));
+        }
+        return Json.write(Map.of(
+                "final", "（Mock 模型）沙箱采用纵深防御：策略 → 黑名单 → 边界 → 规范化四层拦截。"
+                        + "发「执行：ls sandbox」看放行，或「执行：rm -rf /」看第 2 层拦截。"));
+    }
+
+    // ------------------------------------------------------------- step20 事件溯源
+
+    private String mockEvent(String all, String last) {
+        Matcher m = Pattern.compile("我叫([\\u4e00-\\u9fa5A-Za-z0-9]{1,10})").matcher(all);
+        String remembered = null;
+        while (m.find()) {
+            String n = m.group(1);
+            if (n.startsWith("什么") || n.startsWith("名字") || n.startsWith("谁")) continue;
+            remembered = n;
+        }
+        if (last.contains("我叫")) {
+            return Json.write(Map.of(
+                    "final", "你好，" + remembered + "！这次对话连同你的名字已作为事件写入 JSONL 日志 ——"
+                            + "我的记忆不是内存变量，而是从日志投影出来的视图，服务重启也不丢。"));
+        }
+        if (last.contains("叫什么") || last.contains("记得")) {
+            return remembered != null
+                    ? Json.write(Map.of("final", "你叫「" + remembered + "」。这条记忆是我刚才从事件日志回放重建的 —— 状态即日志。"))
+                    : Json.write(Map.of("final", "日志里还没有你的名字，先说「我叫XX」吧。"));
+        }
+        return Json.write(Map.of(
+                "final", "（Mock 模型）本轮会话由事件日志回放重建。多聊几轮再看 events/step20-events.jsonl，"
+                        + "每一条对话都是不可变事件；「重置」删掉日志，记忆归零。"));
     }
 
     // ------------------------------------------------------------- 工具方法

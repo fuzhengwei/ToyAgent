@@ -138,6 +138,38 @@ const SCENARIOS = [
     title: "ReAct 运行时",
     subtitle: "turn/step 两级循环 + 上下文裁剪 + TurnEndReason",
     samples: ["北京天气怎么样？", "帮我算 36*12", "死循环测试", "多聊几轮，看上下文裁剪"]
+  },
+  {
+    id: "step17",
+    num: "17",
+    group: "人机协同",
+    title: "人工介入",
+    subtitle: "ask_user_question：提问挂起 → 人工答复续跑",
+    samples: ["帮我订一张去北京的机票", "从上海出发", "查一下杭州天气"]
+  },
+  {
+    id: "step18",
+    num: "18",
+    group: "人机协同",
+    title: "审批门禁",
+    subtitle: "高危操作先过人：批准 / 拒绝 / 批准并记住",
+    samples: ["给团队发一封周报邮件", "批准并记住", "再发一封给老板", "拒绝", "查一下北京天气"]
+  },
+  {
+    id: "step19",
+    num: "19",
+    group: "安全与溯源",
+    title: "沙箱纵深防御",
+    subtitle: "策略 → 黑名单 → 边界 → 规范化，四层拦截",
+    samples: ["执行：ls sandbox", "执行：rm -rf /", "执行：cat /etc/passwd", "执行：cat sandbox/../../etc/passwd", "沙箱是什么？"]
+  },
+  {
+    id: "step20",
+    num: "20",
+    group: "安全与溯源",
+    title: "事件溯源",
+    subtitle: "会话即日志：JSONL 事件流 + 回放投影重建状态",
+    samples: ["我叫小傅哥", "我叫什么名字？", "再聊两句", "看看日志里有什么"]
   }
 ];
 

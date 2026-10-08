@@ -6,8 +6,8 @@
 const ARTICLES = {
 
   home: {
-    title: "ToyAgent：用 16 个接口类讲清楚智能体",
-    lede: "一个接口类，就是一个智能体实现的最小 MVP。由浅入深 16 个场景，覆盖《AI Agent 通识教程》核心内容。",
+    title: "ToyAgent：用 20 个接口类讲清楚智能体",
+    lede: "一个接口类，就是一个智能体实现的最小 MVP。由浅入深 20 个场景，覆盖《AI Agent 通识教程》核心内容。",
     chapters: [],
     html: `
 <h2>一句话读懂本项目</h2>
@@ -19,10 +19,10 @@ const ARTICLES = {
 <div class="callout core">
   <div class="co-title">💡 核心公式</div>
   智能体 = 大模型（大脑）+ 工具（手脚）+ 记忆（延续）+ 循环（节拍）+ 工程化（兜底）。<br>
-  16 个场景，就是这个公式逐项展开的过程。
+  20 个场景，就是这个公式逐项展开的过程。
 </div>
 
-<h2>16 个场景的演进地图</h2>
+<h2>20 个场景的演进地图</h2>
 <table>
   <tr><th>场景</th><th>接口类</th><th>新增能力</th><th>对应教程</th></tr>
   <tr><td>01 对话</td><td><code>ChatAgent</code></td><td>最小 MVP：接通模型</td><td>ch01-03</td></tr>
@@ -41,16 +41,20 @@ const ARTICLES = {
   <tr><td>14 LLM-Wiki</td><td><code>WikiAgent</code></td><td>知识编译与持久化</td><td>ch13/26</td></tr>
   <tr><td>15 工具注册表</td><td><code>RegistryAgent</code></td><td>ToolDefinition 协议 + 注册/注销</td><td>dsh-java</td></tr>
   <tr><td>16 ReAct 运行时</td><td><code>RuntimeAgent</code></td><td>turn/step 循环 + 上下文裁剪 + TurnEndReason</td><td>dsh-java</td></tr>
+  <tr><td>17 人工介入</td><td><code>AskAgent</code></td><td>ask_user_question：提问挂起 → 答复续跑</td><td>dsh-java</td></tr>
+  <tr><td>18 审批门禁</td><td><code>ApprovalAgent</code></td><td>风险分级 + 审批挂起 + 会话免审</td><td>dsh-java</td></tr>
+  <tr><td>19 沙箱</td><td><code>SandboxAgent</code></td><td>纵深防御四层拦截</td><td>dsh-java</td></tr>
+  <tr><td>20 事件溯源</td><td><code>EventSourcedAgent</code></td><td>JSONL 事件流 + 回放投影</td><td>dsh-java</td></tr>
 </table>
 
 <h2>教程章节怎么对上？</h2>
-<p>左侧 16 个场景覆盖了教程中<strong>「能用一个接口类实现」</strong>的部分（概念篇、大脑篇、手脚篇、神经系统篇、RAG）。教程中偏平台与工程化的章节，对应的工程手段已内嵌在场景实现里：</p>
+<p>左侧 20 个场景覆盖了教程中<strong>「能用一个接口类实现」</strong>的部分（概念篇、大脑篇、手脚篇、神经系统篇、RAG）。教程中偏平台与工程化的章节，对应的工程手段已内嵌在场景实现里：</p>
 <ul>
   <li><strong>ch09 提示词工程 / ch22 Harness</strong> → 场景 02 的三层提示词 + 场景 11 的运行时外壳</li>
   <li><strong>ch13 Dify/Coze 可视化编排</strong> → 场景 12 的节点 + 条件边就是可视化编排的后端本质</li>
   <li><strong>ch14 CLI Agent / ch15 GUI Agent</strong> → 工具侧换成 Shell / 浏览器执行器即可，骨架同场景 04</li>
   <li><strong>ch17 评估 / ch19 部署 / ch20 推理框架</strong> → 工程化运维篇，模型换 Ollama/vLLM 端点即可（本项目零依赖，改 <code>config.properties</code> 即接入）</li>
-  <li><strong>ch23-27 展望篇</strong> → 读完 16 个场景的代码，回头看展望篇会非常轻松</li>
+  <li><strong>ch23-27 展望篇</strong> → 读完 20 个场景的代码，回头看展望篇会非常轻松</li>
 </ul>
 
 <h2>怎么跑起来</h2>
@@ -951,6 +955,182 @@ while (tokens &gt; BUDGET &amp;&amp; history.size() &gt; KEEP_MIN) history.remov
   <tr><td>对应 dsh-java</td><td>Guard / Harness 层</td><td>ReactLoopAgent（994 行）教学骨架</td></tr>
 </table>
 <p>消化完这两个场景，再去看 dsh-java 源码：ToolDefinition（70 行）→ ToolRegistry → ReactLoopAgent → ToolCallExecutor（763 行并行调度），就是从玩具到工业级的完整阶梯。</p>
+`
+  },
+
+  step17: {
+    title: "人工介入：ask_user_question，把人变成可等待的工具",
+    lede: "信息缺失时别瞎猜 —— 主动问人。参考 dsh-java 的 CompletableFuture 阻塞-唤醒，教学版用会话挂起实现同一语义。",
+    chapters: ["dsh-java · ask / ask_user_question"],
+    html: `
+<h2>为什么需要问人</h2>
+<p>「帮我订机票」—— 没说出发地。猜一个？错了浪费时间，对了纯属运气。<strong>聪明的智能体要懂得什么时候该开口问</strong>，这正是 dsh-java ask_user_question 工具的职责。</p>
+<div class="callout core">
+  <div class="co-title">💡 核心思想：把「异步的人」翻译成「同步的工具结果」</div>
+  人不在进程里，没法像函数一样被调用。dsh-java 的解法：<strong>CompletableFuture 阻塞-唤醒</strong> —— 工具执行线程阻塞在 Future 上，问题推给前端，人的回复一到就 complete，线程醒来拿到「工具结果」继续跑。
+</div>
+
+<h2>教学版：会话挂起 + 续答</h2>
+<p>ToyAgent 是同步 HTTP 架构，没有常驻线程可阻塞。同一思想的另一种实现：<strong>把等待摊开成两次请求</strong>。</p>
+<pre><code data-lang="java">// 第一次请求：模型发现缺出发地 → 发起 ask_user_question
+if (tool.equals("ask_user_question")) {
+    pendingQuestion = question;      // 问题持久化在会话状态（挂起）
+    return question + "（直接回复即可）";  // turn 暂停，先答复人
+}
+
+// 第二次请求：用户的回复不进模型，而是作为人工答复回填
+if (pendingQuestion != null) {
+    history.add(Message.user("人工答复：" + input));
+    return complete(pendingQuestion); // turn 恢复，带着完整信息继续
+}</code></pre>
+<table>
+  <tr><th></th><th>dsh-java 生产版</th><th>ToyAgent 教学版</th></tr>
+  <tr><td>等待机制</td><td>CompletableFuture 阻塞执行线程</td><td>pendingQuestion 会话状态挂起</td></tr>
+  <tr><td>答复到达</td><td>future.complete() 唤醒</td><td>下一条消息回填挂起位</td></tr>
+  <tr><td>语义</td><td colspan="2">完全一致：人的一次回答 = 一次工具结果注入</td></tr>
+</table>
+
+<h2>试试这样玩</h2>
+<ul>
+  <li>发「帮我订一张去北京的机票」—— 轨迹出现 <code>ask_user_question</code> 调用 + 会话挂起 <code>PENDING_ASK</code>；</li>
+  <li>回复「从上海出发」—— 轨迹出现「人工答复回填」，任务带着完整信息继续；</li>
+  <li>注意：你的答复<strong>没有经过模型决策</strong>，它直接作为事实注入 —— 人的回答是权威输入。</li>
+</ul>
+<p>延伸：dsh-java 里问人不只一种 —— 主动提问（ask）、方案选择（ask_user_question）、打断纠偏（steer）构成完整的「人在回路」谱系。</p>
+`
+  },
+
+  step18: {
+    title: "审批门禁：高危操作先过人",
+    lede: "模型可以决定「做什么」，但「能不能做」要过权限矩阵 —— 参考运行期审批链路：风险分级、审批挂起、会话免审、超时默认拒绝。",
+    chapters: ["dsh-java · approval / 权限矩阵"],
+    html: `
+<h2>为什么模型不能想干嘛就干嘛</h2>
+<p>让智能体发邮件、删文件、执行命令 —— 能力越强，误操作（或被诱导）的代价越大。dsh-java 的答案是一道<strong>运行期审批链路</strong>：工具按风险分级，高危动作必须等人点头。</p>
+
+<h2>四个设计点</h2>
+<table>
+  <tr><th>设计点</th><th>本场景实现</th><th>dsh-java 对应</th></tr>
+  <tr><td>风险分级</td><td>get_weather=安全只读；send_email / delete_file=高危写操作</td><td>提交期权限矩阵：Shell/写文件/插件默认需人工审批</td></tr>
+  <tr><td>三档模式</td><td><code>Mode.AUTO_MANUAL_SAFE / ALWAYS_ASK / FULL_AUTO</code></td><td>宽松/标准/严格三档策略</td></tr>
+  <tr><td>会话免审</td><td>「批准并记住」→ 本会话同工具自动放行</td><td>会话级免审记忆：信任一次，不再打扰</td></tr>
+  <tr><td>超时默认 DENY</td><td>轨迹提示（教学为同步架构）</td><td>审批超时未响应 → 自动拒绝，宁可不执行</td></tr>
+</table>
+
+<h2>核心代码：一条挂起-决策链</h2>
+<pre><code data-lang="java">boolean needAsk = mode == Mode.ALWAYS_ASK
+        || (mode == Mode.AUTO_MANUAL_SAFE && dangerous && !trustedTools.contains(tool));
+
+if (needAsk) {
+    pendingTool = tool;              // 审批挂起：先答复人，不执行
+    return "⚠️ 即将执行高危操作：" + tool + "…… 回复「批准 / 拒绝 / 批准并记住」";
+}
+// 人回复后进入 resolveApproval：批准→执行；拒绝→终止；批准并记住→加入免审名单</code></pre>
+<div class="callout core">
+  <div class="co-title">💡 设计哲学</div>
+  <strong>模型的决策权与人的一票否决权分离</strong> —— 模型说「我要发邮件」，门禁说「你先等等」。拒绝后操作<strong>根本没发生</strong>，而不是发生后再回滚。超时默认 DENY 而非 ALLOW，是把不确定性的代价留给可用性而非安全。
+</div>
+
+<h2>试试这样玩</h2>
+<ul>
+  <li>发「给团队发一封周报邮件」—— 轨迹：权限矩阵评估 → 高危 → 审批挂起；</li>
+  <li>回复「批准」—— 放行执行，下次仍会问；回复「拒绝」—— 拦截，任务终止；</li>
+  <li>回复「批准并记住」—— 之后同类高危操作自动放行（看轨迹里的「会话免审」标记）；</li>
+  <li>发「查一下北京天气」—— 安全工具直接放行，全程无审批打扰。</li>
+</ul>
+`
+  },
+
+  step19: {
+    title: "沙箱纵深防御：四道关卡拦住危险命令",
+    lede: "不信任模型的输出 —— 它生成的命令照样要过策略、黑名单、边界、规范化四层校验，任何一层拦截即 DENY。",
+    chapters: ["dsh-java · sandbox / 危险命令拦截器"],
+    html: `
+<h2>纵深防御（Defense in Depth）</h2>
+<p>只靠提示词约束模型「别执行危险命令」是脆弱的 —— 提示词注入、模型幻觉都能绕过它。dsh-java 的思路是<strong>层层设防</strong>：即使模型被骗了，命令也出不了沙箱。</p>
+<div class="flow">
+  <span class="fnode">① 策略档位</span><span class="farrow">→</span>
+  <span class="fnode">② 内容黑名单</span><span class="farrow">→</span>
+  <span class="fnode">③ 空间边界</span><span class="farrow">→</span>
+  <span class="fnode">④ 路径规范化</span><span class="farrow">→</span>
+  <span class="fnode">执行</span>
+</div>
+
+<h2>四层各拦什么</h2>
+<table>
+  <tr><th>层</th><th>拦截目标</th><th>示例</th></tr>
+  <tr><td>① 策略</td><td>档位本身不允许 shell</td><td>READ_ONLY 档全拒（本场景 WORKSPACE_ONLY）</td></tr>
+  <tr><td>② 内容</td><td>破坏性命令特征</td><td><code>rm -rf</code>、<code>sudo</code>、<code>mkfs</code>、fork 炸弹 <code>:(){</code></td></tr>
+  <tr><td>③ 边界</td><td>路径越出工作区</td><td><code>cat /etc/passwd</code> —— 绝对路径不在 sandbox/ 内</td></tr>
+  <tr><td>④ 规范化</td><td>「看似在内、实际在外」</td><td><code>sandbox/../../etc/passwd</code> —— canonicalize 后现形</td></tr>
+</table>
+<pre><code data-lang="java">// 第 3 层与第 4 层的分工：看原文 vs 看真实落点
+while (abs.find()) {                 // 逐个检查命令里的绝对路径
+    if (!workspace.resolve(p).normalize().startsWith(workspace))
+        return deny(3, "绝对路径 " + p + " 越出工作区");
+}
+if (cmd.contains(".."))              // 第 4 层：规范化后复查，../ 逃逸无所遁形
+    return deny(4, "检测到 ../ 相对跳转，疑似路径逃逸");</code></pre>
+<div class="callout core">
+  <div class="co-title">💡 为什么 ③ 和 ④ 要分两层</div>
+  <code>sandbox/../../etc/passwd</code> 字面上「以 sandbox/ 开头」，第 3 层按原文看是合法的；只有 canonicalize（解析符号链接、压平 ..）之后才暴露真实落点。<strong>两层校验 = 字面检查 + 语义检查</strong>，这是路径安全的标准打法。
+</div>
+
+<h2>试试这样玩（红蓝对抗）</h2>
+<ul>
+  <li>蓝方放行：「执行：ls sandbox」—— 四层 ✓，模拟执行；</li>
+  <li>红方 1：「执行：rm -rf /」—— 第 ② 层拦截（黑名单特征）；</li>
+  <li>红方 2：「执行：cat /etc/passwd」—— 第 ③ 层拦截（越出工作区）；</li>
+  <li>红方 3：「执行：cat sandbox/../../etc/passwd」—— 第 ④ 层拦截（路径逃逸）。</li>
+</ul>
+<p>每条轨迹都标注「在哪一层、为什么被拦」—— 拦截器是独立防线，模型再聪明也改变不了判定结果。</p>
+`
+  },
+
+  step20: {
+    title: "事件溯源：会话即日志，日志即状态",
+    lede: "对话的每一刻都追加为不可变事件（JSONL），Agent 的记忆从日志回放投影而来 —— 服务重启不丢，审计天然免费。",
+    chapters: ["dsh-java · Session Event Log / 回放投影"],
+    html: `
+<h2>换个方式存状态</h2>
+<p>之前所有场景的记忆都是内存里的 <code>List&lt;Message&gt;</code> —— 服务一重启就没了。dsh-java 换了个思路（也是 Event Sourcing / Kafka / Git 的共同思想）：<strong>不存「当前状态」，只存「发生过什么」</strong>。</p>
+<pre><code data-lang="jsonl">// events/step20-events.jsonl —— append-only，永不改写
+{"seq":1,"ts":1728380000000,"type":"SESSION_STARTED","payload":{"scenario":"step20"}}
+{"seq":2,"type":"USER_MESSAGE_APPENDED","payload":{"content":"我叫小傅哥"}}
+{"seq":3,"type":"AGENT_REPLY_APPENDED","payload":{"content":"你好，小傅哥！…"}}
+{"seq":4,"type":"TURN_COMPLETED","payload":{"events":3}}
+{"seq":5,"type":"USER_MESSAGE_APPENDED","payload":{"content":"我叫什么名字？"}}
+…</code></pre>
+
+<h2>三件套</h2>
+<table>
+  <tr><th>环节</th><th>做什么</th><th>关键点</th></tr>
+  <tr><td>事件追加</td><td>每轮对话追加 4 类事件：SESSION / USER / AGENT_REPLY / TURN_COMPLETED</td><td>append-only，seq 单调递增，一行一条 JSON</td></tr>
+  <tr><td>回放投影</td><td>每轮开始前重放全部事件，重建会话上下文</td><td>记忆 = 投影视图，不是内存变量</td></tr>
+  <tr><td>类型过滤</td><td>投影只取 USER/AGENT 两类进上下文</td><td>其余事件留在日志里服务审计 —— 视图与真相分离</td></tr>
+</table>
+<pre><code data-lang="java">private List&lt;Message&gt; project(List&lt;Map&lt;String, Object&gt;&gt; log) {
+    for (Map&lt;String, Object&gt; e : log) {
+        switch (String.valueOf(e.get("type"))) {
+            case EV_USER   -&gt; history.add(Message.user(content));
+            case EV_AGENT  -&gt; history.add(Message.assistant(content));
+            default        -&gt; { /* 不进上下文，但留在日志里 */ }
+        }
+    }
+}</code></pre>
+
+<h2>这个架构白送的能力</h2>
+<ul>
+  <li><strong>持久化</strong>：重启后状态从日志完整恢复 —— 聊两轮 → 重启服务 → 还记得你名字；</li>
+  <li><strong>审计</strong>：谁在什么时候说了什么，日志一条不缺（合规刚需）；</li>
+  <li><strong>时间旅行 / fork</strong>：截取日志前 N 条 = 任意历史时点的会话快照 —— dsh-java 的子代理 fork 正是「复制事件前缀」；</li>
+  <li><strong>调试</strong>：出问题不用猜「模型当时看到了什么」，回放即可精确复原。</li>
+</ul>
+<div class="callout tip">
+  <div class="co-title">🔍 动手观察</div>
+  聊两轮后打开 <code>events/step20-events.jsonl</code> 看原始事件流；点「重置」会删掉日志 —— 记忆归零，因为状态只存在于日志里。<strong>删日志 = 删状态</strong>，这正是事件溯源的题眼。
+</div>
+<p>生产对照：dsh-java 有 16 种 sealed 领域事件（含 TOOL_CALLED、审批、压缩、子代理等）+ 校验和防篡改；教学版 4 种足够看清骨架。</p>
 `
   }
 };

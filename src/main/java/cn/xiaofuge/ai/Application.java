@@ -17,6 +17,10 @@ import cn.xiaofuge.ai.agent.step13.FullAgent;
 import cn.xiaofuge.ai.agent.step14.WikiAgent;
 import cn.xiaofuge.ai.agent.step15.RegistryAgent;
 import cn.xiaofuge.ai.agent.step16.RuntimeAgent;
+import cn.xiaofuge.ai.agent.step17.AskAgent;
+import cn.xiaofuge.ai.agent.step18.ApprovalAgent;
+import cn.xiaofuge.ai.agent.step19.SandboxAgent;
+import cn.xiaofuge.ai.agent.step20.EventSourcedAgent;
 import cn.xiaofuge.ai.llm.ChatModel;
 import cn.xiaofuge.ai.llm.Json;
 import cn.xiaofuge.ai.llm.ModelScope;
@@ -87,6 +91,10 @@ public final class Application {
         map.put("step14", new WikiAgent.Impl(scoped("step14", real)));
         map.put("step15", new RegistryAgent.Impl(scoped("step15", real)));
         map.put("step16", new RuntimeAgent.Impl(scoped("step16", real)));
+        map.put("step17", new AskAgent.Impl(scoped("step17", real)));
+        map.put("step18", new ApprovalAgent.Impl(scoped("step18", real)));
+        map.put("step19", new SandboxAgent.Impl(scoped("step19", real)));
+        map.put("step20", new EventSourcedAgent.Impl(scoped("step20", real)));
         agents = map;
         System.out.println("[ToyAgent] 场景已装配，模型模式: " + (Models.isRealModel() ? Models.modelName() : "mock"));
     }

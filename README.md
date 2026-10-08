@@ -2,7 +2,7 @@
 
 > 用最简单的方式，讲清楚智能体实现 —— **一个接口类，就是一个智能体的最小 MVP**。
 
-Java 17 · 零依赖 · 16 个渐进式场景 · 配套可视化测试页面。配套教程：[AI Agent 通识教程（ai-agent-guide）](../README.md)。
+Java 17 · 零依赖 · 20 个渐进式场景 · 配套可视化测试页面。配套教程：[AI Agent 通识教程（ai-agent-guide）](../README.md)。
 
 ## 一句话读懂
 
@@ -14,9 +14,9 @@ public interface Agent {
 }
 ```
 
-16 个场景 = 往这个最小骨架里，每次只加一种能力；第 13 个全流程综合，第 14 个知识编译持久复用，第 15-16 个参考 deepseek-harness-java 走向运行时基座。
+20 个场景 = 往这个最小骨架里，每次只加一种能力；第 13 个全流程综合，第 14 个知识编译持久复用，第 15-20 个参考 deepseek-harness-java 走向运行时基座与人机协同/安全溯源。
 
-## 16 个场景
+## 20 个场景
 
 | # | 场景 | 接口类 | 新增能力 | 对应教程章节 |
 |:---:|------|--------|----------|:---:|
@@ -36,6 +36,10 @@ public interface Agent {
 | 14 | LLM-Wiki 知识编译 | `WikiAgent` | 知识编译一次、持久维护、增量沉淀 | ch13/26 |
 | 15 | 工具注册表 | `RegistryAgent` | ToolDefinition 协议：注册/发现/热注销（disposer） | dsh-java |
 | 16 | ReAct 运行时 | `RuntimeAgent` | turn/step 两级循环 + 上下文裁剪 + TurnEndReason | dsh-java |
+| 17 | 人工介入 | `AskAgent` | ask_user_question：提问挂起 → 人工答复续跑 | dsh-java |
+| 18 | 审批门禁 | `ApprovalAgent` | 风险分级 + 审批挂起 + 会话免审 + 超时默认 DENY | dsh-java |
+| 19 | 沙箱纵深防御 | `SandboxAgent` | 策略/黑名单/边界/规范化 四层拦截 | dsh-java |
+| 20 | 事件溯源 | `EventSourcedAgent` | JSONL 事件流 append-only + 回放投影重建状态 | dsh-java |
 
 每个场景一个文件，位于 `src/main/java/cn/xiaofuge/ai/agent/stepXX/`，接口注释即教程，嵌套实现类即全部逻辑。
 
@@ -99,7 +103,7 @@ ToyAgent/
     │   └── Json.java                    # 零依赖 JSON 编解码
     └── agent/
         ├── Agent.java                   # 智能体契约：chat(input)
-        └── step01..step16/              # 16 个场景，一场景一接口类
+        └── step01..step20/              # 20 个场景，一场景一接口类
 ```
 
 ## HTTP API
@@ -132,7 +136,7 @@ ToyAgent/
 
 1. **一个接口类 = 一个智能体 MVP** —— 拒绝框架魔法，所有逻辑看得见、摸得着；
 2. **零依赖** —— 只用 JDK 自带能力（`com.sun.net.httpserver` + `java.net.http`），手写 JSON 工具，clone 即跑；
-3. **由浅入深** —— 16 个场景严格递进，每个场景只新增一种能力（step13 全流程综合，step14 知识工程，step15-16 运行时基座），接口注释就是教程；
+3. **由浅入深** —— 20 个场景严格递进，每个场景只新增一种能力（step13 全流程综合，step14 知识工程，step15-20 运行时基座 / 人机协同 / 安全溯源），接口注释就是教程；
 4. **页面即测试** —— 原生 HTML/CSS/JS 三栏布局：左侧场景导航、中间对话 + 执行轨迹时间线、右侧原理文章（含教程章节对照）；
 5. **Mock/真实双模式** —— 骨架与大脑分离，学习时用 Mock 观察轨迹，进阶时配 Key 换真模型。
 

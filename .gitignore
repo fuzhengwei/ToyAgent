@@ -7,3 +7,9 @@ config.properties
 
 # LLM-Wiki 运行时持久化（用户编译的知识条目）
 wiki/
+
+# 事件溯源运行时日志（step20）
+events/
+
+# 沙箱工作区（step19）
+sandbox/
