@@ -858,8 +858,14 @@
         );
       })
       .join("");
+    const durText =
+      ms >= 60000
+        ? Math.floor(ms / 60000) + " 分 " + Math.round((ms % 60000) / 1000) + " 秒"
+        : ms >= 1000
+          ? (ms / 1000).toFixed(1) + " 秒"
+          : ms + " ms";
     div.innerHTML =
-      '<div class="trace-head"><span>🔍 执行轨迹 · ' + steps.length + " 步 · " + ms + " ms</span>" +
+      '<div class="trace-head"><span>🔍 执行轨迹 · ' + steps.length + " 步 · " + durText + "</span>" +
       '<span class="chev">▾</span></div>' +
       '<div class="trace-steps">' + items + "</div>";
     div.querySelectorAll(".tstep").forEach((el, i) => {
