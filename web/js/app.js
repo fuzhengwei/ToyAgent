@@ -1017,7 +1017,7 @@
     try {
       const resp = await fetch("api/" + currentId + "/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Scope-Id": scopeId() },
         body: JSON.stringify({ message: text, model: readLocalModelCfg() || undefined })
       });
       const data = await resp.json();
@@ -1041,7 +1041,7 @@
   async function reset() {
     if (currentId === "home") return;
     try {
-      await fetch("api/" + currentId + "/reset", { method: "POST" });
+      await fetch("api/" + currentId + "/reset", { method: "POST", headers: { "X-Scope-Id": scopeId() } });
       renderChatHome();
       toast("场景状态已重置（记忆、历史已清空）", "ok");
     } catch (e) {
@@ -1063,6 +1063,18 @@
       const raw = localStorage.getItem(MODEL_CFG_KEY);
       return raw ? JSON.parse(raw) : null;
     } catch (e) { return null; }
+  }
+
+  /** 会话标识：每个浏览器一个随机 id，随请求头 X-Scope-Id 上行，服务端据此隔离多用户会话状态。 */
+  function scopeId() {
+    try {
+      let id = localStorage.getItem("toyagent_scope_id");
+      if (!id) {
+        id = "web" + Math.random().toString(36).slice(2, 10);
+        localStorage.setItem("toyagent_scope_id", id);
+      }
+      return id;
+    } catch (e) { return "default"; }
   }
 
   function writeLocalModelCfg(cfg) {

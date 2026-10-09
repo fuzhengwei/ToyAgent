@@ -27,16 +27,43 @@ public final class Models {
     private static void load() {
         Properties props = new Properties();
         Path conf = Path.of("config.properties");
+        boolean fromFile = false;
         if (Files.exists(conf)) {
             try (InputStream in = Files.newInputStream(conf)) {
                 props.load(in);
+                fromFile = true;
             } catch (IOException e) {
                 System.err.println("[ToyAgent] 读取 config.properties 失败: " + e.getMessage());
             }
         }
-        baseUrl = props.getProperty("base-url", env("OPENAI_BASE_URL", "https://api.deepseek.com/v1"));
-        apiKey = props.getProperty("api-key", env("OPENAI_API_KEY", ""));
-        modelName = props.getProperty("model", env("OPENAI_MODEL", "deepseek-chat"));
+        // 优先级：config.properties（非空值）> LLM_* 环境变量 > OPENAI_* 环境变量 > 内置默认
+        // 文件里留空（api-key=）不遮蔽环境变量 —— 支持纯 docker run -e 方式配置默认模型
+        baseUrl = firstNonBlank(
+                props.getProperty("base-url"),
+                env("LLM_BASE_URL", null), env("OPENAI_BASE_URL", null),
+                "https://api.deepseek.com/v1");
+        apiKey = firstNonBlank(
+                props.getProperty("api-key"),
+                env("LLM_API_KEY", null), env("OPENAI_API_KEY", null),
+                "");
+        modelName = firstNonBlank(
+                props.getProperty("model"),
+                env("LLM_MODEL", null), env("OPENAI_MODEL", null),
+                "deepseek-chat");
+        String keySrc = props.getProperty("api-key");
+        boolean keyFromFile = keySrc != null && !keySrc.isBlank();
+        if (!apiKey.isBlank()) {
+            System.out.println("[ToyAgent] 默认模型: " + modelName + " @ " + baseUrl
+                    + (keyFromFile ? "（Key 来自 config.properties）" : "（Key 来自环境变量）"));
+        }
+    }
+
+    /** 返回第一个非空值；全空则返回最后一个（内置默认）。 */
+    private static String firstNonBlank(String... vals) {
+        for (int i = 0; i < vals.length - 1; i++) {
+            if (vals[i] != null && !vals[i].isBlank()) return vals[i];
+        }
+        return vals[vals.length - 1];
     }
 
     private static String env(String key, String def) {

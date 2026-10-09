@@ -58,8 +58,23 @@ import java.util.concurrent.Executors;
  */
 public final class Application {
 
-    /** 场景注册表，模型切换时整体原子重建。 */
-    private static volatile Map<String, Agent> agents = new LinkedHashMap<>();
+    /**
+     * 场景工厂注册表，模型切换时整体原子重建。
+     * <p>
+     * 公网多用户隔离（小程序/多人共用服务）：每个场景不再持有全局单例，
+     * 而是保存「构造方法」，按请求头 X-Scope-Id（浏览器/小程序的会话标识）
+     * 为每个会话单独实例化一份有状态场景（记忆、审批挂起、事件流等互不串台）。
+     */
+    private static volatile Map<String, java.util.function.Supplier<Agent>> factories = new LinkedHashMap<>();
+
+    /** 会话级场景实例缓存：scopeId -> (stepId -> Agent 实例)。 */
+    private static final Map<String, Map<String, Agent>> sessions = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** 会话缓存上限，超出后整体清空（教学玩具，宁可重建也不无界膨胀）。 */
+    private static final int MAX_SESSIONS = 512;
+
+    /** 无 X-Scope-Id 请求头时的默认会话（如 curl 直连调试）。 */
+    private static final String DEFAULT_SCOPE = "default";
 
     public static void main(String[] args) throws IOException {
         rebuildAgents();
@@ -77,37 +92,38 @@ public final class Application {
         System.out.println("==============================================");
     }
 
-    /** 按当前配置装配 12 个场景：真实模型优先，无 Key 则装配 Mock 模型；每个模型再包一层浏览器级作用域。 */
+    /** 按当前配置装配 26 个场景工厂：真实模型优先，无 Key 则装配 Mock 模型；每个模型再包一层浏览器级作用域。 */
     private static synchronized void rebuildAgents() {
         ChatModel real = Models.openAiOrNull();
-        Map<String, Agent> map = new LinkedHashMap<>();
-        map.put("step01", new ChatAgent.Impl(scoped("step01", real)));
-        map.put("step02", new PromptAgent.Impl(scoped("step02", real)));
-        map.put("step03", new ReActAgent.Impl(scoped("step03", real)));
-        map.put("step04", new ToolCallAgent.Impl(scoped("step04", real)));
-        map.put("step05", new MemoryAgent.Impl(scoped("step05", real)));
-        map.put("step06", new RouterAgent.Impl(scoped("step06", real)));
-        map.put("step09", new McpAgent.Impl(scoped("step09", real)));
-        map.put("step10", new SkillAgent.Impl(scoped("step10", real)));
-        map.put("step07", new RagAgent.Impl(scoped("step07", real)));
-        map.put("step12", new MultiAgent.Impl(scoped("step12", real)));
-        map.put("step15", new LoopAgent.Impl(scoped("step15", real)));
-        map.put("step16", new WorkflowAgent.Impl(scoped("step16", real)));
-        map.put("step18", new FullAgent.Impl(scoped("step18", real)));
-        map.put("step08", new WikiAgent.Impl(scoped("step08", real)));
-        map.put("step11", new RegistryAgent.Impl(scoped("step11", real)));
-        map.put("step17", new RuntimeAgent.Impl(scoped("step17", real)));
-        map.put("step19", new AskAgent.Impl(scoped("step19", real)));
-        map.put("step20", new ApprovalAgent.Impl(scoped("step20", real)));
-        map.put("step21", new SandboxAgent.Impl(scoped("step21", real)));
-        map.put("step22", new EventSourcedAgent.Impl(scoped("step22", real)));
-        map.put("step23", new PluginAgent.Impl(scoped("step23", real)));
-        map.put("step25", new CliAgent.Impl(scoped("step25", real)));
-        map.put("step13", new SubagentAgent.Impl(scoped("step13", real)));
-        map.put("step24", new HooksAgent.Impl(scoped("step24", real)));
-        map.put("step14", new A2AAgent.Impl(scoped("step14", real)));
-        map.put("step26", new ScheduleAgent.Impl(scoped("step26", real)));
-        agents = map;
+        Map<String, java.util.function.Supplier<Agent>> map = new LinkedHashMap<>();
+        map.put("step01", () -> new ChatAgent.Impl(scoped("step01", real)));
+        map.put("step02", () -> new PromptAgent.Impl(scoped("step02", real)));
+        map.put("step03", () -> new ReActAgent.Impl(scoped("step03", real)));
+        map.put("step04", () -> new ToolCallAgent.Impl(scoped("step04", real)));
+        map.put("step05", () -> new MemoryAgent.Impl(scoped("step05", real)));
+        map.put("step06", () -> new RouterAgent.Impl(scoped("step06", real)));
+        map.put("step09", () -> new McpAgent.Impl(scoped("step09", real)));
+        map.put("step10", () -> new SkillAgent.Impl(scoped("step10", real)));
+        map.put("step07", () -> new RagAgent.Impl(scoped("step07", real)));
+        map.put("step12", () -> new MultiAgent.Impl(scoped("step12", real)));
+        map.put("step15", () -> new LoopAgent.Impl(scoped("step15", real)));
+        map.put("step16", () -> new WorkflowAgent.Impl(scoped("step16", real)));
+        map.put("step18", () -> new FullAgent.Impl(scoped("step18", real)));
+        map.put("step08", () -> new WikiAgent.Impl(scoped("step08", real)));
+        map.put("step11", () -> new RegistryAgent.Impl(scoped("step11", real)));
+        map.put("step17", () -> new RuntimeAgent.Impl(scoped("step17", real)));
+        map.put("step19", () -> new AskAgent.Impl(scoped("step19", real)));
+        map.put("step20", () -> new ApprovalAgent.Impl(scoped("step20", real)));
+        map.put("step21", () -> new SandboxAgent.Impl(scoped("step21", real)));
+        map.put("step22", () -> new EventSourcedAgent.Impl(scoped("step22", real)));
+        map.put("step23", () -> new PluginAgent.Impl(scoped("step23", real)));
+        map.put("step25", () -> new CliAgent.Impl(scoped("step25", real)));
+        map.put("step13", () -> new SubagentAgent.Impl(scoped("step13", real)));
+        map.put("step24", () -> new HooksAgent.Impl(scoped("step24", real)));
+        map.put("step14", () -> new A2AAgent.Impl(scoped("step14", real)));
+        map.put("step26", () -> new ScheduleAgent.Impl(scoped("step26", real)));
+        factories = map;
+        sessions.clear();
         System.out.println("[ToyAgent] 场景已装配，模型模式: " + (Models.isRealModel() ? Models.modelName() : "mock"));
     }
 
@@ -209,11 +225,12 @@ public final class Application {
         }
         String stepId = parts[2];
         String action = parts[3];
-        Agent agent = agents.get(stepId);
-        if (agent == null) {
+        java.util.function.Supplier<Agent> factory = factories.get(stepId);
+        if (factory == null) {
             respond(exchange, 404, errorJson("场景不存在: " + stepId));
             return;
         }
+        Agent agent = sessionAgent(scopeOf(exchange), stepId, factory);
 
         if ("reset".equals(action)) {
             agent.reset();
@@ -271,6 +288,30 @@ public final class Application {
         String model = str(cfg.get("model"));
         if (!mock && (baseUrl == null || baseUrl.isBlank() || model == null || model.isBlank())) return;
         ModelScope.bind(new ModelScope.Config(baseUrl, str(cfg.get("apiKey")), model, mock));
+    }
+
+    // ------------------------------------------------------------------ 会话隔离
+
+    /**
+     * 取当前请求的会话标识：请求头 X-Scope-Id（浏览器/小程序各自生成并随请求携带）。
+     * 做长度与字符白名单约束，避免恶意请求头把会话缓存撑爆。
+     */
+    private static String scopeOf(HttpExchange exchange) {
+        String raw = exchange.getRequestHeaders().getFirst("X-Scope-Id");
+        if (raw == null || raw.isBlank()) return DEFAULT_SCOPE;
+        String cleaned = raw.replaceAll("[^a-zA-Z0-9_-]", "").toLowerCase();
+        if (cleaned.isEmpty()) return DEFAULT_SCOPE;
+        return cleaned.length() > 64 ? cleaned.substring(0, 64) : cleaned;
+    }
+
+    /** 取（必要时创建）当前会话在指定场景下的独立实例；同一会话内多轮对话复用同一实例以保留记忆。 */
+    private static Agent sessionAgent(String scope, String stepId, java.util.function.Supplier<Agent> factory) {
+        if (sessions.size() > MAX_SESSIONS) {
+            sessions.clear();
+        }
+        return sessions
+                .computeIfAbsent(scope, k -> new java.util.concurrent.ConcurrentHashMap<>())
+                .computeIfAbsent(stepId, id -> factory.get());
     }
 
     private static String str(Object v) {

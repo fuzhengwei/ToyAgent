@@ -30,21 +30,34 @@ public final class ModelScope {
     public static ChatModel wrap(ChatModel fallback, String stepId) {
         return messages -> {
             Config c = CURRENT.get();
+            // 未携带任何配置 → 走服务端默认模型
             if (c == null) {
                 return fallback.chat(messages);
             }
             if (c.mock()) {
-                // 浏览器要 Mock：默认模型本身就是 Mock 则直接复用（保留场景剧本），否则补一个对应场景的 Mock
+                // 明确要 Mock：默认模型本身就是 Mock 则直接复用（保留场景剧本），否则补一个对应场景的 Mock
                 if (fallback instanceof MockChatModel) return fallback.chat(messages);
                 return Models.mock(stepId).chat(messages);
             }
+            // 真实模型配置残缺（缺 baseUrl/model）→ 一律走服务端默认模型
+            if (isBlank(c.baseUrl()) || isBlank(c.model())) {
+                return fallback.chat(messages);
+            }
             // 未填 Key 时回退服务端默认 Key（Key 只留在服务端，不下发页面）
-            String key = (c.apiKey() == null || c.apiKey().isBlank()) ? Models.serverApiKey() : c.apiKey();
+            String key = isBlank(c.apiKey()) ? Models.serverApiKey() : c.apiKey();
+            // 双方都没有 Key（服务端默认也是 Mock）→ 退回场景默认模型，避免必然 401
+            if (isBlank(key)) {
+                return fallback.chat(messages);
+            }
             String cacheKey = c.baseUrl() + "|" + key + "|" + c.model();
             return CACHE
                     .computeIfAbsent(cacheKey, k -> Models.build(c.baseUrl(), key, c.model()))
                     .chat(messages);
         };
+    }
+
+    private static boolean isBlank(String v) {
+        return v == null || v.isBlank();
     }
 
     /** 绑定本次请求的模型配置（请求结束务必调用 {@link #clear}，线程池会复用线程）。 */

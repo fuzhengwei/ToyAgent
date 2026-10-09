@@ -36,12 +36,20 @@ fi
 docker rm -f toy-agent 2>/dev/null || true
 
 # ── 4. 启动 ──
+# 默认模型可通过环境变量直接配置（优先级：config.properties 非空值 > LLM_* > OPENAI_* > Mock）：
+#   LLM_BASE_URL=http://... LLM_API_KEY=sk-xxx LLM_MODEL=模型名 bash deploy.sh
+DOCKER_ENV=()
+[[ -n "$LLM_BASE_URL" ]] && DOCKER_ENV+=(-e "LLM_BASE_URL=$LLM_BASE_URL")
+[[ -n "$LLM_API_KEY"  ]] && DOCKER_ENV+=(-e "LLM_API_KEY=$LLM_API_KEY")
+[[ -n "$LLM_MODEL"    ]] && DOCKER_ENV+=(-e "LLM_MODEL=$LLM_MODEL")
+
 docker run -d \
   --name toy-agent \
   --restart unless-stopped \
   -p "${PORT}:8099" \
   -e TZ=Asia/Shanghai \
   -e JDK_JAVA_OPTIONS="-XX:MaxRAMPercentage=75.0" \
+  "${DOCKER_ENV[@]}" \
   -v "$(pwd)/config.properties:/app/config.properties" \
   -v "$(pwd)/events:/app/events" \
   -v "$(pwd)/sandbox:/app/sandbox" \
