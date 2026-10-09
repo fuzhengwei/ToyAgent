@@ -1331,28 +1331,6 @@ body {
 
 .field { display: block; margin-bottom: 13px; }
 
-.wali-tip {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    margin-bottom: 15px;
-    padding: 9px 12px;
-    background: var(--bg);
-    border: 1px dashed var(--line);
-    border-radius: 8px;
-    font-size: 12px;
-    line-height: 1.6;
-    color: var(--ink-2);
-    text-decoration: none;
-    transition: border-color .15s, background .15s;
-}
-
-.wali-tip:hover { border-color: var(--accent); background: var(--accent-soft); }
-
-.wali-icon { font-size: 14px; line-height: 1.4; }
-
-.wali-tip b { color: var(--accent); }
-
 .field span {
     display: block;
     font-size: 12px;
