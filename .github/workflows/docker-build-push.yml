@@ -1,0 +1,127 @@
+# ── ToyAgent Docker 镜像构建并推送到 Docker Hub 和阿里云 ACR ──
+# 触发条件：打 tag-v* 标签、手动触发（Actions 页面 Run workflow，可输入版本号）
+# 需要的仓库 Secrets：DOCKERHUB_USERNAME / DOCKERHUB_TOKEN / ALIYUN_REGISTRY_USER / ALIYUN_REGISTRY_PASSWORD
+name: Build and Push Docker Image
+
+on:
+  push:
+    tags: ['tag-v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '镜像版本号，可填 1.0.0、v1.0.0 或 tag-v1.0.0；留空则使用 latest 和短 SHA'
+        required: false
+        type: string
+
+env:
+  DOCKERHUB_NAMESPACE: fuzhengwei
+  ALIYUN_REGISTRY: registry.cn-hangzhou.aliyuncs.com
+  ALIYUN_NAMESPACE: xfg-studio
+  IMAGE_NAME: toy-agent
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      # ── 1. 检出代码 ──
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 2. 设置镜像标签 ──
+      - name: Set Image Tags
+        id: tags
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
+        run: |
+          VERSION=""
+          if [[ "${GITHUB_REF}" == refs/tags/tag-v* ]]; then
+            VERSION="${GITHUB_REF_NAME#tag-v}"
+          elif [[ -n "$VERSION_INPUT" ]]; then
+            VERSION="${VERSION_INPUT#tag-v}"
+            VERSION="${VERSION#v}"
+          fi
+
+          if [[ "${GITHUB_REF}" == refs/tags/tag-v* && -z "$VERSION" ]]; then
+            echo "tag-v 后必须包含版本号，例如 tag-v1.0.0"
+            exit 1
+          fi
+          if [[ -n "$VERSION_INPUT" && -z "$VERSION" ]]; then
+            echo "手动输入的版本号不能为空，例如 1.0.0"
+            exit 1
+          fi
+
+          if [[ -n "$VERSION" ]]; then
+            if [[ ! "$VERSION" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
+              echo "版本号不符合 Docker tag 格式：$VERSION"
+              exit 1
+            fi
+            # 打 tag 时：同时推版本号和 latest
+            TAG_SUFFIX=":${VERSION},:latest"
+          else
+            # 手动触发时：latest + commit 短 sha
+            TAG_SUFFIX=":latest,:sha-${GITHUB_SHA::7}"
+          fi
+
+          DH_TAGS=""
+          ACR_TAGS=""
+          IFS=',' read -ra PARTS <<< "$TAG_SUFFIX"
+          for part in "${PARTS[@]}"; do
+            [[ -n "$DH_TAGS" ]] && DH_TAGS+=","
+            DH_TAGS+="${{ env.DOCKERHUB_NAMESPACE }}/${{ env.IMAGE_NAME }}${part}"
+            [[ -n "$ACR_TAGS" ]] && ACR_TAGS+=","
+            ACR_TAGS+="${{ env.ALIYUN_REGISTRY }}/${{ env.ALIYUN_NAMESPACE }}/${{ env.IMAGE_NAME }}${part}"
+          done
+
+          echo "all_tags=${DH_TAGS},${ACR_TAGS}" >> $GITHUB_OUTPUT
+          echo "dh_latest=${{ env.DOCKERHUB_NAMESPACE }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_OUTPUT
+          echo "acr_latest=${{ env.ALIYUN_REGISTRY }}/${{ env.ALIYUN_NAMESPACE }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_OUTPUT
+
+      # ── 3. 设置 Docker Buildx ──
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ── 4. 登录 Docker Hub ──
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login to Aliyun Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.ALIYUN_REGISTRY }}
+          username: ${{ secrets.ALIYUN_REGISTRY_USER }}
+          password: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
+
+      # ── 5. 构建并推送镜像（Maven 构建在 Dockerfile 内完成，无需预装 JDK）──
+      - name: Build and Push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.tags.outputs.all_tags }}
+          # 多架构构建（可选，需要时取消注释）
+          # platforms: linux/amd64,linux/arm64
+          # GitHub Actions 构建缓存，加速二次构建
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+          sbom: false
+
+      # ── 6. 输出镜像信息 ──
+      - name: Image Info
+        run: |
+          echo "✅ 镜像构建并推送成功！"
+          echo ""
+          echo "📦 镜像地址："
+          echo "${{ steps.tags.outputs.all_tags }}" | tr ',' '\n' | sed 's/^/  - /'
+          echo ""
+          echo "🐳 Docker Hub 拉取命令："
+          echo "  docker pull ${{ steps.tags.outputs.dh_latest }}"
+          echo "🐳 阿里云 ACR 拉取命令："
+          echo "  docker pull ${{ steps.tags.outputs.acr_latest }}"
+          echo ""
+          echo "🚀 运行命令："
+          echo "  docker run -d -p 8099:8099 -v \$(pwd)/config.properties:/app/config.properties ${{ steps.tags.outputs.acr_latest }}"

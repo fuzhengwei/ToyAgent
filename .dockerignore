@@ -1,0 +1,18 @@
+# 构建上下文瘦身：只保留 pom.xml / src / web 进入构建
+target/
+.git/
+.github/
+.idea/
+*.iml
+.DS_Store
+
+# 密钥与运行时数据一律不进镜像（部署时用 volume 挂载）
+config.properties
+events/
+sandbox/
+plugins/
+wiki/
+logs/
+
+# 官方部署脚本本身无需进入构建上下文
+docker-compose.yml

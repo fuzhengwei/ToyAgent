@@ -1,0 +1,39 @@
+# ── ToyAgent 部署脚本（阿里云镜像）──
+# 使用前：
+#   1. 准备 ./config.properties（可从 config.properties.example 复制后填写 API Key，
+#      不填也能启动，所有场景回落 Mock 演示模型）
+#   2. docker compose up -d
+#   3. 访问 http://<服务器IP>:8099
+services:
+  toy-agent:
+    image: registry.cn-hangzhou.aliyuncs.com/xfg-studio/toy-agent:latest
+    container_name: toy-agent
+    restart: unless-stopped
+    ports:
+      - "8099:8099"
+    environment:
+      # 服务端口，如需换成 8080 对外，改上面 ports 左侧即可，容器内保持 8099
+      TOY_AGENT_PORT: "8099"
+      # 时区，保证定时任务（step26）与事件日志时间正确
+      TZ: Asia/Shanghai
+      # JVM 内存限制（可选，按服务器配置调整）；JDK 9+ 自动读取 JDK_JAVA_OPTIONS
+      JDK_JAVA_OPTIONS: "-XX:MaxRAMPercentage=75.0"
+    volumes:
+      # 模型配置（API Key / 域名 / 模型名）：页面上改配置会持久化回这个文件
+      - ./config.properties:/app/config.properties
+      # 运行时数据持久化：事件溯源 / 定时任务日志 / 沙箱工作区 / 插件 / LLM-Wiki
+      - ./events:/app/events
+      - ./sandbox:/app/sandbox
+      - ./plugins:/app/plugins
+      - ./wiki:/app/wiki
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8099/"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
