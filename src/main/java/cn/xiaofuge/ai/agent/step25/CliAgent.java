@@ -1,4 +1,4 @@
-package cn.xiaofuge.ai.agent.step22;
+package cn.xiaofuge.ai.agent.step25;
 
 import cn.xiaofuge.ai.agent.Agent;
 import cn.xiaofuge.ai.llm.ChatModel;
@@ -18,13 +18,13 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Step22 · CLI 智能体 —— 把智能体装进终端（对应教程 ch18 · CLI Agent）。
+ * Step25 · CLI 智能体 —— 把智能体装进终端（对应教程 ch18 · CLI Agent）。
  * <p>
  * 形态变了，骨架不变：仍然是 {@code Agent.chat(input)}，只是外面套一层终端 REPL。
  * <ol>
- *   <li>工具侧换执行器：run_command 直接执行 shell 命令，复用 Step19 的沙箱四层防御
+ *   <li>工具侧换执行器：run_command 直接执行 shell 命令，复用 Step21 的沙箱四层防御
  *       （拒绝名单 → 路径边界 → 命令白名单 → 受限工作区）；</li>
- *   <li>工作目录即上下文：受限工作区 sandbox/step22/ 进入系统提示词，像终端会话一样有 cwd；</li>
+ *   <li>工作目录即上下文：受限工作区 sandbox/step25/ 进入系统提示词，像终端会话一样有 cwd；</li>
  *   <li>两种交互模式：交互式 REPL（默认）与非交互单命令 {@code -p "任务"}（Claude Code 同款）。</li>
  * </ol>
  * 试试本场景的本地指令（Web 页面）：
@@ -35,14 +35,14 @@ import java.util.concurrent.TimeUnit;
  *   运行：cat /etc/passwd —— 第②层路径边界拦截
  *   列出工作区文件        —— 模型自主决策调用 run_command
  * </pre>
- * 终端形态：{@code java -cp target/classes cn.xiaofuge.ai.agent.step22.CliAgent}
- * 或单命令 {@code java -cp target/classes cn.xiaofuge.ai.agent.step22.CliAgent -p "看看工作区里有什么"}
+ * 终端形态：{@code java -cp target/classes cn.xiaofuge.ai.agent.step25.CliAgent}
+ * 或单命令 {@code java -cp target/classes cn.xiaofuge.ai.agent.step25.CliAgent -p "看看工作区里有什么"}
  */
 public interface CliAgent extends Agent {
 
     class Impl implements CliAgent {
 
-        private static final Path WORKSPACE = Path.of("sandbox", "step22");
+        private static final Path WORKSPACE = Path.of("sandbox", "step25");
         /** 第①层：拒绝名单（无论是否在沙箱内，一律拒绝）。 */
         private static final Set<String> DENYLIST = Set.of(
                 "rm", "sudo", "shutdown", "reboot", "mkfs", "dd", "kill", "pkill");
@@ -69,7 +69,7 @@ public interface CliAgent extends Agent {
 
         @Override
         public String name() {
-            return "Step22 · CLI 智能体（终端 REPL + 沙箱执行器）";
+            return "Step25 · CLI 智能体（终端 REPL + 沙箱执行器）";
         }
 
         @Override
@@ -118,7 +118,7 @@ public interface CliAgent extends Agent {
             return "命令：" + cmd + "\n结果：\n" + result;
         }
 
-        /** 四层防御（与 Step19 同构）：拒绝名单 → 路径边界 → 命令白名单 → 受限工作区。 */
+        /** 四层防御（与 Step21 同构）：拒绝名单 → 路径边界 → 命令白名单 → 受限工作区。 */
         private String runGuarded(String cmd) {
             if (cmd == null || cmd.isBlank()) return "（空命令）";
 
@@ -193,8 +193,8 @@ public interface CliAgent extends Agent {
      * 形态是壳，灵魂仍是 chat(input)。
      */
     static void main(String[] args) {
-        ChatModel model = Models.isRealModel() ? Models.openAiOrNull() : Models.mock("step22");
-        Impl agent = new Impl(model != null ? model : Models.mock("step22"));
+        ChatModel model = Models.isRealModel() ? Models.openAiOrNull() : Models.mock("step25");
+        Impl agent = new Impl(model != null ? model : Models.mock("step25"));
 
         // 非交互单命令模式：java ... CliAgent -p "看看工作区里有什么"
         if (args.length >= 2 && "-p".equals(args[0])) {
@@ -204,7 +204,7 @@ public interface CliAgent extends Agent {
         }
 
         // 交互式 REPL
-        System.out.println("ToyAgent CLI（Step22）—— 输入任务，exit 退出。模型: " + (Models.isRealModel() ? "真实" : "mock"));
+        System.out.println("ToyAgent CLI（Step25）—— 输入任务，exit 退出。模型: " + (Models.isRealModel() ? "真实" : "mock"));
         try (Scanner sc = new Scanner(System.in, StandardCharsets.UTF_8)) {
             while (true) {
                 System.out.print("你> ");

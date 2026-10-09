@@ -35,24 +35,24 @@ public final class MockChatModel implements ChatModel {
             case "step04" -> mockToolCall(last);
             case "step05" -> mockMemory(all, last);
             case "step06" -> mockRouter(last);
-            case "step07" -> mockMcp(last);
-            case "step08" -> mockSkill(all, last);
-            case "step09" -> mockRag(all, last);
-            case "step10" -> mockMulti(all, system);
-            case "step11" -> mockLoop(last, all);
-            case "step12" -> mockWorkflow(all, last);
-            case "step13" -> mockFull(all, last);
-            case "step15" -> mockRegistry(last);
-            case "step16" -> mockRuntime(all, last);
-            case "step17" -> mockAsk(all, last);
-            case "step18" -> mockApproval(last);
-            case "step19" -> mockSandbox(last);
-            case "step20" -> mockEvent(all, last);
-            case "step21" -> mockPlugin(all, last);
-            case "step22" -> mockCli(all, last, system);
-            case "step23" -> mockSubagent(all, last, system);
+            case "step09" -> mockMcp(last);
+            case "step10" -> mockSkill(all, last);
+            case "step07" -> mockRag(all, last);
+            case "step12" -> mockMulti(all, system);
+            case "step15" -> mockLoop(last, all);
+            case "step16" -> mockWorkflow(all, last);
+            case "step18" -> mockFull(all, last);
+            case "step11" -> mockRegistry(last);
+            case "step17" -> mockRuntime(all, last);
+            case "step19" -> mockAsk(all, last);
+            case "step20" -> mockApproval(last);
+            case "step21" -> mockSandbox(last);
+            case "step22" -> mockEvent(all, last);
+            case "step23" -> mockPlugin(all, last);
+            case "step25" -> mockCli(all, last, system);
+            case "step13" -> mockSubagent(all, last, system);
             case "step24" -> mockHooks(all, last, system);
-            case "step25" -> mockA2a(all, last, system);
+            case "step14" -> mockA2a(all, last, system);
             case "step26" -> mockSchedule(all, last, system);
             default -> "（Mock 模型）收到：" + last;
         };
@@ -90,7 +90,7 @@ public final class MockChatModel implements ChatModel {
                 + "（Mock 模型按系统提示词的格式约定作答；真实模型会表现出同样的角色倾向。）";
     }
 
-    // ------------------------------------------------------------- step13 全流程
+    // ------------------------------------------------------------- step18 全流程
 
     /** 与 step03 同一套 ReAct JSON 协议，但画像信息会让回答更「有记忆」。 */
     private String mockFull(String all, String last) {
@@ -212,7 +212,7 @@ public final class MockChatModel implements ChatModel {
                 "reason", "根据用户输入关键词与语义判断下一步走向"));
     }
 
-    // ------------------------------------------------------------- step07 MCP
+    // ------------------------------------------------------------- step09 MCP
 
     private String mockMcp(String last) {
         // 工具结果回填轮：不再发起调用
@@ -228,7 +228,7 @@ public final class MockChatModel implements ChatModel {
         return "（Mock 模型）MCP 的核心是把「工具」标准化：统一注册、统一发现（tools/list）、统一调用（tools/call）。这个问题我直接回答即可，无需调用工具。";
     }
 
-    // ------------------------------------------------------------- step08 技能
+    // ------------------------------------------------------------- step10 技能
 
     private String mockSkill(String all, String last) {
         // 技能执行轮：travel_plan 技能内的模型调用按角色作答
@@ -244,7 +244,7 @@ public final class MockChatModel implements ChatModel {
                 "reason", "依据输入语义匹配已注册技能"));
     }
 
-    // ------------------------------------------------------------- step09 RAG
+    // ------------------------------------------------------------- step07 RAG
 
     private String mockRag(String all, String last) {
         String ctx = extractAfter(all, "【参考资料】");
@@ -256,7 +256,7 @@ public final class MockChatModel implements ChatModel {
         return "（Mock 模型）知识库中未命中相关片段时，我会如实回答不知道，而不是编造 —— 拒答也是 RAG 的重要能力。";
     }
 
-    // ------------------------------------------------------------- step10 多智能体
+    // ------------------------------------------------------------- step12 多智能体
 
     private String mockMulti(String all, String system) {
         if (system.contains("规划者")) {
@@ -278,7 +278,7 @@ public final class MockChatModel implements ChatModel {
         return "（Mock 模型）已收到任务。";
     }
 
-    // ------------------------------------------------------------- step11 Loop + 守卫
+    // ------------------------------------------------------------- step15 Loop + 守卫
 
     private String mockLoop(String last, String all) {
         if (all.contains("Observation:")) {
@@ -293,7 +293,7 @@ public final class MockChatModel implements ChatModel {
                 "action_input", findCity(last)));
     }
 
-    // ------------------------------------------------------------- step12 工作流
+    // ------------------------------------------------------------- step16 工作流
 
     private String mockWorkflow(String all, String last) {
         if (all.contains("[节点:classify]")) {
@@ -317,7 +317,7 @@ public final class MockChatModel implements ChatModel {
         return "这是 FAQ 节点的直接回答。「" + clip(last) + "」属于常见问题，无需工具，命中预设答案后进入 polish 润色。";
     }
 
-    // ------------------------------------------------------------- step15 工具注册表
+    // ------------------------------------------------------------- step11 工具注册表
 
     /** 与 step04 同一套 {"tool","arguments"} 协议，但工具清单来自注册表。 */
     private String mockRegistry(String last) {
@@ -338,7 +338,7 @@ public final class MockChatModel implements ChatModel {
         return "这个问题不需要调用工具，直接回答即可 —— 工具清单由注册表动态生成，注册即生效、注销即消失。";
     }
 
-    // ------------------------------------------------------------- step16 ReAct 运行时
+    // ------------------------------------------------------------- step17 ReAct 运行时
 
     /** ReAct 协议；「死循环测试」会永远发起 echo 工具调用，触发 MAX_STEPS 保险丝。 */
     private String mockRuntime(String all, String last) {
@@ -379,7 +379,7 @@ public final class MockChatModel implements ChatModel {
                 "final", "（Mock 模型）本轮 " + countHistory(all) + " 条历史的上下文已按预算裁剪后发给模型。多聊几轮，可在轨迹里看到「上下文裁剪」事件。"));
     }
 
-    // ------------------------------------------------------------- step17 人工介入
+    // ------------------------------------------------------------- step19 人工介入
 
     /** 缺关键信息时发起 ask_user_question；「人工答复：」回填后带着完整信息完成任务。 */
     private String mockAsk(String all, String last) {
@@ -398,7 +398,7 @@ public final class MockChatModel implements ChatModel {
                 "final", "（Mock 模型）信息完整的问题我直接回答。想看人工介入：发「帮我订一张去北京的机票」，我会停下来向你确认出发地。"));
     }
 
-    // ------------------------------------------------------------- step18 审批门禁
+    // ------------------------------------------------------------- step20 审批门禁
 
     private String mockApproval(String last) {
         if (last.contains("执行结果") || last.contains("审批结果")) {
@@ -424,7 +424,7 @@ public final class MockChatModel implements ChatModel {
                         + "回复「批准 / 拒绝 / 批准并记住」观察三种走向。"));
     }
 
-    // ------------------------------------------------------------- step19 沙箱
+    // ------------------------------------------------------------- step21 沙箱
 
     private String mockSandbox(String last) {
         if (last.contains("执行结果") || last.contains("已拦截") || last.contains("沙箱内")) {
@@ -435,7 +435,7 @@ public final class MockChatModel implements ChatModel {
                         + "发「执行：ls sandbox」看放行，或「执行：rm -rf /」看第 2 层拦截。"));
     }
 
-    // ------------------------------------------------------------- step20 事件溯源
+    // ------------------------------------------------------------- step22 事件溯源
 
     private String mockEvent(String all, String last) {
         Matcher m = Pattern.compile("我叫([\\u4e00-\\u9fa5A-Za-z0-9]{1,10})").matcher(all);
@@ -456,11 +456,11 @@ public final class MockChatModel implements ChatModel {
                     : Json.write(Map.of("final", "日志里还没有你的名字，先说「我叫XX」吧。"));
         }
         return Json.write(Map.of(
-                "final", "（Mock 模型）本轮会话由事件日志回放重建。多聊几轮再看 events/step20-events.jsonl，"
+                "final", "（Mock 模型）本轮会话由事件日志回放重建。多聊几轮再看 events/step22-events.jsonl，"
                         + "每一条对话都是不可变事件；「重置」删掉日志，记忆归零。"));
     }
 
-    // ------------------------------------------------------------- step21 插件机制
+    // ------------------------------------------------------------- step23 插件机制
 
     /** 插件机制剧本：安装后正常决策调用插件工具；未安装/已卸载时由注册表未命中路径兜底。 */
     private String mockPlugin(String all, String last) {
@@ -478,14 +478,14 @@ public final class MockChatModel implements ChatModel {
         return "（Mock 模型）先「安装插件」，工具才会出现在我的清单里；「卸载插件」后我再也看不见它们 —— 能力即插即拔。";
     }
 
-    // ------------------------------------------------------------- step22 CLI 智能体
+    // ------------------------------------------------------------- step25 CLI 智能体
 
     /** CLI 剧本：命令类输入返回 run_command 决策；其余兜底引导。 */
     private String mockCli(String all, String last, String system) {
         if (last.contains("执行结果")) {
             String fact = extractAfter(last, "执行结果");
             return "命令结果：" + (fact.isBlank() ? clip(last) : clip(fact))
-                    + " —— run_command 在受限工作区执行，Step19 的四层防御全程护航。";
+                    + " —— run_command 在受限工作区执行，Step21 的四层防御全程护航。";
         }
         if (last.contains("列出") || last.contains("文件") || last.contains("目录") || last.contains("ls")) {
             return Json.write(Map.of("tool", "run_command", "arguments", Map.of("command", "ls")));
@@ -496,10 +496,10 @@ public final class MockChatModel implements ChatModel {
         if (last.contains("hello")) {
             return Json.write(Map.of("tool", "run_command", "arguments", Map.of("command", "cat hello.txt")));
         }
-        return "我是终端里的 CLI 智能体。试试「运行：ls」，或让我「列出工作区文件」—— 命令都在 sandbox/step22 里执行，危险命令会被四层防御拦截。";
+        return "我是终端里的 CLI 智能体。试试「运行：ls」，或让我「列出工作区文件」—— 命令都在 sandbox/step25 里执行，危险命令会被四层防御拦截。";
     }
 
-    // ------------------------------------------------------------- step23 子代理
+    // ------------------------------------------------------------- step13 子代理
 
     /** 子代理剧本：system 带【子代理身份】为子代理回合（fork 能看到父会话里的紫色）；否则为主代理回合。 */
     private String mockSubagent(String all, String last, String system) {
@@ -550,7 +550,7 @@ public final class MockChatModel implements ChatModel {
                         + "·「审计日志」—— before 审计钩子记下的每一次调用"));
     }
 
-    // ------------------------------------------------------------- step25 A2A 协作
+    // ------------------------------------------------------------- step14 A2A 协作
 
     /** A2A 剧本：先发现名片，再按任务类型路由到 translator / weather。 */
     private String mockA2a(String all, String last, String system) {

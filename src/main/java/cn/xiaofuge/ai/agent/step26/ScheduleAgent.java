@@ -34,7 +34,7 @@ import java.util.regex.Pattern;
  *   <li><b>任务管理</b>：列出 / 取消，每个任务有 job_id。</li>
  * </ul>
  * 关键工程点：<b>HTTP 请求已经返回，任务却在未来执行</b> —— 所以触发结果不能塞进本次响应，
- * 要落盘（events/step26-tasks.jsonl，append-only 事件溯源，呼应 Step20）并在后续对话中汇报。
+ * 要落盘（events/step26-tasks.jsonl，append-only 事件溯源，呼应 Step22）并在后续对话中汇报。
  * 这也是生产提醒/巡检类 Agent 的最小雏形。
  * <p>
  * 试试本场景的对话：

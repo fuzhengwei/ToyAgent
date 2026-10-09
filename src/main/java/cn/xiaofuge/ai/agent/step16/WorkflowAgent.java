@@ -1,4 +1,4 @@
-package cn.xiaofuge.ai.agent.step12;
+package cn.xiaofuge.ai.agent.step16;
 
 import cn.xiaofuge.ai.agent.Agent;
 import cn.xiaofuge.ai.llm.ChatModel;
@@ -14,7 +14,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Step12 · 工作流智能体 —— LangGraph 式的状态机编排。
+ * Step16 · 工作流智能体 —— LangGraph 式的状态机编排。
  * <p>
  * ReAct 是"模型说了算"的自由循环，但很多业务需要"流程说了算"的
  * 确定性编排。把智能体拆成节点（Node）与边（Edge）：
@@ -35,7 +35,7 @@ public interface WorkflowAgent extends Agent {
 
         @Override
         public String name() {
-            return "Step12 · 工作流状态机（LangGraph 思想）";
+            return "Step16 · 工作流状态机（LangGraph 思想）";
         }
 
         @Override

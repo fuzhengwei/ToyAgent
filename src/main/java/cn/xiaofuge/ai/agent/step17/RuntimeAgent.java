@@ -1,8 +1,8 @@
-package cn.xiaofuge.ai.agent.step16;
+package cn.xiaofuge.ai.agent.step17;
 
 import cn.xiaofuge.ai.agent.Agent;
-import cn.xiaofuge.ai.agent.step15.ToolDefinition;
-import cn.xiaofuge.ai.agent.step15.ToolRegistry;
+import cn.xiaofuge.ai.agent.step11.ToolDefinition;
+import cn.xiaofuge.ai.agent.step11.ToolRegistry;
 import cn.xiaofuge.ai.llm.ChatModel;
 import cn.xiaofuge.ai.llm.Json;
 import cn.xiaofuge.ai.llm.Message;
@@ -15,7 +15,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Step16 · ReAct 运行时 —— turn/step 两级循环 + 上下文裁剪 + TurnEndReason。
+ * Step17 · ReAct 运行时 —— turn/step 两级循环 + 上下文裁剪 + TurnEndReason。
  * <p>
  * 参考 deepseek-harness-java 的 ReactLoopAgent（994 行）拆出的教学骨架，三个核心机制：
  * <ol>
@@ -28,7 +28,7 @@ import java.util.regex.Pattern;
  *   <li><b>步数保险丝</b>：单回合最多 {@link #MAX_STEPS_PER_TURN} 步，超限以
  *       TurnEndReason.MaxSteps 收场（发「死循环测试」可亲眼看到保险丝起跳）。</li>
  * </ol>
- * 工具直接复用 Step15 的 ToolRegistry —— 运行时与工具协议天然解耦。
+ * 工具直接复用 Step11 的 ToolRegistry —— 运行时与工具协议天然解耦。
  */
 public interface RuntimeAgent extends Agent {
 
@@ -56,7 +56,7 @@ public interface RuntimeAgent extends Agent {
 
         @Override
         public String name() {
-            return "Step16 · ReAct 运行时（turn/step + 上下文裁剪 + TurnEndReason）";
+            return "Step17 · ReAct 运行时（turn/step + 上下文裁剪 + TurnEndReason）";
         }
 
         @Override

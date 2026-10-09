@@ -1,11 +1,11 @@
-package cn.xiaofuge.ai.agent.step21;
+package cn.xiaofuge.ai.agent.step23;
 
 import cn.xiaofuge.ai.agent.Agent;
 import cn.xiaofuge.ai.llm.ChatModel;
 import cn.xiaofuge.ai.llm.Json;
 import cn.xiaofuge.ai.llm.Message;
-import cn.xiaofuge.ai.agent.step15.ToolDefinition;
-import cn.xiaofuge.ai.agent.step15.ToolRegistry;
+import cn.xiaofuge.ai.agent.step11.ToolDefinition;
+import cn.xiaofuge.ai.agent.step11.ToolRegistry;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,9 +24,9 @@ import java.util.Properties;
 import java.util.Random;
 
 /**
- * Step21 · 插件机制 —— 把「一批工具」打包成可安装、可卸载的插件。
+ * Step23 · 插件机制 —— 把「一批工具」打包成可安装、可卸载的插件。
  * <p>
- * 与 Step15 的关系：Step15 解决「工具怎么注册」，本步解决「工具从哪来」——
+ * 与 Step11 的关系：Step11 解决「工具怎么注册」，本步解决「工具从哪来」——
  * 插件是工具的动态载体：安装插件 = 批量注册，卸载插件 = 批量调用 disposer。
  * 对应 deepseek-harness-java 的 JavaPluginLoader + PluginToolBridgeService。
  * <p>
@@ -65,13 +65,13 @@ public interface PluginAgent extends Agent {
 
     class Impl implements PluginAgent {
 
-        private static final Path PLUGIN_DIR = Path.of("plugins", "step21");
-        private static final String ENTRY = "cn.xiaofuge.ai.agent.step21.PluginAgent$TimePlugin";
+        private static final Path PLUGIN_DIR = Path.of("plugins", "step23");
+        private static final String ENTRY = "cn.xiaofuge.ai.agent.step23.PluginAgent$TimePlugin";
         /** 演示插件的全部类文件：宿主把它们释放到 plugins/ 目录，模拟用户「放入插件包」。 */
         private static final String[] PLUGIN_CLASSES = {
-                "cn/xiaofuge/ai/agent/step21/PluginAgent$TimePlugin.class",
-                "cn/xiaofuge/ai/agent/step21/PluginAgent$TimePlugin$UptimeTool.class",
-                "cn/xiaofuge/ai/agent/step21/PluginAgent$TimePlugin$CoinTool.class"};
+                "cn/xiaofuge/ai/agent/step23/PluginAgent$TimePlugin.class",
+                "cn/xiaofuge/ai/agent/step23/PluginAgent$TimePlugin$UptimeTool.class",
+                "cn/xiaofuge/ai/agent/step23/PluginAgent$TimePlugin$CoinTool.class"};
 
         private record Loaded(AgentPlugin plugin, URLClassLoader classLoader,
                               List<String> toolNames, List<Runnable> disposers) {}
@@ -89,7 +89,7 @@ public interface PluginAgent extends Agent {
 
         @Override
         public String name() {
-            return "Step21 · 插件机制（JavaPluginLoader 隔离加载）";
+            return "Step23 · 插件机制（JavaPluginLoader 隔离加载）";
         }
 
         @Override

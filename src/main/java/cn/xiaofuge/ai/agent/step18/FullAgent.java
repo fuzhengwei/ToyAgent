@@ -1,4 +1,4 @@
-package cn.xiaofuge.ai.agent.step13;
+package cn.xiaofuge.ai.agent.step18;
 
 import cn.xiaofuge.ai.agent.Agent;
 import cn.xiaofuge.ai.agent.step03.ReActAgent;
@@ -15,7 +15,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Step13 · 全流程智能体 —— 把前 12 个场景的能力串成一条完整链路。
+ * Step18 · 全流程智能体 —— 把前 12 个场景的能力串成一条完整链路。
  * <p>
  * 前面的场景每次只演示一种能力，这一个类把它们全部组装到一起，
  * 一次 chat() 完整走完生产级智能体的标准生命周期：
@@ -76,14 +76,14 @@ public interface FullAgent extends Agent {
 
         @Override
         public String name() {
-            return "Step13 · 全流程智能体（守卫+记忆+ReAct+工具+保险丝）";
+            return "Step18 · 全流程智能体（守卫+记忆+ReAct+工具+保险丝）";
         }
 
         @Override
         public String chat(String input) {
             lastTrace.clear();
 
-            // ---------- 1. 输入守卫（Step11 的 Guard） ----------
+            // ---------- 1. 输入守卫（Step15 的 Guard） ----------
             if (input.length() > MAX_INPUT_LEN) {
                 lastTrace.add(Map.of("type", "guard", "label", "输入守卫", "detail",
                         "输入长度 " + input.length() + " 超过上限 " + MAX_INPUT_LEN + "，直接拒绝，不进模型。"));

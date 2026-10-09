@@ -1,4 +1,4 @@
-package cn.xiaofuge.ai.agent.step08;
+package cn.xiaofuge.ai.agent.step10;
 
 import cn.xiaofuge.ai.agent.Agent;
 import cn.xiaofuge.ai.llm.ChatModel;
@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Step08 · Skills 技能智能体 —— 工具的组合与复用。
+ * Step10 · Skills 技能智能体 —— 工具的组合与复用。
  * <p>
  * 单个工具解决单步问题，真实任务往往是多步组合。
  * Skill 是"可沉淀、可复用的能力包"，按抽象层级分三层：
@@ -47,7 +47,7 @@ public interface SkillAgent extends Agent {
 
         @Override
         public String name() {
-            return "Step08 · 技能编排（Skills L0/L1/L2）";
+            return "Step10 · 技能编排（Skills L0/L1/L2）";
         }
 
         @Override

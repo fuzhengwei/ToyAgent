@@ -1,4 +1,4 @@
-package cn.xiaofuge.ai.agent.step11;
+package cn.xiaofuge.ai.agent.step15;
 
 import cn.xiaofuge.ai.agent.Agent;
 import cn.xiaofuge.ai.llm.ChatModel;
@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Step11 · Loop 运行时智能体 —— 生产级 Agent Loop 的骨架。
+ * Step15 · Loop 运行时智能体 —— 生产级 Agent Loop 的骨架。
  * <p>
  * Step03 的 ReAct 循环是"裸奔"的：没有保险丝、没有安全检查。
  * 真实的智能体运行时（Runtime）在循环外面包了一层工程化外壳：
@@ -49,7 +49,7 @@ public interface LoopAgent extends Agent {
 
         @Override
         public String name() {
-            return "Step11 · Agent Loop 运行时（守卫 + 保险丝）";
+            return "Step15 · Agent Loop 运行时（守卫 + 保险丝）";
         }
 
         @Override

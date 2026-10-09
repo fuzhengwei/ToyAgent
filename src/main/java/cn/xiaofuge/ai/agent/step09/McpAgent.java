@@ -1,4 +1,4 @@
-package cn.xiaofuge.ai.agent.step07;
+package cn.xiaofuge.ai.agent.step09;
 
 import cn.xiaofuge.ai.agent.Agent;
 import cn.xiaofuge.ai.llm.ChatModel;
@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Step07 · MCP 智能体 —— 工具的标准化接口。
+ * Step09 · MCP 智能体 —— 工具的标准化接口。
  * <p>
  * Step04 的工具是"写死在智能体里"的。MCP（Model Context Protocol）
  * 把工具侧拆成一个独立服务：工具在 Server 中统一注册，Client 通过
@@ -39,7 +39,7 @@ public interface McpAgent extends Agent {
 
         @Override
         public String name() {
-            return "Step07 · MCP 协议（工具标准化接口）";
+            return "Step09 · MCP 协议（工具标准化接口）";
         }
 
         @Override

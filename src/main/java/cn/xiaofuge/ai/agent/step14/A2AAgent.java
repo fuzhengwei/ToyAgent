@@ -1,4 +1,4 @@
-package cn.xiaofuge.ai.agent.step25;
+package cn.xiaofuge.ai.agent.step14;
 
 import cn.xiaofuge.ai.agent.Agent;
 import cn.xiaofuge.ai.llm.ChatModel;
@@ -12,10 +12,10 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Step25 · A2A 协作 —— 代理之间的「标准化网络协议」
+ * Step14 · A2A 协作 —— 代理之间的「标准化网络协议」
  * （对应 deepseek-harness-java 的 A2AController / AgentCard / CollaborationController）。
  * <p>
- * Step10/23 的多代理都活在<strong>同一个进程</strong>里，主代理直接 new 出子代理。
+ * Step12/23 的多代理都活在<strong>同一个进程</strong>里，主代理直接 new 出子代理。
  * A2A（Agent-to-Agent）解决的是<strong>跨进程、跨主人</strong>的协作：
  * <ul>
  *   <li><b>名片发现</b>（Agent Card）：每个代理对外公布一份 JSON 名片 —— 我是谁、住在哪个 URL、会什么技能；</li>
@@ -23,7 +23,7 @@ import java.util.UUID;
  *       （submitted → working → completed/failed）；</li>
  *   <li><b>异步回执</b>：发起方拿到 task_id 即可离开，结果异步取回。</li>
  * </ul>
- * 与 Step23 子代理的区别：子代理是<strong>自家分身</strong>（进程内、共享宿主模型）；
+ * 与 Step13 子代理的区别：子代理是<strong>自家分身</strong>（进程内、共享宿主模型）；
  * A2A 是<strong>外部同行</strong>（网络调用、对方有自己的模型与工具），类比：请同事帮忙 vs 外包给合作公司。
  * <p>
  * 试试本场景的对话：
@@ -61,7 +61,7 @@ public interface A2AAgent extends Agent {
 
         @Override
         public String name() {
-            return "Step25 · A2A 协作（Agent Card 名片发现 · task_id 信封 · 异步回执）";
+            return "Step14 · A2A 协作（Agent Card 名片发现 · task_id 信封 · 异步回执）";
         }
 
         @Override

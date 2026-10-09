@@ -1,9 +1,9 @@
-package cn.xiaofuge.ai.agent.step15;
+package cn.xiaofuge.ai.agent.step11;
 
 import java.util.Map;
 
 /**
- * Step15 · 工具定义协议 —— 一个接口 = 一个工具。
+ * Step11 · 工具定义协议 —— 一个接口 = 一个工具。
  * <p>
  * Step03/04 里工具是写死在 switch 分支里的：加一个工具要改执行器代码。
  * 本场景把"工具"抽象成统一协议（参考 deepseek-harness-java 的 ToolDefinition）：
@@ -14,7 +14,7 @@ import java.util.Map;
  *   <li>{@link #execute(Map)} 执行逻辑 —— 工具的真正手脚。</li>
  * </ul>
  * 实现这个接口 + 注册进注册表 = 一个模型可见、可调用的工具。
- * MCP 协议的 tools/list + tools/call，本质就是这套协议的标准化版本（见场景 07）。
+ * MCP 协议的 tools/list + tools/call，本质就是这套协议的标准化版本（见场景 09）。
  */
 public interface ToolDefinition {
 

@@ -406,7 +406,7 @@
       '<div class="hero">' +
       '<img class="logo-big" src="logo.png" alt="ToyAgent Logo">' +
       "<h3>用 26 个接口类讲清楚智能体</h3>" +
-      "<p>剥掉所有概念外衣，智能体的灵魂只有一个方法。20 个场景由浅入深：前 12 个各讲一种能力，第 13 个全流程综合，第 14 个知识编译持久复用，第 15-16 个走向运行时基座（工具注册表 + turn/step 循环），第 17-20 个补齐人机协同与安全溯源（提问挂起 / 审批门禁 / 沙箱四层 / 事件日志），第 21 个插件机制让能力即插即拔，第 22-23 个拓展形态与协作（CLI 终端 / 子代理派遣），第 24-26 个完善生态（钩子拦截 / A2A 协作 / 定时任务）。</p>" +
+      "<p>剥掉所有概念外衣，智能体的灵魂只有一个方法。26 个场景按七条主题弧线递进：第 1-4 个基础内核（对话 / 提示词 / ReAct / 工具），第 5-8 个记忆与知识（记忆 / 路由 / RAG / LLM-Wiki），第 9-11 个工具的进化（MCP / Skills / 注册表），第 12-14 个协作与派遣（流水线 / 子代理 / A2A），第 15-18 个运行时与工程化（Loop / 状态机 / ReAct 运行时 / 全流程综合），第 19-22 个人机协同与安全（提问 / 审批 / 沙箱 / 事件溯源），第 23-26 个扩展与形态（插件 / 钩子 / CLI / 定时）。</p>" +
       '<div class="soul">Agent.chat(String input) —— 输入一句话，输出一句话</div>' +
       "</div>" +
       '<div class="stats">' +
@@ -628,16 +628,16 @@
       const tool = steps.find((s) => s.type === "tool" || s.type === "action");
       lines.push("participant T as 🛠 " + (tool ? mq(tool.label, 10) : "工具"));
       mid = "T";
-    } else if (id === "step07") {
+    } else if (id === "step09") {
       lines.push("participant M as 🔌 MCP Server");
       mid = "M";
     } else if (id === "step05") {
       lines.push("participant M as 💾 记忆");
       mid = "M";
-    } else if (id === "step08") {
+    } else if (id === "step10") {
       lines.push("participant K as 🎯 技能库");
       mid = "K";
-    } else if (id === "step09") {
+    } else if (id === "step07") {
       lines.push("participant K as 📚 知识库");
       mid = "K";
     }
@@ -651,7 +651,7 @@
         case "intent": lines.push("L-->>A: 意图 → " + clip(s, 20)); break;
         case "action":
         case "tool":
-          lines.push("A->>" + mid + ": " + (id === "step07" ? "tools/call · " : "") + clip(s, 20));
+          lines.push("A->>" + mid + ": " + (id === "step09" ? "tools/call · " : "") + clip(s, 20));
           break;
         case "mcp":
           if (/list|清单|发现/.test(s.label + s.detail)) {
@@ -678,10 +678,10 @@
   function buildMermaidCode(id, steps, userMsg) {
     if (!steps || !steps.length) return null;
     try {
-      if (id === "step10") return mqMultiAgent(steps, userMsg);
-      if (id === "step12") return mqWorkflow(steps, userMsg);
-      if (id === "step13") return mqFullSequence(steps, userMsg);
-      if (id === "step04" || id === "step05" || id === "step07" || id === "step08" || id === "step09")
+      if (id === "step12") return mqMultiAgent(steps, userMsg);
+      if (id === "step16") return mqWorkflow(steps, userMsg);
+      if (id === "step18") return mqFullSequence(steps, userMsg);
+      if (id === "step04" || id === "step05" || id === "step09" || id === "step10" || id === "step07")
         return mqSequence(id, steps, userMsg);
       return mqFlowchart(steps, userMsg);
     } catch (e) {
@@ -689,7 +689,7 @@
     }
   }
 
-  /** 全流程智能体（step13）：五参与者完整时序 —— 用户/Agent/记忆/大模型/工具集 */
+  /** 全流程智能体（step18）：五参与者完整时序 —— 用户/Agent/记忆/大模型/工具集 */
   function mqFullSequence(steps, userMsg) {
     const lines = ["sequenceDiagram", "autonumber"];
     lines.push("actor U as 👤 用户");

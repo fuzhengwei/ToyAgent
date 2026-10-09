@@ -1,4 +1,4 @@
-package cn.xiaofuge.ai.agent.step23;
+package cn.xiaofuge.ai.agent.step13;
 
 import cn.xiaofuge.ai.agent.Agent;
 import cn.xiaofuge.ai.llm.ChatModel;
@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Step23 · 子代理 —— 主智能体的「可派遣分身」（对应 dsh-java 的
+ * Step13 · 子代理 —— 主智能体的「可派遣分身」（对应 dsh-java 的
  * SubagentRegistry / SubagentTool / SpawnInProcessProvider / ForkInProcessProvider）。
  * <p>
  * 主代理不必亲自做所有事：把子任务委托给带<strong>独立上下文</strong>的子代理，结果回填主会话。
@@ -20,7 +20,7 @@ import java.util.Map;
  *   <li><b>spawn</b>（SpawnInProcessProvider）：全新实例，只有职责提示词，看不到父会话 —— 适合无状态专项任务；</li>
  *   <li><b>fork</b>（ForkInProcessProvider）：复制父会话上下文再出发 —— 适合「接着当前话题继续做」。</li>
  * </ul>
- * 与 Step10 多智能体的区别：Step10 是固定流水线（规划→研究→写作→审查），角色间结构化协作；
+ * 与 Step12 多智能体的区别：Step12 是固定流水线（规划→研究→写作→审查），角色间结构化协作；
  * 本步是<strong>主代理动态派遣</strong>—— 模型自己决定派谁、派几个、带不带上下文，即 Claude Code 的 Task 工具。
  * <p>
  * 试试本场景的对话（体会 spawn 与 fork 的上下文差异）：
@@ -53,7 +53,7 @@ public interface SubagentAgent extends Agent {
 
         @Override
         public String name() {
-            return "Step23 · 子代理（spawn 独立上下文 / fork 继承上下文）";
+            return "Step13 · 子代理（spawn 独立上下文 / fork 继承上下文）";
         }
 
         @Override

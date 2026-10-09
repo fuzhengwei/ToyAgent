@@ -1,4 +1,4 @@
-package cn.xiaofuge.ai.agent.step17;
+package cn.xiaofuge.ai.agent.step19;
 
 import cn.xiaofuge.ai.agent.Agent;
 import cn.xiaofuge.ai.llm.ChatModel;
@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Step17 · 人工介入 —— ask_user_question：把「异步的人」翻译成「可等待的答复」。
+ * Step19 · 人工介入 —— ask_user_question：把「异步的人」翻译成「可等待的答复」。
  * <p>
  * 参考 deepseek-harness-java 的 ask_user_question 工具（CompletableFuture 阻塞-唤醒）。
  * ToyAgent 是同步 HTTP 架构，教学版用同一思想的另一种实现：<b>会话挂起 + 续答</b>——
@@ -39,7 +39,7 @@ public interface AskAgent extends Agent {
 
         @Override
         public String name() {
-            return "Step17 · 人工介入（ask_user_question：提问挂起 → 答复续跑）";
+            return "Step19 · 人工介入（ask_user_question：提问挂起 → 答复续跑）";
         }
 
         @Override

@@ -1,4 +1,4 @@
-package cn.xiaofuge.ai.agent.step19;
+package cn.xiaofuge.ai.agent.step21;
 
 import cn.xiaofuge.ai.agent.Agent;
 import cn.xiaofuge.ai.llm.ChatModel;
@@ -15,7 +15,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Step19 · 沙箱纵深防御 —— 命令执行前的四道关卡。
+ * Step21 · 沙箱纵深防御 —— 命令执行前的四道关卡。
  * <p>
  * 参考 deepseek-harness-java 的命令拦截器与沙箱设计（策略三档 → 内容黑名单 →
  * 空间边界 → 路径规范化），拆出教学版四层校验管线，任何一层拦截即 DENY：
@@ -62,7 +62,7 @@ public interface SandboxAgent extends Agent {
 
         @Override
         public String name() {
-            return "Step19 · 沙箱纵深防御（策略 → 黑名单 → 边界 → 规范化，四层拦截）";
+            return "Step21 · 沙箱纵深防御（策略 → 黑名单 → 边界 → 规范化，四层拦截）";
         }
 
         @Override

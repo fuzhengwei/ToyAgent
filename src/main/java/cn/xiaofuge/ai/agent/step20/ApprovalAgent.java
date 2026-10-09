@@ -1,4 +1,4 @@
-package cn.xiaofuge.ai.agent.step18;
+package cn.xiaofuge.ai.agent.step20;
 
 import cn.xiaofuge.ai.agent.Agent;
 import cn.xiaofuge.ai.llm.ChatModel;
@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Step18 · 审批门禁 —— 高危操作先过人，批准才放行。
+ * Step20 · 审批门禁 —— 高危操作先过人，批准才放行。
  * <p>
  * 参考 deepseek-harness-java 的运行期审批链路（提交期权限矩阵 + 高危工具人工审批），
  * 拆出四个教学点：
@@ -53,7 +53,7 @@ public interface ApprovalAgent extends Agent {
 
         @Override
         public String name() {
-            return "Step18 · 审批门禁（高危操作先过人：批准 / 拒绝 / 批准并记住）";
+            return "Step20 · 审批门禁（高危操作先过人：批准 / 拒绝 / 批准并记住）";
         }
 
         @Override

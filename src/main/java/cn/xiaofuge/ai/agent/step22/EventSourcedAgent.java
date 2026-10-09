@@ -1,4 +1,4 @@
-package cn.xiaofuge.ai.agent.step20;
+package cn.xiaofuge.ai.agent.step22;
 
 import cn.xiaofuge.ai.agent.Agent;
 import cn.xiaofuge.ai.llm.ChatModel;
@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Step20 · 事件溯源 —— 会话即日志，日志即状态。
+ * Step22 · 事件溯源 —— 会话即日志，日志即状态。
  * <p>
  * 参考 deepseek-harness-java 的 Session Event Log：16 种领域事件 + JSONL
  * append-only 存储 + 回放投影。教学版拆出三件套：
@@ -26,7 +26,7 @@ import java.util.Map;
  *   <li><b>审计能力</b>：因为历史=事件流，天然获得审计、时间旅行、fork 会话等
  *       衍生能力（dsh-java 的子代理 fork 就是复制事件前缀）。</li>
  * </ol>
- * 事件日志在 events/step20-events.jsonl，可直接打开查看每一条。
+ * 事件日志在 events/step22-events.jsonl，可直接打开查看每一条。
  */
 public interface EventSourcedAgent extends Agent {
 
@@ -39,7 +39,7 @@ public interface EventSourcedAgent extends Agent {
     class Impl implements EventSourcedAgent {
 
         private final ChatModel model;
-        private final Path logFile = Path.of("events", "step20-events.jsonl");
+        private final Path logFile = Path.of("events", "step22-events.jsonl");
         private final List<Map<String, Object>> lastTrace = new ArrayList<>();
 
         public Impl(ChatModel model) {
@@ -48,7 +48,7 @@ public interface EventSourcedAgent extends Agent {
 
         @Override
         public String name() {
-            return "Step20 · 事件溯源（JSONL 事件日志 + 回放投影重建会话）";
+            return "Step22 · 事件溯源（JSONL 事件日志 + 回放投影重建会话）";
         }
 
         @Override
@@ -62,7 +62,7 @@ public interface EventSourcedAgent extends Agent {
                                 + (log.isEmpty() ? "（空日志 → 新会话）" : "")));
 
                 // ===== 2. 追加本轮事件 =====
-                if (log.isEmpty()) append(EV_SESSION, Map.of("scenario", "step20"));
+                if (log.isEmpty()) append(EV_SESSION, Map.of("scenario", "step22"));
                 append(EV_USER, Map.of("content", input));
 
                 // ===== 3. 上下文 = 投影结果（不是内存 List！）=====

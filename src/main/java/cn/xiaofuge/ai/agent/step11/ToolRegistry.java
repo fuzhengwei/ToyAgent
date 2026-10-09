@@ -1,11 +1,11 @@
-package cn.xiaofuge.ai.agent.step15;
+package cn.xiaofuge.ai.agent.step11;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
 /**
- * Step15 · 工具注册表 —— 模型"看得见"的工具目录。
+ * Step11 · 工具注册表 —— 模型"看得见"的工具目录。
  * <p>
  * 三个职责（与 deepseek-harness-java 的 ToolRegistry/AgentToolCatalog 同构）：
  * <ol>

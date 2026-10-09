@@ -1,4 +1,4 @@
-package cn.xiaofuge.ai.agent.step10;
+package cn.xiaofuge.ai.agent.step12;
 
 import cn.xiaofuge.ai.agent.Agent;
 import cn.xiaofuge.ai.llm.ChatModel;
@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Step10 · 多智能体协作 —— 从一个大脑到一支团队。
+ * Step12 · 多智能体协作 —— 从一个大脑到一支团队。
  * <p>
  * 单个智能体上下文有限、职责混杂。多智能体模式按角色拆分：
  * 规划者（Planner）拆解任务 → 专家（Worker）各司其职 →
@@ -32,7 +32,7 @@ public interface MultiAgent extends Agent {
 
         @Override
         public String name() {
-            return "Step10 · 多智能体协作（规划-执行-审查）";
+            return "Step12 · 多智能体协作（规划-执行-审查）";
         }
 
         @Override

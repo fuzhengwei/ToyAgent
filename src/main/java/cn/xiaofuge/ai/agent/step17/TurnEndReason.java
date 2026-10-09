@@ -1,7 +1,7 @@
-package cn.xiaofuge.ai.agent.step16;
+package cn.xiaofuge.ai.agent.step17;
 
 /**
- * Step16 · 回合结束原因（TurnEndReason）—— 用封闭类型统一表达"循环为什么停"。
+ * Step17 · 回合结束原因（TurnEndReason）—— 用封闭类型统一表达"循环为什么停"。
  * <p>
  * Step03 的循环只有两种结局：给出答案，或步数超限。但真实的运行时里，
  * 结束原因有很多种，且下游（前端展示、审计、续跑决策）都需要知道"为什么停"。

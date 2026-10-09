@@ -1,4 +1,4 @@
-package cn.xiaofuge.ai.agent.step09;
+package cn.xiaofuge.ai.agent.step07;
 
 import cn.xiaofuge.ai.agent.Agent;
 import cn.xiaofuge.ai.llm.ChatModel;
@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Step09 · RAG 智能体 —— 检索增强生成。
+ * Step07 · RAG 智能体 —— 检索增强生成。
  * <p>
  * 模型的知识是静态的，私有知识它根本没见过。RAG 的思路：
  * 先把问题在知识库里检索出最相关的片段，再把片段作为"参考资料"
@@ -48,7 +48,7 @@ public interface RagAgent extends Agent {
 
         @Override
         public String name() {
-            return "Step09 · RAG 检索增强生成";
+            return "Step07 · RAG 检索增强生成";
         }
 
         @Override

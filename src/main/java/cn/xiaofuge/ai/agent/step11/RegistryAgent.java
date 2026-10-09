@@ -1,4 +1,4 @@
-package cn.xiaofuge.ai.agent.step15;
+package cn.xiaofuge.ai.agent.step11;
 
 import cn.xiaofuge.ai.agent.Agent;
 import cn.xiaofuge.ai.llm.ChatModel;
@@ -15,7 +15,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Step15 · 工具注册表 —— 用「协议 + 注册表」取代写死的 switch。
+ * Step11 · 工具注册表 —— 用「协议 + 注册表」取代写死的 switch。
  * <p>
  * 与 Step04 的三点不同：
  * <ol>
@@ -53,7 +53,7 @@ public interface RegistryAgent extends Agent {
 
         @Override
         public String name() {
-            return "Step15 · 工具注册表（ToolDefinition 协议）";
+            return "Step11 · 工具注册表（ToolDefinition 协议）";
         }
 
         @Override

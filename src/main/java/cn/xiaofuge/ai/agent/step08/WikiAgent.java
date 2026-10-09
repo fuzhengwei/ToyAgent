@@ -1,4 +1,4 @@
-package cn.xiaofuge.ai.agent.step14;
+package cn.xiaofuge.ai.agent.step08;
 
 import cn.xiaofuge.ai.agent.Agent;
 import cn.xiaofuge.ai.llm.ChatModel;
@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Step14 · LLM-Wiki 智能体 —— 知识编译与持久化。
+ * Step08 · LLM-Wiki 智能体 —— 知识编译与持久化。
  * <p>
  * RAG 解决「检索」：每次提问都从头翻文档。LLM-Wiki 解决「沉淀」：
  * 项目知识（架构约定、代码规范、部署流程）被<strong>编译成结构化条目</strong>，
@@ -36,7 +36,7 @@ public interface WikiAgent extends Agent {
 
         /** 基础 Wiki：项目知识，启动时编译一次（生产中来自仓库里的 AGENTS.md / CLAUDE.md）。 */
         private static final Map<String, String> BASE_WIKI = Map.of(
-                "架构约定", "ToyAgent 是零依赖教学项目：一个接口类就是一个智能体场景（step01-14），全部实现放在 Impl 内部类里，禁止引入第三方依赖；模型层统一走 ChatModel 接口。",
+                "架构约定", "ToyAgent 是零依赖教学项目：一个接口类就是一个智能体场景（step01-26），全部实现放在 Impl 内部类里，禁止引入第三方依赖；模型层统一走 ChatModel 接口。",
                 "代码规范", "Java 17 语法；类与核心方法必须有中文 Javadoc 说明教学意图；trace 事件用 type/label/detail 三段式；JSON 一律走自研 Json 工具类。",
                 "部署流程", "javac -d target/classes 编译后 java -cp target/classes cn.xiaofuge.ai.Application 启动，默认端口 8099，可用环境变量 TOY_AGENT_PORT 覆盖；前端静态资源在 web/ 目录由服务直接托管。",
                 "业务规则", "配置只保存在各人浏览器 localStorage 随请求生效，服务端 config.properties 仅作默认兜底；未配置 API Key 时所有场景回落 Mock 演示模型。");
@@ -59,7 +59,7 @@ public interface WikiAgent extends Agent {
 
         @Override
         public String name() {
-            return "Step14 · LLM-Wiki 知识编译";
+            return "Step08 · LLM-Wiki 知识编译";
         }
 
         @Override
