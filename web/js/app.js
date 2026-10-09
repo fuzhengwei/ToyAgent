@@ -1015,7 +1015,7 @@
     const typing = addTyping();
 
     try {
-      const resp = await fetch("/api/" + currentId + "/chat", {
+      const resp = await fetch("api/" + currentId + "/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, model: readLocalModelCfg() || undefined })
@@ -1041,7 +1041,7 @@
   async function reset() {
     if (currentId === "home") return;
     try {
-      await fetch("/api/" + currentId + "/reset", { method: "POST" });
+      await fetch("api/" + currentId + "/reset", { method: "POST" });
       renderChatHome();
       toast("场景状态已重置（记忆、历史已清空）", "ok");
     } catch (e) {
@@ -1084,7 +1084,7 @@
       return;
     }
     try {
-      const resp = await fetch("/api/config");
+      const resp = await fetch("api/config");
       const data = await resp.json();
       badge.classList.toggle("mock", data.mode !== "real");
       $("#modelText").textContent =
@@ -1108,7 +1108,7 @@
     }
     // 再取服务端默认做兜底提示
     try {
-      const d = await fetch("/api/model").then((r) => r.json());
+      const d = await fetch("api/model").then((r) => r.json());
       if (!local) {
         $("#cfgBaseUrl").value = d.baseUrl || "";
         $("#cfgApiKey").value = "";
@@ -1136,7 +1136,7 @@
     }
     setStatus("⏳ 正在连接测试…", "");
     try {
-      const resp = await fetch("/api/model/test", {
+      const resp = await fetch("api/model/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ baseUrl, apiKey, model })
