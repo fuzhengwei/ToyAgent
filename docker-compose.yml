@@ -6,7 +6,7 @@
 #   3. 访问 http://<服务器IP>:8099
 services:
   toy-agent:
-    image: registry.cn-hangzhou.aliyuncs.com/xfg-studio/toy-agent:latest
+    image: registry.cn-hangzhou.aliyuncs.com/xfg-studio/toy-agent:1.0.4
     container_name: toy-agent
     restart: unless-stopped
     ports:
