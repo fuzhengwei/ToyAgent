@@ -1780,7 +1780,7 @@ body.resizing iframe, body.resizing textarea { pointer-events: none; }
   border-radius: 8px;
   white-space: nowrap;
   transform-origin: 50% 50%;
-  transform: translateZ(30px) rotateZ(34deg) rotateX(-52deg);
+  transform: translateZ(30px) rotateZ(calc(var(--rz) * -1)) rotateX(calc(var(--rx) * -1));
   box-shadow: 0 6px 12px rgba(40, 24, 8, .3);
 }
 
@@ -1877,7 +1877,7 @@ body.resizing iframe, body.resizing textarea { pointer-events: none; }
   opacity: 0;
   transition: opacity .15s;
   z-index: 5;
-  transform: translate(-50%, -50%) translateZ(calc(var(--h) + 64px)) rotateZ(34deg) rotateX(-52deg);
+  transform: translate(-50%, -50%) translateZ(calc(var(--h) + 64px)) rotateZ(calc(var(--rz) * -1)) rotateX(calc(var(--rx) * -1));
 }
 .cube .tip b {
   display: block;
@@ -1900,7 +1900,7 @@ body.resizing iframe, body.resizing textarea { pointer-events: none; }
   border-radius: 999px;
   cursor: pointer;
   white-space: nowrap;
-  transform: translateZ(34px) rotateZ(34deg) rotateX(-52deg);
+  transform: translateZ(34px) rotateZ(calc(var(--rz) * -1)) rotateX(calc(var(--rx) * -1));
   box-shadow: 0 8px 14px rgba(40, 24, 8, .35);
   transition: filter .15s;
 }
@@ -1915,6 +1915,234 @@ body.resizing iframe, body.resizing textarea { pointer-events: none; }
 .decor.d1 { left: 850px; top: 410px; }
 .decor.d2 { left: 130px; top: 418px; transform: translateZ(3px) rotate(10deg); }
 
+/* ---- 桌两端的大王（致敬《打，打个大西瓜》：两位大王隔着地图对坐）---- */
+.king {
+  position: absolute;
+  width: 78px;
+  height: 122px;
+  transform-origin: 50% 100%;
+  transform: translateZ(8px) rotateZ(calc(var(--rz) * -1)) rotateX(calc(var(--rx) * -1));
+  pointer-events: auto;
+  cursor: pointer;
+  z-index: 3;
+}
+.king.k-west { --kc: #a03028; --kg: #d29a2e; }
+.king.k-east { --kc: #3e5c76; --kg: #c9932f; }
+
+.king .k-fig {
+  position: absolute;
+  inset: 0;
+  animation: kBob 3.6s ease-in-out infinite;
+}
+.king.k-east .k-fig { animation-delay: -1.8s; }
+@keyframes kBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.king .k-shadow {
+  position: absolute;
+  left: 4px;
+  bottom: -5px;
+  width: 70px;
+  height: 15px;
+  background: radial-gradient(rgba(50, 30, 10, .32), transparent 70%);
+}
+
+/* 王座 */
+.king .k-chair {
+  position: absolute;
+  left: 8px;
+  bottom: 0;
+  width: 62px;
+  height: 86px;
+  background: linear-gradient(180deg, #8a5a2b, #6f4420);
+  border-radius: 14px 14px 4px 4px;
+  box-shadow: inset 0 4px 6px rgba(255, 235, 200, .25), inset 0 -8px 10px rgba(40, 20, 5, .35);
+}
+.king .k-chair::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -13px;
+  transform: translateX(-50%);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #f4d27a, var(--kg));
+  box-shadow: 0 2px 4px rgba(40, 24, 8, .4);
+}
+
+/* 王袍 + 衣领 + 腰带 */
+.king .k-robe {
+  position: absolute;
+  left: 16px;
+  bottom: 6px;
+  width: 46px;
+  height: 56px;
+  background: linear-gradient(180deg, var(--kc) 62%, color-mix(in srgb, var(--kc) 68%, #1a0d05) 62%);
+  border-radius: 18px 18px 5px 5px;
+  box-shadow: inset 3px 4px 6px rgba(255, 255, 255, .22), inset -4px -6px 8px rgba(0, 0, 0, .28);
+}
+.king .k-robe::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  transform: translateX(-50%);
+  width: 18px;
+  height: 10px;
+  background: #fffdf2;
+  border-radius: 0 0 10px 10px;
+}
+.king .k-robe::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 24px;
+  height: 6px;
+  background: #e8b64c;
+  box-shadow: 0 2px 3px rgba(0, 0, 0, .25);
+}
+
+/* 头 + 眼睛 + 八字胡 */
+.king .k-head {
+  position: absolute;
+  left: 26px;
+  bottom: 60px;
+  width: 27px;
+  height: 26px;
+  background: radial-gradient(circle at 35% 30%, #f6d3ab, #dfa874);
+  border-radius: 50%;
+}
+.king .k-head::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 9px;
+  width: 4px;
+  height: 5px;
+  border-radius: 50%;
+  background: #2c1c0c;
+  box-shadow: 13px 0 #2c1c0c;
+}
+.king .k-head::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 15px;
+  transform: translateX(-50%);
+  width: 15px;
+  height: 7px;
+  border-bottom: 2.5px solid #4a2f16;
+  border-radius: 0 0 12px 12px;
+}
+
+/* 金冠 */
+.king .k-crown {
+  position: absolute;
+  left: 24px;
+  bottom: 85px;
+  width: 31px;
+  height: 14px;
+  background: linear-gradient(180deg, #f2cd6e, var(--kg));
+  clip-path: polygon(0 100%, 0 35%, 25% 68%, 50% 0, 75% 68%, 100% 35%, 100% 100%);
+  filter: drop-shadow(0 2px 2px rgba(40, 24, 8, .35));
+}
+
+/* 武器：西大王亮银剑 / 东大王红缨关刀 */
+.king .k-weapon { position: absolute; }
+.king.k-west .k-weapon {
+  left: 57px;
+  bottom: 34px;
+  width: 10px;
+  height: 76px;
+  transform: rotate(9deg);
+  transform-origin: 50% 100%;
+}
+.king.k-west .k-weapon::before {
+  content: "";
+  position: absolute;
+  left: 1.5px;
+  bottom: 12px;
+  width: 7px;
+  height: 62px;
+  background: linear-gradient(90deg, #eef2f6, #9fb2c2 55%, #dfe7ee);
+  clip-path: polygon(50% 0, 100% 9%, 100% 100%, 0 100%, 0 9%);
+}
+.king.k-west .k-weapon::after {
+  content: "";
+  position: absolute;
+  left: -5px;
+  bottom: 5px;
+  width: 20px;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #f2cd6e, #c08a24);
+  box-shadow: 0 11px 0 -3px #6b4423;
+}
+.king.k-east .k-weapon {
+  left: 56px;
+  bottom: 30px;
+  width: 6px;
+  height: 94px;
+  transform: rotate(-12deg);
+  transform-origin: 50% 100%;
+}
+.king.k-east .k-weapon::before {
+  content: "";
+  position: absolute;
+  left: 1px;
+  top: -9px;
+  width: 18px;
+  height: 22px;
+  background: linear-gradient(135deg, #eef2f6, #9fb2c2);
+  border-radius: 4px 100% 60% 8px;
+}
+.king.k-east .k-weapon::after {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 14px;
+  width: 10px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #e86a48, #b03018);
+}
+
+/* 悬停对白气泡 */
+.king .k-say {
+  position: absolute;
+  left: 50%;
+  bottom: 132px;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 200px;
+  padding: 7px 11px;
+  border-radius: 9px;
+  background: rgba(31, 27, 22, .94);
+  color: #f3ede2;
+  font-size: 11.5px;
+  line-height: 1.5;
+  opacity: 0;
+  transition: opacity .15s;
+  pointer-events: none;
+  z-index: 6;
+}
+.king .k-say::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: rgba(31, 27, 22, .94);
+  border-bottom: 0;
+}
+.king:hover .k-say { opacity: 1; }
+.king:hover .k-fig { filter: brightness(1.06); }
+
 @media (max-width: 760px) {
   .map-hint { display: none; }
   .desk-scene { perspective-origin: 50% 30%; }
@@ -1922,4 +2150,5 @@ body.resizing iframe, body.resizing textarea { pointer-events: none; }
 @media (prefers-reduced-motion: reduce) {
   .cube { animation: none; }
   .desk, .cube .core { transition: none; }
+  .king .k-fig { animation: none; }
 }

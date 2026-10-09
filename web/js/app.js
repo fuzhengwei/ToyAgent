@@ -434,13 +434,22 @@
       '<div class="map-toolbar">' +
       '<button class="map-btn active" data-view="desk">🧊 3D 桌面</button>' +
       '<button class="map-btn" data-view="list">📄 列表</button>' +
-      '<span class="map-hint">🖱 拖拽旋转桌面 · 点击积木进入场景 · 悬停看简介</span>' +
+      '<span class="map-hint">🖱 拖拽旋转桌面 · 点击积木进入场景 · 悬停看简介 · 桌两端的大王可以悬停问话</span>' +
       "</div>" +
       '<div class="desk-map"><div class="desk-scene"><div class="desk">' +
       deskZones +
       '<div class="start-pin" data-id="step01">▶ 从 01 开始</div>' +
       '<div class="decor d1">✏️</div>' +
       '<div class="decor d2">🧸</div>' +
+      // 桌两端对坐的两位大王（致敬《打，打个大西瓜》）
+      '<div class="king k-west" style="left:-58px;top:140px">' +
+      '<div class="k-fig"><div class="k-shadow"></div><div class="k-chair"></div><div class="k-robe"></div><div class="k-head"></div><div class="k-crown"></div><div class="k-weapon"></div></div>' +
+      '<div class="k-say">朕的 <b>26 块积木</b>，一块都不能少！</div>' +
+      "</div>" +
+      '<div class="king k-east" style="left:910px;top:140px">' +
+      '<div class="k-fig"><div class="k-shadow"></div><div class="k-chair"></div><div class="k-robe"></div><div class="k-head"></div><div class="k-crown"></div><div class="k-weapon"></div></div>' +
+      '<div class="k-say">朕的 <b>Agent.chat()</b>，跑起来给朕看！</div>' +
+      "</div>" +
       "</div></div></div>";
     const projCards = GUIDE_PROJECTS.map(linkCard).join("");
     const paradigmCards = NEW_PARADIGM.map(linkCard).join("");
