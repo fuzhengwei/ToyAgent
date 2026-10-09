@@ -178,6 +178,22 @@ const SCENARIOS = [
     title: "插件机制",
     subtitle: "AgentPlugin 契约 + 隔离 ClassLoader：能力即插即拔",
     samples: ["安装插件", "查看工具清单", "掷一次硬币", "宿主运行多久了", "卸载插件", "再看看工具清单"]
+  },
+  {
+    id: "step22",
+    num: "22",
+    group: "生态扩展",
+    title: "CLI 智能体",
+    subtitle: "终端 REPL + 沙箱执行器：Agent.chat 的另一种形态",
+    samples: ["运行：ls", "运行：cat hello.txt", "列出工作区文件", "现在几点了", "运行：rm -rf /", "运行：cat /etc/passwd"]
+  },
+  {
+    id: "step23",
+    num: "23",
+    group: "生态扩展",
+    title: "子代理",
+    subtitle: "spawn 全新上下文 / fork 继承上下文，主代理动态派遣",
+    samples: ["记住：我最喜欢紫色", "fork 一个子代理，让它写一句贺词", "再 spawn 一个子代理写贺词", "对比两次贺词", "派个研究员调研 Agent 趋势"]
   }
 ];
 

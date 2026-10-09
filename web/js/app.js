@@ -405,12 +405,12 @@
     wrap.innerHTML =
       '<div class="hero">' +
       '<img class="logo-big" src="logo.png" alt="ToyAgent Logo">' +
-      "<h3>用 21 个接口类讲清楚智能体</h3>" +
-      "<p>剥掉所有概念外衣，智能体的灵魂只有一个方法。20 个场景由浅入深：前 12 个各讲一种能力，第 13 个全流程综合，第 14 个知识编译持久复用，第 15-16 个走向运行时基座（工具注册表 + turn/step 循环），第 17-20 个补齐人机协同与安全溯源（提问挂起 / 审批门禁 / 沙箱四层 / 事件日志），第 21 个插件机制让能力即插即拔。</p>" +
+      "<h3>用 23 个接口类讲清楚智能体</h3>" +
+      "<p>剥掉所有概念外衣，智能体的灵魂只有一个方法。20 个场景由浅入深：前 12 个各讲一种能力，第 13 个全流程综合，第 14 个知识编译持久复用，第 15-16 个走向运行时基座（工具注册表 + turn/step 循环），第 17-20 个补齐人机协同与安全溯源（提问挂起 / 审批门禁 / 沙箱四层 / 事件日志），第 21 个插件机制让能力即插即拔，第 22-23 个拓展形态与协作（CLI 终端 / 子代理派遣）。</p>" +
       '<div class="soul">Agent.chat(String input) —— 输入一句话，输出一句话</div>' +
       "</div>" +
       '<div class="stats">' +
-      "<div class=\"stat\"><b>21</b><span>渐进场景</span></div>" +
+      "<div class=\"stat\"><b>23</b><span>渐进场景</span></div>" +
       "<div class=\"stat\"><b>1</b><span>核心方法</span></div>" +
       "<div class=\"stat\"><b>0</b><span>第三方依赖</span></div>" +
       "<div class=\"stat\"><b>26</b><span>覆盖教程章节</span></div>" +

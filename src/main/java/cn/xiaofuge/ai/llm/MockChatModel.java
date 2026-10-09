@@ -49,6 +49,8 @@ public final class MockChatModel implements ChatModel {
             case "step19" -> mockSandbox(last);
             case "step20" -> mockEvent(all, last);
             case "step21" -> mockPlugin(all, last);
+            case "step22" -> mockCli(all, last, system);
+            case "step23" -> mockSubagent(all, last, system);
             default -> "（Mock 模型）收到：" + last;
         };
     }
@@ -471,6 +473,62 @@ public final class MockChatModel implements ChatModel {
             return Json.write(Map.of("tool", "uptime", "arguments", Map.of()));
         }
         return "（Mock 模型）先「安装插件」，工具才会出现在我的清单里；「卸载插件」后我再也看不见它们 —— 能力即插即拔。";
+    }
+
+    // ------------------------------------------------------------- step22 CLI 智能体
+
+    /** CLI 剧本：命令类输入返回 run_command 决策；其余兜底引导。 */
+    private String mockCli(String all, String last, String system) {
+        if (last.contains("执行结果")) {
+            String fact = extractAfter(last, "执行结果");
+            return "命令结果：" + (fact.isBlank() ? clip(last) : clip(fact))
+                    + " —— run_command 在受限工作区执行，Step19 的四层防御全程护航。";
+        }
+        if (last.contains("列出") || last.contains("文件") || last.contains("目录") || last.contains("ls")) {
+            return Json.write(Map.of("tool", "run_command", "arguments", Map.of("command", "ls")));
+        }
+        if (last.contains("几点") || last.contains("时间") || last.contains("日期")) {
+            return Json.write(Map.of("tool", "run_command", "arguments", Map.of("command", "date")));
+        }
+        if (last.contains("hello")) {
+            return Json.write(Map.of("tool", "run_command", "arguments", Map.of("command", "cat hello.txt")));
+        }
+        return "我是终端里的 CLI 智能体。试试「运行：ls」，或让我「列出工作区文件」—— 命令都在 sandbox/step22 里执行，危险命令会被四层防御拦截。";
+    }
+
+    // ------------------------------------------------------------- step23 子代理
+
+    /** 子代理剧本：system 带【子代理身份】为子代理回合（fork 能看到父会话里的紫色）；否则为主代理回合。 */
+    private String mockSubagent(String all, String last, String system) {
+        if (system.contains("子代理身份")) {
+            boolean forkKnows = system.contains("继承的父会话上下文") && system.contains("紫色");
+            if (system.contains("写作子代理")) {
+                return forkKnows
+                        ? "愿你的每一天都被喜爱的事物环绕 —— 像那一抹恰到好处的紫色。（fork：我从父会话记得你最喜欢紫色）"
+                        : "愿你所行皆坦途，所遇皆温暖，往后的每一天都值得期待。（spawn：我只知道任务本身）";
+            }
+            return "Agent 调研要点：1) 工具标准化（MCP）成为默认范式；2) 运行时基座（审批/沙箱/事件）走向生产化；3) 多代理协作从固定流水线走向动态派遣。";
+        }
+        if (last.contains("执行结果")) {
+            String fact = extractAfter(last, "执行结果");
+            return "子代理已完成任务，结果如下：\n" + (fact.isBlank() ? clip(last) : fact);
+        }
+        if (last.contains("fork") || last.contains("继承")) {
+            return Json.write(Map.of("tool", "dispatch_subagent", "name", "writer", "mode", "fork", "task", "写一句贺词"));
+        }
+        if (last.contains("spawn") || last.contains("全新")) {
+            return Json.write(Map.of("tool", "dispatch_subagent", "name", "writer", "mode", "spawn", "task", "写一句贺词"));
+        }
+        if (last.contains("调研") || last.contains("研究") || last.contains("趋势")) {
+            return Json.write(Map.of("tool", "dispatch_subagent", "name", "researcher", "mode", "spawn", "task", "调研 Agent 趋势"));
+        }
+        if (last.contains("记住") || last.contains("最喜欢")) {
+            return "好的，已记下。这条信息已进入父会话上下文 —— 之后 fork 出去的子代理都能看到它。";
+        }
+        if (last.contains("对比")) {
+            return "两次贺词的差异就是 spawn 与 fork 的差异：fork 的子代理继承了「最喜欢紫色」，贺词带了紫色；spawn 的子代理是全新实例，只会写通用贺词。";
+        }
+        return "（Mock 模型）试试：「fork 一个子代理，让它写一句贺词」或「spawn 一个子代理写贺词」，体会两种派遣的上下文差异。";
     }
 
     // ------------------------------------------------------------- 工具方法

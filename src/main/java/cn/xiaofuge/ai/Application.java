@@ -22,6 +22,8 @@ import cn.xiaofuge.ai.agent.step18.ApprovalAgent;
 import cn.xiaofuge.ai.agent.step19.SandboxAgent;
 import cn.xiaofuge.ai.agent.step20.EventSourcedAgent;
 import cn.xiaofuge.ai.agent.step21.PluginAgent;
+import cn.xiaofuge.ai.agent.step22.CliAgent;
+import cn.xiaofuge.ai.agent.step23.SubagentAgent;
 import cn.xiaofuge.ai.llm.ChatModel;
 import cn.xiaofuge.ai.llm.Json;
 import cn.xiaofuge.ai.llm.ModelScope;
@@ -46,7 +48,7 @@ import java.util.concurrent.Executors;
  * <p>
  * 使用 JDK 自带 HttpServer（零依赖）做三件事：
  * 1. 托管 web/ 目录下的静态页面（测试界面）；
- * 2. 暴露 /api/{stepId}/chat 与 /api/{stepId}/reset，把 21 个场景接入页面；
+ * 2. 暴露 /api/{stepId}/chat 与 /api/{stepId}/reset，把 23 个场景接入页面；
  * 3. 模型管理：配置保存在各人浏览器 localStorage，随请求携带、线程级生效，互不覆盖。
  * <p>
  * 启动：java cn.xiaofuge.ai.Application（默认端口 8099，可用 TOY_AGENT_PORT 覆盖）
@@ -97,6 +99,8 @@ public final class Application {
         map.put("step19", new SandboxAgent.Impl(scoped("step19", real)));
         map.put("step20", new EventSourcedAgent.Impl(scoped("step20", real)));
         map.put("step21", new PluginAgent.Impl(scoped("step21", real)));
+        map.put("step22", new CliAgent.Impl(scoped("step22", real)));
+        map.put("step23", new SubagentAgent.Impl(scoped("step23", real)));
         agents = map;
         System.out.println("[ToyAgent] 场景已装配，模型模式: " + (Models.isRealModel() ? Models.modelName() : "mock"));
     }

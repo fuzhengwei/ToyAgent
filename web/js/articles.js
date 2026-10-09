@@ -6,8 +6,8 @@
 const ARTICLES = {
 
   home: {
-    title: "ToyAgent：用 21 个接口类讲清楚智能体",
-    lede: "一个接口类，就是一个智能体实现的最小 MVP。由浅入深 21 个场景，覆盖《AI Agent 通识教程》核心内容。",
+    title: "ToyAgent：用 23 个接口类讲清楚智能体",
+    lede: "一个接口类，就是一个智能体实现的最小 MVP。由浅入深 23 个场景，覆盖《AI Agent 通识教程》核心内容。",
     chapters: [],
     html: `
 <h2>一句话读懂本项目</h2>
@@ -19,10 +19,10 @@ const ARTICLES = {
 <div class="callout core">
   <div class="co-title">💡 核心公式</div>
   智能体 = 大模型（大脑）+ 工具（手脚）+ 记忆（延续）+ 循环（节拍）+ 工程化（兜底）。<br>
-  21 个场景，就是这个公式逐项展开的过程。
+  23 个场景，就是这个公式逐项展开的过程。
 </div>
 
-<h2>21 个场景的演进地图</h2>
+<h2>23 个场景的演进地图</h2>
 <table>
   <tr><th>场景</th><th>接口类</th><th>新增能力</th><th>对应教程</th></tr>
   <tr><td>01 对话</td><td><code>ChatAgent</code></td><td>最小 MVP：接通模型</td><td>ch01-03</td></tr>
@@ -46,6 +46,8 @@ const ARTICLES = {
   <tr><td>19 沙箱</td><td><code>SandboxAgent</code></td><td>纵深防御四层拦截</td><td>dsh-java</td></tr>
   <tr><td>20 事件溯源</td><td><code>EventSourcedAgent</code></td><td>JSONL 事件流 + 回放投影</td><td>dsh-java</td></tr>
   <tr><td>21 插件机制</td><td><code>PluginAgent</code></td><td>AgentPlugin 契约 + 隔离 ClassLoader，能力即插即拔</td><td>dsh-java</td></tr>
+  <tr><td>22 CLI 智能体</td><td><code>CliAgent</code></td><td>终端 REPL + 沙箱执行器，形态即壳</td><td>ch18</td></tr>
+  <tr><td>23 子代理</td><td><code>SubagentAgent</code></td><td>spawn / fork 动态派遣，独立上下文</td><td>dsh-java</td></tr>
 </table>
 
 <h2>教程章节怎么对上？</h2>
@@ -55,7 +57,7 @@ const ARTICLES = {
   <li><strong>ch13 Dify/Coze 可视化编排</strong> → 场景 12 的节点 + 条件边就是可视化编排的后端本质</li>
   <li><strong>ch14 CLI Agent / ch15 GUI Agent</strong> → 工具侧换成 Shell / 浏览器执行器即可，骨架同场景 04</li>
   <li><strong>ch17 评估 / ch19 部署 / ch20 推理框架</strong> → 工程化运维篇，模型换 Ollama/vLLM 端点即可（本项目零依赖，改 <code>config.properties</code> 即接入）</li>
-  <li><strong>ch23-27 展望篇</strong> → 读完 21 个场景的代码，回头看展望篇会非常轻松</li>
+  <li><strong>ch23-27 展望篇</strong> → 读完 23 个场景的代码，回头看展望篇会非常轻松</li>
 </ul>
 
 <h2>怎么跑起来</h2>
@@ -1202,6 +1204,90 @@ for (ToolDefinition tool : plugin.tools())
   <li>「卸载插件」→「再看看工具清单」—— 工具消失，再掷硬币会命中「注册表未命中」。</li>
 </ul>
 <p>生产化路径：插件包换成真 JAR（maven archetype 一键生成骨架）、plugin.yaml 换 MANIFEST、加版本冲突校验与签名验证、双模式桥接（进程内 / JSON-RPC 进程外）。</p>
+`
+  },
+
+  step22: {
+    title: "CLI 智能体：把骨架装进终端",
+    lede: "形态变了，灵魂不变 —— 仍是 Agent.chat(input)：外面套一层终端 REPL，工具侧换成沙箱执行器。",
+    chapters: ["ch18 CLI Agent：命令行智能助手"],
+    html: `
+<h2>CLI Agent 是什么</h2>
+<p>Claude Code、Aider、Gemini CLI…… 这一形态的共同点：<strong>以终端为界面、以命令为手脚、以对话为交互</strong>。剥掉外壳，骨架和 Web 版完全一样。</p>
+<div class="callout core">
+  <div class="co-title">💡 形态即壳</div>
+  REPL 只是 Agent.chat 的 while 循环；单命令 -p 模式只是调用一次就退出。<strong>换形态不动骨架</strong>，这正是「一个接口类」设计的回报。
+</div>
+
+<h2>本场景的三个要点</h2>
+<table>
+  <tr><th>要点</th><th>实现</th><th>呼应</th></tr>
+  <tr><td>shell 执行器</td><td><code>run_command</code>：ProcessBuilder 按空格拆分（不经 shell，无管道/重定向注入面）</td><td>Step04 工具调用</td></tr>
+  <tr><td>四层沙箱</td><td>拒绝名单 → 路径边界 → 命令白名单 → 受限工作区 cwd</td><td><strong>直接复用 Step19</strong></td></tr>
+  <tr><td>工作区上下文</td><td>cwd 进入系统提示词，像终端会话一样「知道自己在哪」</td><td>Step02 提示词</td></tr>
+</table>
+
+<h2>终端入口（零依赖可跑）</h2>
+<pre><code data-lang="bash"># 交互式 REPL
+java -cp target/classes cn.xiaofuge.ai.agent.step22.CliAgent
+
+# 非交互单命令（Claude Code 同款 -p 习惯）
+java -cp target/classes cn.xiaofuge.ai.agent.step22.CliAgent -p "看看工作区里有什么"</code></pre>
+
+<h2>试试这样玩</h2>
+<ul>
+  <li>「运行：ls」「运行：cat hello.txt」—— 沙箱内执行，轨迹展示退出码与 cwd；</li>
+  <li>「运行：rm -rf /」→ 第①层拒绝名单拦截；「运行：cat /etc/passwd」→ 第②层路径边界拦截；</li>
+  <li>「列出工作区文件」—— 不写死命令，看模型自己决策调用 run_command。</li>
+</ul>
+<p>生产化路径：命令拆分换 shlex 级解析、白名单升级为权限配置、输出截断与超时控制、审批接入（高危命令过 Step18 审批门禁）。</p>
+`
+  },
+
+  step23: {
+    title: "子代理：spawn 与 fork 的派遣艺术",
+    lede: "主代理不必亲自做所有事 —— 把子任务派给带独立上下文的子代理。spawn 全新出发，fork 继承当前对话。",
+    chapters: ["dsh-java · SubagentRegistry / SpawnInProcessProvider / ForkInProcessProvider"],
+    html: `
+<h2>为什么需要子代理</h2>
+<p>一个代理的上下文窗口装不下所有领域知识，也装不下所有任务。子代理 = <strong>带独立上下文的分身</strong>：主代理只派任务、收结论，中间过程不占主会话。</p>
+<div class="callout core">
+  <div class="co-title">💡 和 Step10 的区别</div>
+  Step10 是<strong>固定流水线</strong>（规划→研究→写作→审查），角色编排写死在代码里；本步是<strong>主代理动态派遣</strong> —— 模型自己决定派谁、怎么派，即 Claude Code 的 Task 工具。
+</div>
+
+<h2>spawn 与 fork</h2>
+<table>
+  <tr><th>维度</th><th>spawn（SpawnInProcessProvider）</th><th>fork（ForkInProcessProvider）</th></tr>
+  <tr><td>上下文</td><td>全新：只有职责提示词</td><td>复制父会话再出发</td></tr>
+  <tr><td>适合</td><td>无状态专项任务（调研、翻译）</td><td>「接着当前话题继续做」</td></tr>
+  <tr><td>记忆</td><td>什么都不知道</td><td>知道对话里出现过的一切</td></tr>
+</table>
+
+<h2>本场景的骨架</h2>
+<div class="flow">
+  <span class="fnode">主代理决策</span><span class="farrow">→</span>
+  <span class="fnode">dispatch_subagent</span><span class="farrow">→</span>
+  <span class="fnode">子代理独立循环</span><span class="farrow">→</span>
+  <span class="fnode">结果回填主会话</span>
+</div>
+<pre><code data-lang="java">// fork：子代理的 system 里带上父会话
+StringBuilder sys = new StringBuilder("【子代理身份】").append(spec.specialty());
+if (fork) sys.append("\n【继承的父会话上下文】\n")
+             .append(String.join("\n", parentTranscript));
+else       sys.append("\n（spawn 模式：全新实例）");
+
+childMessages.add(Message.system(sys.toString()));
+childMessages.add(Message.user(task));
+String report = model.chat(childMessages);   // 子代理独立一轮</code></pre>
+
+<h2>试试这样玩（体会上下文差异）</h2>
+<ul>
+  <li>先说「记住：我最喜欢紫色」，再「fork 一个子代理，让它写一句贺词」—— 贺词里带紫色；</li>
+  <li>「再 spawn 一个子代理写贺词」—— 全新实例，贺词是通用的；</li>
+  <li>「对比两次贺词」—— 差异即 spawn 与 fork 的差异。</li>
+</ul>
+<p>生产化路径：子代理挂独立工具集与模型档位、结果做结构化校验、派遣深度限制（防子代理再生子代理失控）、dsh-java 的 SubagentRegistry 还支持子代理注册表化复用。</p>
 `
   }
 };
