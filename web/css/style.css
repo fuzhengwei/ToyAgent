@@ -1040,6 +1040,7 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    min-width: 320px;
 }
 
 .article-head-left {

@@ -515,6 +515,8 @@
     };
     fitDesk();
     window.addEventListener("resize", fitDesk);
+    // 拖拽右侧文章面板改变宽度时，桌面地图实时重新缩放
+    if (window.ResizeObserver) new ResizeObserver(fitDesk).observe(deskMap);
 
     wrap.querySelectorAll(".map-btn").forEach((b) => {
       b.addEventListener("click", () => {
