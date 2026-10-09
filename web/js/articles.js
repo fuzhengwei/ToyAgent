@@ -956,12 +956,12 @@ while (tokens &gt; BUDGET &amp;&amp; history.size() &gt; KEEP_MIN) history.remov
 `
   },
   step18: {
-    title: "全流程智能体：把 12 块积木拼成一台机器",
+    title: "全流程智能体：把 17 块积木拼成一台机器",
     lede: "守卫 → 记忆 → ReAct 循环 → 工具 → 保险丝 → 输出校验 → 回写记忆。前面拆开讲的每个零件，这里装回同一台机器，一次 chat() 走完生产级智能体的完整生命周期。",
     chapters: ["综合 Step01-17", "ch18 Agent Loop 运行时", "ch21 工业级 Harness"],
     html: `
 <h2>为什么要有一个「全流程」场景</h2>
-<p>前 12 个场景是<strong>教学拆解</strong>：每次只让你看清一个零件。但真实系统里这些零件是<strong>同时在线</strong>的 —— 守卫在模型之前拦一道，记忆在上下文里垫一层，循环在中间转起来，保险丝在旁边盯着预算。缺一个全流程视角，你就只会造零件，不会装机。</p>
+<p>前 17 个场景是<strong>教学拆解</strong>：每次只让你看清一个零件。但真实系统里这些零件是<strong>同时在线</strong>的 —— 守卫在模型之前拦一道，记忆在上下文里垫一层，循环在中间转起来，保险丝在旁边盯着预算。缺一个全流程视角，你就只会造零件，不会装机。</p>
 <p>Step18 的 <code>FullAgent</code> 把它们全部组装进一个 <code>chat(String)</code>。方法签名没变 —— <strong>骨架永远不变，变厚的只是策略层</strong>。</p>
 
 <h2>完整生命周期：七个环节</h2>
@@ -1354,6 +1354,23 @@ hooks.add(new Hook("脱敏", "after", List.of("*"), (tool, payload) -&gt;
   <tr><td>四层沙箱</td><td>拒绝名单 → 路径边界 → 命令白名单 → 受限工作区 cwd</td><td><strong>直接复用 Step21</strong></td></tr>
   <tr><td>工作区上下文</td><td>cwd 进入系统提示词，像终端会话一样「知道自己在哪」</td><td>Step02 提示词</td></tr>
 </table>
+
+<h2>REPL 骨架（Java 侧）</h2>
+<pre><code data-lang="java">// 终端形态 = Agent.chat 的 while 循环（完整实现见 CliAgent.java）
+BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+while (true) {
+    System.out.print("you› ");
+    String line = in.readLine();
+    if (line == null || line.equalsIgnoreCase("exit")) break;
+    if (line.isBlank()) continue;
+    System.out.println("agent› " + agent.chat(line));   // 灵魂不变
+}
+
+// 手脚换成沙箱执行器：ProcessBuilder 按空格拆分，不经 shell
+// （无管道/重定向注入面），四层防御复用 Step21
+ProcessBuilder pb = new ProcessBuilder(command.split("\\s+"));
+pb.directory(workdir);   // 受限工作区 = 沙箱第④层
+Process proc = pb.start();</code></pre>
 
 <h2>终端入口（零依赖可跑）</h2>
 <pre><code data-lang="bash"># 交互式 REPL

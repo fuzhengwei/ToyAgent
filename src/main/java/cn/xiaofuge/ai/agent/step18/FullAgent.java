@@ -15,7 +15,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Step18 · 全流程智能体 —— 把前 12 个场景的能力串成一条完整链路。
+ * Step18 · 全流程智能体 —— 把前 17 个场景的能力串成一条完整链路。
  * <p>
  * 前面的场景每次只演示一种能力，这一个类把它们全部组装到一起，
  * 一次 chat() 完整走完生产级智能体的标准生命周期：
