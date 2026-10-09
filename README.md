@@ -2,7 +2,7 @@
 
 > 用最简单的方式，讲清楚智能体实现 —— **一个接口类，就是一个智能体的最小 MVP**。
 
-Java 17 · 零依赖 · 23 个渐进式场景 · 配套可视化测试页面。配套教程：[AI Agent 通识教程（ai-agent-guide）](../README.md)。
+Java 17 · 零依赖 · 26 个渐进式场景 · 配套可视化测试页面。配套教程：[AI Agent 通识教程（ai-agent-guide）](../README.md)。
 
 ## 一句话读懂
 
@@ -14,9 +14,9 @@ public interface Agent {
 }
 ```
 
-23 个场景 = 往这个最小骨架里，每次只加一种能力；第 13 个全流程综合，第 14 个知识编译持久复用，第 15-21 个参考 deepseek-harness-java 走向运行时基座、人机协同/安全溯源与插件生态，第 22-23 个补齐 CLI 形态与子代理派遣。
+23 个场景 = 往这个最小骨架里，每次只加一种能力；第 13 个全流程综合，第 14 个知识编译持久复用，第 15-21 个参考 deepseek-harness-java 走向运行时基座、人机协同/安全溯源与插件生态，第 22-23 个补齐 CLI 形态与子代理派遣，第 24-26 个完善生态（钩子拦截 / A2A 跨代理协作 / 定时任务）。
 
-## 23 个场景
+## 26 个场景
 
 | # | 场景 | 接口类 | 新增能力 | 对应教程章节 |
 |:---:|------|--------|----------|:---:|
@@ -43,6 +43,9 @@ public interface Agent {
 | 21 | 插件机制 | `PluginAgent` | AgentPlugin 契约 + 隔离 ClassLoader 加载 + 工具桥接批量注册/注销 | dsh-java |
 | 22 | CLI 智能体 | `CliAgent` | 终端 REPL + -p 单命令模式 + 沙箱 shell 执行器（复用 Step19 四层防御） | 教程 ch18 |
 | 23 | 子代理 | `SubagentAgent` | dispatch_subagent：spawn 全新上下文 / fork 继承父会话，主代理动态派遣 | dsh-java |
+| 24 | Hooks 钩子 | `HooksAgent` | before 拦截/改写参数 · after 脱敏/审计，挂钩即生效摘钩即消失 | dsh-java |
+| 25 | A2A 协作 | `A2AAgent` | Agent Card 名片发现 + task_id 信封 + 异步回执，跨代理标准化协作 | dsh-java |
+| 26 | 定时工具 | `ScheduleAgent` | 一次性/循环调度，触发结果 append 到事件日志可回看 | dsh-java |
 
 每个场景一个文件，位于 `src/main/java/cn/xiaofuge/ai/agent/stepXX/`，接口注释即教程，嵌套实现类即全部逻辑。
 
@@ -106,7 +109,7 @@ ToyAgent/
     │   └── Json.java                    # 零依赖 JSON 编解码
     └── agent/
         ├── Agent.java                   # 智能体契约：chat(input)
-        └── step01..step23/              # 23 个场景，一场景一接口类
+        └── step01..step26/              # 26 个场景，一场景一接口类
 ```
 
 ## HTTP API
@@ -139,7 +142,7 @@ ToyAgent/
 
 1. **一个接口类 = 一个智能体 MVP** —— 拒绝框架魔法，所有逻辑看得见、摸得着；
 2. **零依赖** —— 只用 JDK 自带能力（`com.sun.net.httpserver` + `java.net.http`），手写 JSON 工具，clone 即跑；
-3. **由浅入深** —— 23 个场景严格递进，每个场景只新增一种能力（step13 全流程综合，step14 知识工程，step15-20 运行时基座 / 人机协同 / 安全溯源，step21 插件机制，step22-23 CLI 形态 / 子代理派遣），接口注释就是教程；
+3. **由浅入深** —— 23 个场景严格递进，每个场景只新增一种能力（step13 全流程综合，step14 知识工程，step15-20 运行时基座 / 人机协同 / 安全溯源，step21 插件机制，step22-23 CLI 形态 / 子代理派遣，step24-26 钩子 / A2A / 定时），接口注释就是教程；
 4. **页面即测试** —— 原生 HTML/CSS/JS 三栏布局：左侧场景导航、中间对话 + 执行轨迹时间线、右侧原理文章（含教程章节对照）；
 5. **Mock/真实双模式** —— 骨架与大脑分离，学习时用 Mock 观察轨迹，进阶时配 Key 换真模型。
 

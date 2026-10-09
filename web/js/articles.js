@@ -6,8 +6,8 @@
 const ARTICLES = {
 
   home: {
-    title: "ToyAgent：用 23 个接口类讲清楚智能体",
-    lede: "一个接口类，就是一个智能体实现的最小 MVP。由浅入深 23 个场景，覆盖《AI Agent 通识教程》核心内容。",
+    title: "ToyAgent：用 26 个接口类讲清楚智能体",
+    lede: "一个接口类，就是一个智能体实现的最小 MVP。由浅入深 26 个场景，覆盖《AI Agent 通识教程》核心内容。",
     chapters: [],
     html: `
 <h2>一句话读懂本项目</h2>
@@ -19,10 +19,10 @@ const ARTICLES = {
 <div class="callout core">
   <div class="co-title">💡 核心公式</div>
   智能体 = 大模型（大脑）+ 工具（手脚）+ 记忆（延续）+ 循环（节拍）+ 工程化（兜底）。<br>
-  23 个场景，就是这个公式逐项展开的过程。
+  26 个场景，就是这个公式逐项展开的过程。
 </div>
 
-<h2>23 个场景的演进地图</h2>
+<h2>26 个场景的演进地图</h2>
 <table>
   <tr><th>场景</th><th>接口类</th><th>新增能力</th><th>对应教程</th></tr>
   <tr><td>01 对话</td><td><code>ChatAgent</code></td><td>最小 MVP：接通模型</td><td>ch01-03</td></tr>
@@ -48,6 +48,9 @@ const ARTICLES = {
   <tr><td>21 插件机制</td><td><code>PluginAgent</code></td><td>AgentPlugin 契约 + 隔离 ClassLoader，能力即插即拔</td><td>dsh-java</td></tr>
   <tr><td>22 CLI 智能体</td><td><code>CliAgent</code></td><td>终端 REPL + 沙箱执行器，形态即壳</td><td>ch18</td></tr>
   <tr><td>23 子代理</td><td><code>SubagentAgent</code></td><td>spawn / fork 动态派遣，独立上下文</td><td>dsh-java</td></tr>
+  <tr><td>24 Hooks 钩子</td><td><code>HooksAgent</code></td><td>before 拦截 / after 脱敏，横切逻辑与工具解耦</td><td>dsh-java</td></tr>
+  <tr><td>25 A2A 协作</td><td><code>A2AAgent</code></td><td>Agent Card 名片发现 + task_id 信封 + 异步回执</td><td>dsh-java</td></tr>
+  <tr><td>26 定时工具</td><td><code>ScheduleAgent</code></td><td>一次性/循环调度，触发结果事件落盘</td><td>dsh-java</td></tr>
 </table>
 
 <h2>教程章节怎么对上？</h2>
@@ -57,7 +60,7 @@ const ARTICLES = {
   <li><strong>ch13 Dify/Coze 可视化编排</strong> → 场景 12 的节点 + 条件边就是可视化编排的后端本质</li>
   <li><strong>ch14 CLI Agent / ch15 GUI Agent</strong> → 工具侧换成 Shell / 浏览器执行器即可，骨架同场景 04</li>
   <li><strong>ch17 评估 / ch19 部署 / ch20 推理框架</strong> → 工程化运维篇，模型换 Ollama/vLLM 端点即可（本项目零依赖，改 <code>config.properties</code> 即接入）</li>
-  <li><strong>ch23-27 展望篇</strong> → 读完 23 个场景的代码，回头看展望篇会非常轻松</li>
+  <li><strong>ch23-27 展望篇</strong> → 读完 26 个场景的代码，回头看展望篇会非常轻松</li>
 </ul>
 
 <h2>怎么跑起来</h2>
@@ -1288,6 +1291,161 @@ String report = model.chat(childMessages);   // 子代理独立一轮</code></pr
   <li>「对比两次贺词」—— 差异即 spawn 与 fork 的差异。</li>
 </ul>
 <p>生产化路径：子代理挂独立工具集与模型档位、结果做结构化校验、派遣深度限制（防子代理再生子代理失控）、dsh-java 的 SubagentRegistry 还支持子代理注册表化复用。</p>
+`
+  },
+
+  step24: {
+    title: "Hooks 钩子：挂上去就生效的能力拦截点",
+    lede: "工具执行前后不是裸奔的 —— 宿主在 before / after 两个生命周期点暴露钩子位，审计、风控、脱敏都从这里挂进去，工具代码一行不改。",
+    chapters: ["dsh-java · HookService / HookMatcher / HookOutputMerger"],
+    html: `
+<h2>为什么需要钩子</h2>
+<p>审计、脱敏、风控这些需求有一个共同点：<strong>横切在所有工具上</strong>。写进每个工具？改一次规则要改 N 处。钩子把它们抽出来挂在生命周期上 —— <strong>挂钩即生效，摘钩即消失</strong>，工具作者对此无感知。</p>
+<div class="callout core">
+  <div class="co-title">💡 一句话理解</div>
+  钩子 = 工具调用链上的 AOP。dsh-java 的 HookService 管挂载与触发，HookMatcher 管「挂在哪类工具上」，HookOutputMerger 管「多条 after 钩子按序合并输出」。
+</div>
+
+<h2>两个挂载点，三种干预方式</h2>
+<table>
+  <tr><th>挂载点</th><th>时机</th><th>能做什么</th><th>本场景的钩子</th></tr>
+  <tr><td><strong>before</strong></td><td>工具执行前</td><td>拦截（DENY）/ 改写参数 / 只记录</td><td>审计（全工具记录）、风控（短信含「密码/验证码」即拒）</td></tr>
+  <tr><td><strong>after</strong></td><td>工具返回后</td><td>改写输出 / 脱敏 / 追加告警</td><td>脱敏（手机号 138*********、邮箱打码）</td></tr>
+</table>
+<p>匹配规则（HookMatcher）：每条钩子声明自己挂在哪些工具上，「*」= 全部；enabled=false 时整条链路直通 —— 这就是「钩子：关」实验的原理。</p>
+
+<h2>本场景的骨架</h2>
+<div class="flow">
+  <span class="fnode">工具调用请求</span><span class="farrow">→</span>
+  <span class="fnode">before 链（审计→风控）</span><span class="farrow">→</span>
+  <span class="fnode">工具执行</span><span class="farrow">→</span>
+  <span class="fnode">after 链（脱敏）</span>
+</div>
+<pre><code data-lang="java">// 钩子本体：挂载点 + 匹配规则 + 处理器
+// handler 返回 null=放行；"DENY:原因"=拦截；否则替换内容
+record Hook(String name, String phase, List&lt;String&gt; match, Handler handler) {}
+
+hooks.add(new Hook("风控-敏感外发", "before", List.of("send_sms"), (tool, payload) -&gt;
+    payload.contains("密码") ? "DENY:敏感信息禁止外发" : null));
+
+hooks.add(new Hook("脱敏", "after", List.of("*"), (tool, payload) -&gt;
+    Pattern.compile("(1[3-9])\\d{9}").matcher(payload).replaceAll("$1*********")));
+
+// 管线：before 任何一条拦截即终止；after 按注册顺序依次加工（HookOutputMerger）</code></pre>
+
+<h2>试试这样玩（做对照实验）</h2>
+<ul>
+  <li>「查询：张三」—— 输出里手机号/邮箱已打码（after 脱敏生效）；</li>
+  <li>「发送：给 13812345678 发 密码是123456」—— before 风控直接拦截，工具根本没执行；</li>
+  <li>「钩子：关」→ 再「查询：张三」—— 明文裸奔，对比出钩子的价值；「审计日志」看 before 记录了什么。</li>
+</ul>
+<p>生产化路径：钩子声明为 SPI 插件热插拔、审计落 SIEM、脱敏规则走正则库 + 人工审核、钩子链短路策略可配置。</p>
+`
+  },
+
+  step25: {
+    title: "A2A 协作：跨进程代理的标准化握手",
+    lede: "Step23 的子代理是自家分身（同进程）；A2A 解决的是跨进程、跨主人的协作 —— 名片发现、标准信封、task_id 回执。",
+    chapters: ["dsh-java · A2AController / AgentCard / CollaborationController"],
+    html: `
+<h2>子代理 vs 外部代理</h2>
+<p>主代理直接 new 出来的子代理，活在同一个进程里，共享宿主的模型与工具。而网络上还有<strong>别人家的代理</strong>：翻译代理、天气代理…… 它们有自己的实现，你不了解也不需要了解。类比：<strong>请同事帮忙 vs 外包给合作公司</strong>。</p>
+<div class="callout core">
+  <div class="co-title">💡 一句话理解</div>
+  A2A = 代理之间的 REST。发现靠名片（Agent Card），调用靠统一信封（task_id + 状态机），不猜对方的内部接口。
+</div>
+
+<h2>A2A 协议的三块基石</h2>
+<table>
+  <tr><th>基石</th><th>内容</th><th>本场景对应</th></tr>
+  <tr><td><strong>名片发现</strong></td><td>Agent Card：name / url / version / skills，生产中托管在 <code>/.well-known/agent.json</code></td><td><code>a2a_discover</code> 拉取 translator、weather 两张名片</td></tr>
+  <tr><td><strong>标准信封</strong></td><td>task_id + submitted → working → completed/failed 状态机</td><td><code>a2a_send</code> 发送任务，返回 task_id + 回执</td></tr>
+  <tr><td><strong>异步回执</strong></td><td>发起方拿 task_id 即可离开，结果异步取回</td><td>响应里带 task_id，状态流转展示在轨迹里</td></tr>
+</table>
+
+<h2>本场景的骨架</h2>
+<div class="flow">
+  <span class="fnode">a2a_discover 拉名片</span><span class="farrow">→</span>
+  <span class="fnode">按 skill 路由</span><span class="farrow">→</span>
+  <span class="fnode">a2a_send 发信封</span><span class="farrow">→</span>
+  <span class="fnode">task_id 回执</span>
+</div>
+<pre><code data-lang="java">// 名片：A2A 的发现单元（生产中是 .well-known/agent.json）
+record AgentCard(String name, String url, String version,
+                 List&lt;String&gt; skills, String description) {}
+
+// 发送：按名片路由 + 状态机流转（发起方只认 task_id）
+String taskId = "task-" + seq + "-" + uuid4();
+//  submitted → working → completed
+return "{\"task_id\": \"" + taskId + "\", \"status\": \"completed\", \"result\": \"" + reply + "\"}";</code></pre>
+
+<h2>和 Step23 的分工</h2>
+<table>
+  <tr><th>维度</th><th>23 · 子代理</th><th>25 · A2A</th></tr>
+  <tr><td>运行位置</td><td>同进程（in-process）</td><td>跨进程、跨网络</td></tr>
+  <tr><td>上下文</td><td>可 spawn 全新 / fork 继承父会话</td><td>对方独立，只能靠任务描述传递</td></tr>
+  <tr><td>信任模型</td><td>自家代码</td><td>标准协议 + 名片声明的能力边界</td></tr>
+</table>
+
+<h2>试试这样玩</h2>
+<ul>
+  <li>「发现一下附近的代理」—— 看两张名片的 url / version / skills；</li>
+  <li>「让翻译代理把「你好，智能体」翻译成英文」—— 观察轨迹：名片路由 → submitted → completed 回执；</li>
+  <li>注意 task_id —— 生产中发起方靠它轮询/订阅结果，而不是傻等。</li>
+</ul>
+<p>生产化路径：名片加认证与签名校验、长任务轮询/回调、失败重试与幂等、dsh-java 的 CollaborationController 还支持多代理编排请求。</p>
+`
+  },
+
+  step26: {
+    title: "定时工具：给智能体装上时间维度",
+    lede: "之前的工具都是即时的：调用 → 执行 → 返回。定时工具把「什么时候做」也变成决策对象 —— 任务在后台执行，结果落盘可回看。",
+    chapters: ["dsh-java · domain/tool/schedule"],
+    html: `
+<h2>从即时工具到时间维度</h2>
+<p>「每天早上 8 点给我汇总新闻」「30 秒后提醒我开会」—— 这类需求的共同点：<strong>请求已返回，行动在未来</strong>。智能体需要一种工具，能把「何时做」注册进调度器，然后放心地把控制权交还。</p>
+<div class="callout core">
+  <div class="co-title">💡 关键工程点</div>
+  HTTP 响应已经返回，任务却在未来执行 —— 所以触发结果<strong>不能塞进本次响应</strong>，要落盘（事件溯源，呼应 Step20），并在后续对话中汇报。
+</div>
+
+<h2>三种调度能力</h2>
+<table>
+  <tr><th>能力</th><th>调度原语</th><th>本场景指令</th></tr>
+  <tr><td>一次性</td><td>schedule + delay</td><td>「定时：5秒 提醒我喝水」→ job-1</td></tr>
+  <tr><td>循环</td><td>scheduleAtFixedRate（首延迟 = 周期）</td><td>「循环：每10秒 报一次时」→ 已触发次数持续增长</td></tr>
+  <tr><td>管理</td><td>列表 / 取消（job_id 定位）</td><td>「任务列表」「取消：job-2」「完成了什么」</td></tr>
+</table>
+
+<h2>本场景的骨架</h2>
+<div class="flow">
+  <span class="fnode">注册任务拿 job_id</span><span class="farrow">→</span>
+  <span class="fnode">响应立即返回</span><span class="farrow">→</span>
+  <span class="fnode">调度线程到点触发</span><span class="farrow">→</span>
+  <span class="fnode">结果 append 到事件日志</span>
+</div>
+<pre><code data-lang="java">// 守护线程调度池（生产用持久化调度器/延时队列）
+ScheduledExecutorService pool = Executors.newScheduledThreadPool(1, r -&gt; {
+    Thread t = new Thread(r, "step26-scheduler");
+    t.setDaemon(true);
+    return t;
+});
+
+// 一次性：n 秒后触发
+pool.schedule(() -&gt; fire(id, content), delaySeconds, TimeUnit.SECONDS);
+
+// 触发即落盘：append-only JSONL（事件溯源）
+Files.writeString(eventFile,
+    "{\"time\":\"" + time + "\",\"job\":\"" + id + "\"}\n",
+    CREATE, APPEND);</code></pre>
+
+<h2>试试这样玩（感受异步）</h2>
+<ul>
+  <li>「定时：5秒 提醒我喝水」→ 立刻「任务列表」看到 pending；等 5 秒再问变 done/触发；</li>
+  <li>「循环：每10秒 报一次时」→ 隔一会儿「任务列表」，触发次数在涨；</li>
+  <li>「完成了什么」—— 从 events/step26-tasks.jsonl 读回已触发的全部记录。</li>
+</ul>
+<p>生产化路径：任务持久化到数据库（重启不丢）、到点推送改 SSE/WebSocket、循环任务加最大次数与退避、与 Step18 审批门禁联动（高危定时任务需审批）。</p>
 `
   }
 };

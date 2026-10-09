@@ -51,6 +51,9 @@ public final class MockChatModel implements ChatModel {
             case "step21" -> mockPlugin(all, last);
             case "step22" -> mockCli(all, last, system);
             case "step23" -> mockSubagent(all, last, system);
+            case "step24" -> mockHooks(all, last, system);
+            case "step25" -> mockA2a(all, last, system);
+            case "step26" -> mockSchedule(all, last, system);
             default -> "（Mock 模型）收到：" + last;
         };
     }
@@ -529,6 +532,63 @@ public final class MockChatModel implements ChatModel {
             return "两次贺词的差异就是 spawn 与 fork 的差异：fork 的子代理继承了「最喜欢紫色」，贺词带了紫色；spawn 的子代理是全新实例，只会写通用贺词。";
         }
         return "（Mock 模型）试试：「fork 一个子代理，让它写一句贺词」或「spawn 一个子代理写贺词」，体会两种派遣的上下文差异。";
+    }
+
+    // ------------------------------------------------------------- step24 钩子体系
+
+    /** 钩子讲解员：工具调用走宿主直连路由（查询：/发送：/钩子：），模型只负责讲解引导。 */
+    private String mockHooks(String all, String last, String system) {
+        if (last.contains("执行结果")) {
+            String fact = extractAfter(last, "执行结果");
+            return "钩子管线说明：" + (fact.isBlank() ? clip(last) : clip(fact));
+        }
+        return Json.write(Map.of("final",
+                "本场景的钩子挂在工具调用的 before / after 生命周期上。试试：\n"
+                        + "·「查询：张三」—— after 脱敏钩子把手机号/邮箱打码\n"
+                        + "·「发送：给 13812345678 发 密码是123456」—— before 风控钩子直接拦截\n"
+                        + "·「钩子：关」再「查询：张三」—— 摘掉钩子看明文，对比出钩子的价值\n"
+                        + "·「审计日志」—— before 审计钩子记下的每一次调用"));
+    }
+
+    // ------------------------------------------------------------- step25 A2A 协作
+
+    /** A2A 剧本：先发现名片，再按任务类型路由到 translator / weather。 */
+    private String mockA2a(String all, String last, String system) {
+        if (last.contains("执行结果")) {
+            String fact = extractAfter(last, "执行结果");
+            return "外部代理已通过 A2A 回执：" + (fact.isBlank() ? clip(last) : fact)
+                    + " —— 对方有自己的模型与工具，我们只认 task_id 与回执。";
+        }
+        if (last.contains("发现") || last.contains("名片") || last.contains("附近")) {
+            return Json.write(Map.of("tool", "a2a_discover"));
+        }
+        if (last.contains("翻译")) {
+            return Json.write(Map.of("tool", "a2a_send", "agent", "translator",
+                    "task", "把「你好，智能体」翻译成英文"));
+        }
+        if (last.contains("天气") || last.contains("户外")) {
+            return Json.write(Map.of("tool", "a2a_send", "agent", "weather",
+                    "task", "明天适合户外运动吗？"));
+        }
+        return Json.write(Map.of("final",
+                "我是主代理，可以经 A2A 协议与外部代理协作。试试：「发现一下附近的代理」，"
+                        + "或直接「让翻译代理把……翻译成英文」「问问天气代理明天适合户外运动吗」。"));
+    }
+
+    // ------------------------------------------------------------- step26 定时工具
+
+    /** 定时讲解员：调度走宿主直连路由（定时：/循环：/任务列表/取消：），模型只负责讲解引导。 */
+    private String mockSchedule(String all, String last, String system) {
+        if (last.contains("执行结果")) {
+            String fact = extractAfter(last, "执行结果");
+            return "定时任务说明：" + (fact.isBlank() ? clip(last) : clip(fact));
+        }
+        return Json.write(Map.of("final",
+                "本场景给工具装上了时间维度。试试：\n"
+                        + "·「定时：5秒 提醒我喝水」—— 一次性调度，拿 job_id\n"
+                        + "·「任务列表」—— 看 pending / 已触发次数\n"
+                        + "·「循环：每10秒 报一次时」—— 周期任务\n"
+                        + "·「取消：job-1」「完成了什么」—— 管理与回看（触发结果落盘 events/step26-tasks.jsonl）"));
     }
 
     // ------------------------------------------------------------- 工具方法
