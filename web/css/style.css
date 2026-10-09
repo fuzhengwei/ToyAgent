@@ -1661,3 +1661,264 @@ body.resizing iframe, body.resizing textarea { pointer-events: none; }
     .card-grid { grid-template-columns: 1fr; }
     .stats { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ================= Toy 桌面 · 3D 场景学习地图 ================= */
+.slogan {
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 2px;
+  margin-top: 10px;
+}
+.slogan small {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+  letter-spacing: 0;
+  margin-top: 4px;
+}
+
+.map-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.map-btn {
+  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: all .15s;
+}
+.map-btn:hover { border-color: var(--accent-border); }
+.map-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.map-hint { font-size: 11px; color: var(--muted); margin-left: 4px; }
+
+.desk-map {
+  user-select: none;
+  -webkit-user-select: none;
+  padding: 4px 0 6px;
+}
+.desk-scene {
+  --rz: -34deg;
+  --rx: 52deg;
+  --s: 1;
+  perspective: 1500px;
+  perspective-origin: 50% 16%;
+  height: calc(780px * var(--s));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  cursor: grab;
+}
+.desk-scene.dragging { cursor: grabbing; }
+
+.desk {
+  flex: none;
+  position: relative;
+  width: 930px;
+  height: 480px;
+  transform-style: preserve-3d;
+  transform: scale(var(--s)) rotateX(var(--rx)) rotateZ(var(--rz));
+  transition: transform .45s cubic-bezier(.2, .7, .25, 1);
+}
+.desk-scene.dragging .desk { transition: none; }
+.desk::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, .05) 0 2px, transparent 2px 96px),
+    linear-gradient(135deg, #cda475, #bd8f60 45%, #a97b4e);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, .22),
+    inset 0 0 70px rgba(88, 48, 18, .3),
+    0 34px 70px rgba(50, 35, 18, .35);
+}
+.desk::after {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(255, 255, 255, .25);
+  transform: translateZ(1px);
+  pointer-events: none;
+}
+
+/* ---- 分区（桌面上的纸卡）---- */
+.zone {
+  position: absolute;
+  border: 1.5px dashed color-mix(in srgb, var(--zc) 45%, #fff);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--zc) 7%, #fffdf6);
+  transform: translateZ(2px);
+  transform-style: preserve-3d;
+}
+.z-sign {
+  position: absolute;
+  top: -14px;
+  left: 10px;
+  padding: 4px 12px;
+  background: var(--zc);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  border-radius: 8px;
+  white-space: nowrap;
+  transform-origin: 50% 50%;
+  transform: translateZ(30px) rotateZ(34deg) rotateX(-52deg);
+  box-shadow: 0 6px 12px rgba(40, 24, 8, .3);
+}
+
+/* ---- 积木（三面体）---- */
+.cube {
+  position: absolute;
+  width: 62px;
+  height: 62px;
+  transform-style: preserve-3d;
+  cursor: pointer;
+  animation: blockIn .45s ease backwards;
+}
+@keyframes blockIn { from { opacity: 0; } }
+.cube::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  background: radial-gradient(rgba(60, 34, 10, .32), transparent 68%);
+  transform: translateZ(.4px);
+}
+.cube .core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-style: preserve-3d;
+  transform: translateZ(calc(var(--h) / 2));
+  transition: transform .18s ease;
+}
+.cube:hover .core { transform: translateZ(calc(var(--h) / 2 + 16px)); }
+.cube .face { position: absolute; left: 0; top: 0; }
+.f-top {
+  width: 68px;
+  height: 68px;
+  margin-left: -31px;
+  margin-top: -31px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--zc) 24%, #fffef8);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--zc) 38%, #fff);
+  transform: translateZ(calc(var(--h) / 2));
+}
+.f-top::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--zc) 45%, #fff);
+  transform: translate(-50%, -50%);
+}
+.f-front {
+  width: 62px;
+  height: var(--h);
+  margin-left: -31px;
+  margin-top: calc(var(--h) / -2);
+  border-radius: 5px;
+  background: var(--zc);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 18px/1 var(--mono);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .35);
+  box-shadow: inset 0 7px 9px -7px rgba(255, 255, 255, .55), inset 0 -6px 8px -6px rgba(0, 0, 0, .4);
+  transform: rotateX(-90deg) translateZ(31px);
+  transition: filter .18s;
+}
+.f-side {
+  width: var(--h);
+  height: 62px;
+  margin-left: calc(var(--h) / -2);
+  margin-top: -31px;
+  background: color-mix(in srgb, var(--zc) 68%, #241505);
+  border-radius: 5px;
+  transform: rotateY(90deg) translateZ(31px);
+}
+.cube:hover .f-front { filter: brightness(1.12); }
+
+/* ---- 悬停提示牌（面向屏幕的告示牌）---- */
+.cube .tip {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max-content;
+  max-width: 230px;
+  padding: 8px 11px;
+  border-radius: 9px;
+  background: rgba(31, 27, 22, .94);
+  color: #f3ede2;
+  font-size: 11.5px;
+  line-height: 1.5;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .15s;
+  z-index: 5;
+  transform: translate(-50%, -50%) translateZ(calc(var(--h) + 64px)) rotateZ(34deg) rotateX(-52deg);
+}
+.cube .tip b {
+  display: block;
+  font-size: 12px;
+  color: #f2c896;
+  margin-bottom: 2px;
+}
+.cube:hover .tip { opacity: 1; }
+
+/* ---- 起点标牌与桌面小装饰 ---- */
+.start-pin {
+  position: absolute;
+  left: 46px;
+  top: 412px;
+  padding: 7px 14px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transform: translateZ(34px) rotateZ(34deg) rotateX(-52deg);
+  box-shadow: 0 8px 14px rgba(40, 24, 8, .35);
+  transition: filter .15s;
+}
+.start-pin:hover { filter: brightness(1.12); }
+.decor {
+  position: absolute;
+  font-size: 26px;
+  opacity: .85;
+  transform: translateZ(3px) rotate(-14deg);
+  pointer-events: none;
+}
+.decor.d1 { left: 850px; top: 410px; }
+.decor.d2 { left: 130px; top: 418px; transform: translateZ(3px) rotate(10deg); }
+
+@media (max-width: 760px) {
+  .map-hint { display: none; }
+  .desk-scene { perspective-origin: 50% 30%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cube { animation: none; }
+  .desk, .cube .core { transition: none; }
+}

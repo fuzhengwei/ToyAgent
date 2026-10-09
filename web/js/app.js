@@ -399,6 +399,49 @@
       '<div class="card-chapters"><span class="chip mono-chip">↗ ' + p.href.replace(/^https?:\/\//, "").replace(/\/$/, "").split("/")[0] + "</span></div>" +
       "</div>";
     const learnCards = LEARN_ROUTE.map(linkCard).join("");
+
+    // ===== Toy 桌面 3D 地图：7 分区 + 26 块积木 =====
+    const DESK_ZONES = [
+      { g: "基础内核", x: 20, y: 20, c: "#9a4a1e" },
+      { g: "记忆与知识", x: 340, y: 20, c: "#2f6b66" },
+      { g: "工具的进化", x: 660, y: 20, c: "#8a6116" },
+      { g: "协作与派遣", x: 20, y: 172, c: "#3e5c76" },
+      { g: "运行时与工程化", x: 270, y: 172, c: "#3d6b4f" },
+      { g: "人机协同与安全", x: 610, y: 172, c: "#a03028" },
+      { g: "扩展与形态", x: 270, y: 324, c: "#6d4a6e" }
+    ];
+    const deskZones = DESK_ZONES.map((z, zi) => {
+      const items = SCENARIOS.filter((s) => s.group === z.g);
+      const w = 68 * items.length + 16;
+      const blocks = items.map((s, i) => (
+        '<div class="cube" data-id="' + s.id + '" style="left:' + (11 + i * 68) + 'px;top:40px;--h:' + (40 + (i % 3) * 9) + 'px;animation-delay:' + ((zi * 4 + i) * 22) + 'ms">' +
+        '<div class="core">' +
+        '<div class="face f-top"></div>' +
+        '<div class="face f-front">' + s.num + "</div>" +
+        '<div class="face f-side"></div>' +
+        "</div>" +
+        '<div class="tip"><b>' + s.num + " · " + s.title + "</b><span>" + s.subtitle + "</span></div>" +
+        "</div>"
+      )).join("");
+      return (
+        '<div class="zone" style="--zc:' + z.c + ";left:" + z.x + "px;top:" + z.y + "px;width:" + w + 'px">' +
+        '<div class="z-sign">' + z.g + "</div>" +
+        blocks +
+        "</div>"
+      );
+    }).join("");
+    const deskHtml =
+      '<div class="map-toolbar">' +
+      '<button class="map-btn active" data-view="desk">🧊 3D 桌面</button>' +
+      '<button class="map-btn" data-view="list">📄 列表</button>' +
+      '<span class="map-hint">🖱 拖拽旋转桌面 · 点击积木进入场景 · 悬停看简介</span>' +
+      "</div>" +
+      '<div class="desk-map"><div class="desk-scene"><div class="desk">' +
+      deskZones +
+      '<div class="start-pin" data-id="step01">▶ 从 01 开始</div>' +
+      '<div class="decor d1">✏️</div>' +
+      '<div class="decor d2">🧸</div>' +
+      "</div></div></div>";
     const projCards = GUIDE_PROJECTS.map(linkCard).join("");
     const paradigmCards = NEW_PARADIGM.map(linkCard).join("");
 
@@ -406,6 +449,7 @@
       '<div class="hero">' +
       '<img class="logo-big" src="logo.png" alt="ToyAgent Logo">' +
       "<h3>用 26 个接口类讲清楚智能体</h3>" +
+      '<div class="slogan">玩，玩个 Toy Agent。<small>—— 致敬动画《打，打个大西瓜》：他们打个大西瓜，我们玩个 Toy Agent</small></div>' +
       "<p>剥掉所有概念外衣，智能体的灵魂只有一个方法。26 个场景按七条主题弧线递进：第 1-4 个基础内核（对话 / 提示词 / ReAct / 工具），第 5-8 个记忆与知识（记忆 / 路由 / RAG / LLM-Wiki），第 9-11 个工具的进化（MCP / Skills / 注册表），第 12-14 个协作与派遣（流水线 / 子代理 / A2A），第 15-18 个运行时与工程化（Loop / 状态机 / ReAct 运行时 / 全流程综合），第 19-22 个人机协同与安全（提问 / 审批 / 沙箱 / 事件溯源），第 23-26 个扩展与形态（插件 / 钩子 / CLI / 定时）。</p>" +
       '<div class="soul">Agent.chat(String input) —— 输入一句话，输出一句话</div>' +
       "</div>" +
@@ -415,8 +459,9 @@
       "<div class=\"stat\"><b>0</b><span>第三方依赖</span></div>" +
       "<div class=\"stat\"><b>26</b><span>覆盖教程章节</span></div>" +
       "</div>" +
-      '<div class="sec-title">🗺 场景学习地图</div>' +
-      '<div class="card-grid">' + cards + "</div>" +
+      '<div class="sec-title">🗺 Toy 桌面 · 场景学习地图</div>' +
+      deskHtml +
+      '<div class="list-view" style="display:none"><div class="card-grid">' + cards + "</div></div>" +
       '<div class="sec-title">🚀 学完之后 · 进阶实战</div>' +
       '<p class="adv-lede">ToyAgent 刻意保持极简，帮你建立概念骨架。往下走有两条路：跟着「AI Agent 应用开发工程师学习计划」系统进阶，或进入星球完整工程，让能力在真实项目里长出来。</p>' +
       '<div class="adv-sub">🎓 学习路线 · 系统化成长路径</div>' +
@@ -453,6 +498,68 @@
     // 教程实战篇章卡片 → 新标签打开在线教程
     wrap.querySelectorAll(".card.guide").forEach((card) => {
       card.addEventListener("click", () => window.open(card.dataset.href, "_blank", "noopener"));
+    });
+
+    // ===== Toy 桌面交互：视图切换 / 拖拽旋转 / 积木点击 / 自适应缩放 =====
+    const scene = wrap.querySelector(".desk-scene");
+    const deskMap = wrap.querySelector(".desk-map");
+    const listView = wrap.querySelector(".list-view");
+    const view = { rz: -34, rx: 52 };
+    let drag = null;
+    let dragMoved = false;
+
+    const fitDesk = () => {
+      if (deskMap.style.display === "none") return;
+      const s = Math.min(1, (deskMap.clientWidth - 6) / 1010);
+      scene.style.setProperty("--s", s.toFixed(3));
+    };
+    fitDesk();
+    window.addEventListener("resize", fitDesk);
+
+    wrap.querySelectorAll(".map-btn").forEach((b) => {
+      b.addEventListener("click", () => {
+        wrap.querySelectorAll(".map-btn").forEach((x) => x.classList.toggle("active", x === b));
+        const isDesk = b.dataset.view === "desk";
+        deskMap.style.display = isDesk ? "" : "none";
+        listView.style.display = isDesk ? "none" : "";
+        if (isDesk) fitDesk();
+      });
+    });
+
+    scene.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      drag = { x: e.clientX, y: e.clientY, rz: view.rz, rx: view.rx, moved: false, pid: e.pointerId };
+    });
+    scene.addEventListener("pointermove", (e) => {
+      if (!drag) return;
+      const dx = e.clientX - drag.x;
+      const dy = e.clientY - drag.y;
+      if (!drag.moved && Math.abs(dx) + Math.abs(dy) > 4) {
+        drag.moved = true;
+        dragMoved = true;
+        scene.classList.add("dragging");
+        try { scene.setPointerCapture(drag.pid); } catch (err) { /* ignore */ }
+      }
+      if (!drag.moved) return;
+      view.rz = Math.max(-62, Math.min(-8, drag.rz + dx * 0.25));
+      view.rx = Math.max(30, Math.min(60, drag.rx - dy * 0.2));
+      scene.style.setProperty("--rz", view.rz + "deg");
+      scene.style.setProperty("--rx", view.rx + "deg");
+    });
+    const endDrag = () => {
+      if (!drag) return;
+      drag = null;
+      scene.classList.remove("dragging");
+      setTimeout(() => { dragMoved = false; }, 0);
+    };
+    scene.addEventListener("pointerup", endDrag);
+    scene.addEventListener("pointercancel", endDrag);
+
+    wrap.querySelectorAll(".cube, .start-pin").forEach((el) => {
+      el.addEventListener("click", () => {
+        if (dragMoved) return;
+        location.hash = el.dataset.id;
+      });
     });
   }
 
