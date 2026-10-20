@@ -1,8 +1,30 @@
 # ToyAgent
 
-> 用最简单的方式，讲清楚智能体实现 —— **一个接口类，就是一个智能体的最小 MVP**。
+<div align="center">
 
-Java 17 · 零依赖 · 26 个渐进式场景 · 配套可视化测试页面。配套教程：[AI Agent 通识教程（ai-agent-guide）](../README.md)。
+**用最简单的方式，讲清楚智能体实现 —— 一个接口类，就是一个智能体的最小 MVP**
+
+简体中文 · [English](README_EN.md) · [日本語](README_JA.md)
+
+Java 17 · 零依赖 · 26 个渐进式场景 · 可视化测试页面 · 5 种语言实现
+
+</div>
+
+配套教程：[AI Agent 通识教程（ai-agent-guide）](../README.md) · 第 15-22 个场景参考 [deepseek-harness-java](https://github.com/fuzhengwei/deepseek-harness-java)
+
+## 运行效果
+
+**总览首页**：左侧场景导航（七条主题弧线分组）· 中间 3D 学习地图与场景统计 · 右侧原理文章
+
+![ToyAgent 总览首页](docs/images/home-overview.png)
+
+**场景交互**：对话 + 执行轨迹时间线 + mermaid 时序图，智能体的每一步思考都看得见
+
+![场景对话与执行轨迹](docs/images/scenario-trace.png)
+
+**原理文章**：每个章节配套教程文章，代码块支持 Java / Python / TS / Go / JS 五语言切换
+
+![原理文章与五语言代码切换](docs/images/article-code-langs.png)
 
 ## 一句话读懂
 
@@ -15,6 +37,20 @@ public interface Agent {
 ```
 
 26 个场景按七条主题弧线递进：基础内核（1-4）→ 记忆与知识（5-8，含 RAG 与 LLM-Wiki）→ 工具的进化（9-11）→ 协作与派遣（12-14）→ 运行时与工程化（15-18，第 18 个全流程综合）→ 人机协同与安全（19-22）→ 扩展与形态（23-26）。第 15-22 个参考 deepseek-harness-java，第 23-26 个补齐插件 / 钩子 / CLI / 定时生态。
+
+## 多语言实现
+
+同一套 26 个场景与 LLM 层，用 5 种语言等价实现，Mock 教学剧本逐场景 1:1 对齐，可对照阅读：
+
+| 语言 | 仓库 | 运行环境 | 特点 |
+|------|------|----------|------|
+| ☕ Java | **[ToyAgent](https://github.com/fuzhengwei/ToyAgent)**（本仓库） | JDK 17+ | 本体：26 场景 + Web 可视化测试页 + HTTP API |
+| 🐍 Python | [ToyAgent-Python](https://github.com/fuzhengwei/ToyAgent-Python) | Python 3.10+ | 标准库零第三方依赖，CLI 运行器 |
+| 🟦 TypeScript | [ToyAgent-Typescript](https://github.com/fuzhengwei/ToyAgent-Typescript) | Node 18+ | 零运行时依赖（devDeps 仅 typescript），strict 模式 |
+| 🐹 Go | [ToyAgent-Go](https://github.com/fuzhengwei/ToyAgent-Go) | Go 1.22+ | 标准库零依赖，编译为单二进制 |
+| 🟨 JavaScript | [ToyAgent-JS](https://github.com/fuzhengwei/ToyAgent-JS) | Node 18+ | 原生 ESM，无构建步骤 |
+
+> Web 可视化页面仅 Java 本体提供；其余语言版本聚焦场景代码本身（`list` / `run` / REPL 三种 CLI 模式），适合作为 web 版文章里五语言代码案例的源码出处。
 
 ## 26 个场景
 
@@ -72,6 +108,17 @@ mvn package
 java -jar target/ToyAgent.jar
 ```
 
+### 其他语言版本
+
+各语言仓库的 README 提供对应的快速开始（均为 clone 即跑，无需安装任何依赖包）：
+
+```bash
+# Python：python3 main.py run step03 "北京天气怎么样"
+# TypeScript：npm run build && node dist/main.js run step03 "北京天气怎么样"
+# Go：go build -o toyagent && ./toyagent run step03 "北京天气怎么样"
+# JavaScript：node src/main.js run step03 "北京天气怎么样"
+```
+
 ### 接入真实大模型（可选）
 
 复制配置模板并填入任意 OpenAI 兼容 API（DeepSeek / 通义 / 智谱 / 火山方舟…）：
@@ -83,7 +130,7 @@ api-key=sk-xxx
 model=deepseek-chat
 ```
 
-> 未配置 Key 时自动使用内置 **Mock 模型**：不联网、不花钱，所有场景的执行轨迹（ReAct 循环、工具调用、路由决策、RAG 检索…）照常完整展示。配上真实 Key，同一套骨架立刻换上真大脑。
+> 未配置 Key 时自动使用内置 **Mock 模型**：不联网、不花钱，所有场景的执行轨迹（ReAct 循环、工具调用、路由决策、RAG 检索…）照常完整展示。配上真实 Key，同一套骨架立刻换上真大脑。五个语言版本的 Mock 剧本逐场景一致，切换语言不影响教学效果。
 
 ## 项目结构
 
@@ -91,19 +138,21 @@ model=deepseek-chat
 ToyAgent/
 ├── pom.xml                              # cn.xiaofuge.ai:ToyAgent:1.0（零依赖）
 ├── config.properties.example            # 模型配置模板
+├── docs/images/                         # 运行效果截图
 ├── web/                                 # 测试页面（原生 HTML/CSS/JS）
 │   ├── index.html
-│   ├── css/style.css                    # 设计令牌 + 三栏布局 + 深色代码块
+│   ├── css/style.css                    # 设计令牌 + 七套主题 + 三栏布局
 │   └── js/
 │       ├── data.js                      # 场景元数据 + 示例问题
-│       ├── articles.js                  # 12 篇右侧原理文章
-│       └── app.js                       # 导航/对话/轨迹时间线/代码高亮
+│       ├── articles.js                  # 27 篇右侧原理文章
+│       ├── code-*.js                    # 文章代码块的四语言片段（py/ts/go/js）
+│       └── app.js                       # 导航/对话/轨迹时间线/五语言代码切换/代码高亮
 └── src/main/java/cn/xiaofuge/ai/
     ├── Application.java                 # HTTP 服务：静态页面 + API 路由
     ├── llm/                             # 模型层
     │   ├── ChatModel.java               # 模型抽象（大脑）
     │   ├── OpenAiChatModel.java         # OpenAI 兼容协议实现
-    │   ├── MockChatModel.java           # 教学 Mock 模型
+    │   ├── MockChatModel.java           # 教学 Mock 模型（26 套剧本）
     │   ├── Models.java                  # 配置工厂
     │   ├── Message.java                 # 对话消息 record
     │   └── Json.java                    # 零依赖 JSON 编解码
@@ -143,8 +192,9 @@ ToyAgent/
 1. **一个接口类 = 一个智能体 MVP** —— 拒绝框架魔法，所有逻辑看得见、摸得着；
 2. **零依赖** —— 只用 JDK 自带能力（`com.sun.net.httpserver` + `java.net.http`），手写 JSON 工具，clone 即跑；
 3. **由浅入深** —— 26 个场景按七条主题弧线严格递进，每个场景只新增一种能力，侧栏分组即学习地图，接口注释就是教程；
-4. **页面即测试** —— 原生 HTML/CSS/JS 三栏布局：左侧场景导航、中间对话 + 执行轨迹时间线、右侧原理文章（含教程章节对照）；
-5. **Mock/真实双模式** —— 骨架与大脑分离，学习时用 Mock 观察轨迹，进阶时配 Key 换真模型。
+4. **页面即测试** —— 原生 HTML/CSS/JS 三栏布局：左侧场景导航、中间对话 + 执行轨迹时间线 + mermaid 时序图、右侧原理文章（五语言代码切换 + 教程章节对照）；
+5. **Mock/真实双模式** —— 骨架与大脑分离，学习时用 Mock 观察轨迹，进阶时配 Key 换真模型；
+6. **多语言等价实现** —— 同一套教学叙事，5 种语言逐场景对齐，选你顺手的语言读懂智能体本质。
 
 ## License
 
