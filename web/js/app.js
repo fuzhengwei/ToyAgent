@@ -185,9 +185,10 @@
       }
       blockIdx++;
 
+      let wrap = null;
       if (variants.length > 0) {
-        // 包一层标签组件：语言标签栏 + 代码块
-        const wrap = document.createElement("div");
+        // 包一层标签组件：语言标签栏 + 代码块（复制按钮也放进标签栏）
+        wrap = document.createElement("div");
         wrap.className = "codetabs";
         const bar = document.createElement("div");
         bar.className = "codetab-bar";
@@ -218,7 +219,8 @@
           setTimeout(() => (btn.textContent = "复制"), 1500);
         });
       });
-      pre.appendChild(btn);
+      if (wrap) wrap.querySelector(".codetab-bar").appendChild(btn); // 标签块：复制按钮收进标签栏右侧
+      else pre.appendChild(btn);
     });
   }
 

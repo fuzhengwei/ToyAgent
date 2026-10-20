@@ -335,46 +335,78 @@ body {
 
 .src-emoji { font-size: 11px; line-height: 1; }
 
-/* ---- 代码块五语言切换标签 ---- */
+/* ---- 代码块五语言切换标签（编辑器风格：标签栏与代码块同一连续表面） ---- */
 
 .codetabs { margin: 14px 0; }
+
+.article-body .codetabs pre {
+    margin: 0;
+    border-radius: 0 0 10px 10px;
+}
 
 .codetab-bar {
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 0 10px;
-    background: #2d2d2d;
+    gap: 2px;
+    padding: 0 8px;
+    background: var(--code-bg);
     border-radius: 10px 10px 0 0;
-    border-bottom: 1px solid #1b1b1b;
+    border-bottom: 1px solid rgba(255, 255, 255, .09);
 }
 
 .codetab {
     appearance: none;
     border: none;
     background: transparent;
-    color: #a8a49a;
+    color: rgba(255, 255, 255, .42);
     font: inherit;
     font-size: 11.5px;
     font-weight: 600;
-    padding: 7px 10px;
+    letter-spacing: .3px;
+    padding: 8px 12px;
     cursor: pointer;
-    border-radius: 0 0 6px 6px;
-    border-bottom: 2px solid transparent;
-    transition: color .15s, border-color .15s;
+    border-radius: 6px 6px 0 0;
+    position: relative;
+    transition: color .15s, background .15s;
 }
 
-.codetab:hover { color: #f6f4ef; }
+.codetab:hover {
+    color: rgba(255, 255, 255, .78);
+    background: rgba(255, 255, 255, .045);
+}
 
 .codetab.active {
     color: #f6f4ef;
-    border-bottom-color: var(--accent, #c96f4a);
+    background: rgba(255, 255, 255, .07);
 }
 
-/* 标签组件内的代码块：顶角与标签栏衔接 */
-.codetabs pre {
-    margin: 0;
-    border-radius: 0 0 10px 10px;
+/* 激活标签底部短下划线：用主题强调色提亮，与标签栏底线重叠 */
+.codetab.active::after {
+    content: "";
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    background: #d98e5f;
+    background: color-mix(in srgb, var(--accent) 55%, #fff);
+}
+
+/* 标签栏右侧的复制按钮：常显、幽灵样式 */
+.codetab-bar .copy-btn {
+    position: static;
+    margin-left: auto;
+    opacity: .55;
+    background: transparent;
+    border: none;
+    padding: 3px 8px;
+}
+
+.codetab-bar .copy-btn:hover {
+    opacity: 1;
+    color: #f6f4ef;
+    background: rgba(255, 255, 255, .06);
 }
 
 .src-link:hover {
