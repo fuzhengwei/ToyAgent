@@ -104,7 +104,11 @@
   // ============================================================ 代码高亮
 
   const JAVA_KEYWORDS = "abstract|class|interface|extends|implements|public|private|protected|static|final|void|return|new|this|super|import|package|for|while|if|else|switch|case|default|break|continue|try|catch|finally|throw|throws|yield|record|enum|null|true|false|var|int|long|double|boolean|String|List|Map";
-  const BASH_KEYWORDS = "cd|cp|javac|java|find|export|echo|mvn|git";
+  const BASH_KEYWORDS = "cd|cp|javac|java|find|export|echo|mvn|git|python3|node|go|npm|npx";
+  const PY_KEYWORDS = "def|class|return|if|elif|else|for|while|in|is|not|and|or|None|True|False|import|from|as|with|try|except|finally|raise|lambda|self|pass|break|continue|global|yield|async|await|del|assert|str|int|float|bool|list|dict";
+  const TS_KEYWORDS = "const|let|var|function|class|extends|implements|interface|type|return|if|else|for|while|new|this|import|export|from|as|async|await|try|catch|finally|throw|typeof|instanceof|null|undefined|true|false|switch|case|break|continue|default|enum|public|private|protected|readonly|static|get|set|string|number|boolean|any|void|Promise";
+  const GO_KEYWORDS = "func|package|import|var|const|type|struct|interface|map|chan|go|defer|if|else|for|range|return|switch|case|default|select|nil|true|false|string|int|int64|float64|bool|byte|error|make|new|len|cap|append|panic|recover";
+  const JS_KEYWORDS = TS_KEYWORDS;
 
   function escapeHtml(s) {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -127,23 +131,89 @@
         ph ? ph : '<span class="tok-num">' + num + "</span>");
     } else if (lang === "bash") {
       html = html.replace(new RegExp("(^|\\s)(" + BASH_KEYWORDS + ")\\b", "g"), '$1<span class="tok-kw">$2</span>');
+    } else if (lang === "python") {
+      // 字符串已入 stash，剩下的 # 都是注释
+      html = html.replace(/#[^\n]*/g, (m) => keep("tok-com", m));
+      html = html.replace(new RegExp("\\b(" + PY_KEYWORDS + ")\\b", "g"), '<span class="tok-kw">$1</span>');
+      html = html.replace(/(\x00\d+\x00)|\b(\d+(?:\.\d+)?)\b/g, (m, ph, num) =>
+        ph ? ph : '<span class="tok-num">' + num + "</span>");
+    } else if (lang === "typescript" || lang === "javascript") {
+      html = html.replace(new RegExp("\\b(" + JS_KEYWORDS + ")\\b", "g"), '<span class="tok-kw">$1</span>');
+      html = html.replace(/(\x00\d+\x00)|\b(\d+(?:\.\d+)?)\b/g, (m, ph, num) =>
+        ph ? ph : '<span class="tok-num">' + num + "</span>");
+    } else if (lang === "go") {
+      html = html.replace(new RegExp("\\b(" + GO_KEYWORDS + ")\\b", "g"), '<span class="tok-kw">$1</span>');
+      html = html.replace(/(\x00\d+\x00)|\b(\d+(?:\.\d+)?)\b/g, (m, ph, num) =>
+        ph ? ph : '<span class="tok-num">' + num + "</span>");
     }
     html = html.replace(/\x00(\d+)\x00/g, (_, i) => stash[+i]);
     return html;
   }
 
+  /** 五语言切换标签定义：key 对应 ARTICLE_CODE 的语言键，hl 为高亮语言 */
+  const CODE_LANGS = [
+    { key: "python", label: "Python", hl: "python" },
+    { key: "typescript", label: "TS", hl: "typescript" },
+    { key: "go", label: "Go", hl: "go" },
+    { key: "javascript", label: "JS", hl: "javascript" },
+  ];
+
+  /** 把代码文本写入 <code> 并高亮；pre._rawCode 供复制按钮使用 */
+  function applyCode(pre, code, text, hlLang) {
+    code.textContent = text;
+    code.innerHTML = highlight(text, hlLang);
+    pre._rawCode = text;
+  }
+
   function renderCodeBlocks(root) {
+    const stepKey = root.dataset.step || null;
+    let blockIdx = 0;
     root.querySelectorAll("pre > code").forEach((code) => {
       const lang = code.dataset.lang || "text";
       const pre = code.parentElement;
       if (pre.querySelector(".copy-btn")) return;
       const raw = code.textContent;
-      code.innerHTML = highlight(raw, lang);
+
+      // 收集该块的非 Java 语言片段（ARTICLE_CODE 由 code-*.js 注入，与文章 <pre> 块顺序对齐；null=语言无关跳过）
+      const variants = [];
+      if (window.ARTICLE_CODE && stepKey) {
+        CODE_LANGS.forEach((l) => {
+          const arr = window.ARTICLE_CODE[l.key] && window.ARTICLE_CODE[l.key][stepKey];
+          const v = arr ? arr[blockIdx] : null;
+          if (v) variants.push({ label: l.label, hl: l.hl, code: v });
+        });
+      }
+      blockIdx++;
+
+      if (variants.length > 0) {
+        // 包一层标签组件：语言标签栏 + 代码块
+        const wrap = document.createElement("div");
+        wrap.className = "codetabs";
+        const bar = document.createElement("div");
+        bar.className = "codetab-bar";
+        const defs = [{ label: "Java", hl: "java", code: raw }].concat(variants);
+        defs.forEach((d, i) => {
+          const tab = document.createElement("button");
+          tab.className = "codetab" + (i === 0 ? " active" : "");
+          tab.textContent = d.label;
+          tab.addEventListener("click", () => {
+            bar.querySelectorAll(".codetab").forEach((b) => b.classList.remove("active"));
+            tab.classList.add("active");
+            applyCode(pre, code, d.code, d.hl);
+          });
+          bar.appendChild(tab);
+        });
+        pre.parentNode.insertBefore(wrap, pre);
+        wrap.appendChild(bar);
+        wrap.appendChild(pre);
+      }
+
+      applyCode(pre, code, raw, lang);
       const btn = document.createElement("button");
       btn.className = "copy-btn";
       btn.textContent = "复制";
       btn.addEventListener("click", () => {
-        navigator.clipboard.writeText(raw).then(() => {
+        navigator.clipboard.writeText(pre._rawCode).then(() => {
           btn.textContent = "已复制 ✓";
           setTimeout(() => (btn.textContent = "复制"), 1500);
         });
@@ -384,6 +454,7 @@
       "<h1>" + article.title + "</h1>" +
       '<p class="lede">' + article.lede + "</p>" +
       chips + article.html;
+    articleBody.dataset.step = id;
     renderCodeBlocks(articleBody);
     articleBody.scrollTop = 0;
 

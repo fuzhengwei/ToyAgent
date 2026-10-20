@@ -335,6 +335,48 @@ body {
 
 .src-emoji { font-size: 11px; line-height: 1; }
 
+/* ---- 代码块五语言切换标签 ---- */
+
+.codetabs { margin: 14px 0; }
+
+.codetab-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 10px;
+    background: #2d2d2d;
+    border-radius: 10px 10px 0 0;
+    border-bottom: 1px solid #1b1b1b;
+}
+
+.codetab {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: #a8a49a;
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 7px 10px;
+    cursor: pointer;
+    border-radius: 0 0 6px 6px;
+    border-bottom: 2px solid transparent;
+    transition: color .15s, border-color .15s;
+}
+
+.codetab:hover { color: #f6f4ef; }
+
+.codetab.active {
+    color: #f6f4ef;
+    border-bottom-color: var(--accent, #c96f4a);
+}
+
+/* 标签组件内的代码块：顶角与标签栏衔接 */
+.codetabs pre {
+    margin: 0;
+    border-radius: 0 0 10px 10px;
+}
+
 .src-link:hover {
     background: #262626;
     border-color: #262626;
