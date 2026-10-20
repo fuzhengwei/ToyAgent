@@ -275,6 +275,67 @@
     });
   }
 
+  // ============================================================ 五语言源码链接
+
+  /**
+   * 26 个场景在五个语言仓库中的路径线索。
+   * 每项：[Python 模块中缀, TS/JS 类名前缀]。
+   * Java = agent/{stepId}/，Go = agent/{stepId}/，路径由 stepId 直接推出，无需登记。
+   */
+  const STEP_LANG_NAMES = {
+    step01: ["chat", "Chat"],             step02: ["prompt", "Prompt"],
+    step03: ["react", "ReAct"],           step04: ["tool_call", "ToolCall"],
+    step05: ["memory", "Memory"],         step06: ["router", "Router"],
+    step07: ["rag", "Rag"],               step08: ["wiki", "Wiki"],
+    step09: ["mcp", "Mcp"],               step10: ["skill", "Skill"],
+    step11: ["registry", "Registry"],     step12: ["multi", "Multi"],
+    step13: ["subagent", "Subagent"],     step14: ["a2a", "A2A"],
+    step15: ["loop", "Loop"],             step16: ["workflow", "Workflow"],
+    step17: ["runtime", "Runtime"],       step18: ["full", "Full"],
+    step19: ["ask", "Ask"],               step20: ["approval", "Approval"],
+    step21: ["sandbox", "Sandbox"],       step22: ["event_sourced", "EventSourced"],
+    step23: ["plugin", "Plugin"],         step24: ["hooks", "Hooks"],
+    step25: ["cli", "Cli"],               step26: ["schedule", "Schedule"],
+  };
+
+  /** 五语言仓库元信息：标签 / 仓库 / 场景路径模板（{id}=step01，{snake}/{Pascal} 按上表替换）。 */
+  const LANG_REPOS = [
+    { label: "Java",  emoji: "☕", repo: "https://github.com/fuzhengwei/ToyAgent",
+      path: "/tree/main/src/main/java/cn/xiaofuge/ai/agent/{id}" },
+    { label: "Python", emoji: "🐍", repo: "https://github.com/fuzhengwei/ToyAgent-Python",
+      path: "/blob/main/toyagent/agents/{id}_{snake}_agent.py" },
+    { label: "TS",    emoji: "🟦", repo: "https://github.com/fuzhengwei/ToyAgent-Typescript",
+      path: "/blob/main/src/agents/step{id0}{Pascal}Agent.ts" },
+    { label: "Go",    emoji: "🐹", repo: "https://github.com/fuzhengwei/ToyAgent-Go",
+      path: "/tree/main/agent/{id}" },
+    { label: "JS",    emoji: "🟨", repo: "https://github.com/fuzhengwei/ToyAgent-JS",
+      path: "/blob/main/src/agents/step{id0}{Pascal}Agent.js" },
+  ];
+
+  /** 渲染右侧文章面板头部的五语言源码链接组：home 指向各仓库根目录，场景指向对应章节。 */
+  function renderSrcLinks(id, meta) {
+    const wrap = $("#srcLinks");
+    const links = LANG_REPOS.map((r) => {
+      let href;
+      if (id === "home") {
+        href = r.repo;
+      } else {
+        const names = STEP_LANG_NAMES[id] || ["", ""];
+        href = r.repo + r.path
+          .replace("{id0}", id.slice(-2))
+          .replace("{id}", id)
+          .replace("{snake}", names[0])
+          .replace("{Pascal}", names[1]);
+      }
+      const title = id === "home"
+        ? r.label + " 版仓库主页"
+        : "在 " + r.label + " 版仓库查看 " + meta.num + " 源码";
+      return '<a class="src-link src-lang" href="' + href + '" target="_blank" rel="noopener" title="' + title + '">'
+        + '<span class="src-emoji">' + r.emoji + '</span> ' + r.label + '</a>';
+    }).join("");
+    wrap.innerHTML = links;
+  }
+
   // ============================================================ 场景切换
 
   function renderScenario(id) {
@@ -291,16 +352,8 @@
     $("#stepSubtitle").textContent = meta.subtitle;
     document.title = meta.title + " · ToyAgent";
 
-    // 本场景源码直达链接（GitHub 仓库对应 step 包）
-    const REPO = "https://github.com/fuzhengwei/ToyAgent";
-    const srcLink = $("#srcLink");
-    if (id === "home") {
-      srcLink.href = REPO;
-      srcLink.innerHTML = '<span class="src-emoji">🐙</span> GitHub 仓库';
-    } else {
-      srcLink.href = REPO + "/tree/main/src/main/java/cn/xiaofuge/ai/agent/" + id;
-      srcLink.innerHTML = '<span class="src-emoji">🐙</span> 源码 ' + meta.num;
-    }
+    // 本场景源码直达链接：五个语言仓库对应章节（Java 为原始实现，其余为等价移植）
+    renderSrcLinks(id, meta);
 
     // 示例问题
     const samples = $("#samples");

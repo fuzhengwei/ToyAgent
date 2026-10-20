@@ -341,6 +341,35 @@ body {
     color: #f6f4ef;
 }
 
+/* ---- 五语言源码链接组（右侧文章面板头部） ---- */
+
+.src-links {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.src-link.src-lang {
+    height: 26px;
+    padding: 0 8px;
+    border-radius: 7px;
+    border: 1px solid #3f3f3f;
+    background: #3f3f3f;
+    color: #f6f4ef;
+    font-size: 11px;
+    font-weight: 600;
+    gap: 4px;
+}
+
+.src-link.src-lang .src-emoji { font-size: 10px; }
+
+.src-link.src-lang:hover {
+    background: #262626;
+    border-color: #262626;
+    color: #f6f4ef;
+}
+
 .btn {
     border: none;
     cursor: pointer;
@@ -1046,16 +1075,19 @@ body {
 .article-head-left {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
+    min-width: 0;
 }
 
 .article-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 64px;
-    padding: 0 22px;
+    min-height: 64px;
+    padding: 8px 18px;
     flex-shrink: 0;
+    flex-wrap: wrap;
+    row-gap: 6px;
     border-bottom: 1px solid var(--line);
     background: var(--bg);
 }
@@ -1065,6 +1097,7 @@ body {
     font-weight: 700;
     color: var(--accent);
     letter-spacing: .5px;
+    white-space: nowrap;
 }
 
 .article-body {
