@@ -211,4 +211,13 @@ public interface HooksAgent extends Agent {
             return List.copyOf(lastTrace);
         }
     }
+
+    /** 本地直接测试入口：java -cp target/classes cn.xiaofuge.ai.agent.step24.HooksAgent [你的问题] */
+    public static void main(String[] args) {
+        cn.xiaofuge.ai.llm.ChatModel model = cn.xiaofuge.ai.llm.Models.openAiOrNull();
+        if (model == null) model = cn.xiaofuge.ai.llm.Models.mock("demo");
+        String input = args.length > 0 ? String.join(" ", args) : "触发一次 Hook 审计：调用任意工具";
+        System.out.println("[输入] " + input);
+        System.out.println("[输出] " + new Impl(model).chat(input));
+    }
 }

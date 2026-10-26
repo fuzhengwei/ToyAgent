@@ -123,4 +123,13 @@ public interface SkillAgent extends Agent {
             return List.copyOf(lastTrace);
         }
     }
+
+    /** 本地直接测试入口：java -cp target/classes cn.xiaofuge.ai.agent.step10.SkillAgent [你的问题] */
+    public static void main(String[] args) {
+        cn.xiaofuge.ai.llm.ChatModel model = cn.xiaofuge.ai.llm.Models.openAiOrNull();
+        if (model == null) model = cn.xiaofuge.ai.llm.Models.mock("demo");
+        String input = args.length > 0 ? String.join(" ", args) : "加载技能并回答：怎么用技能";
+        System.out.println("[输入] " + input);
+        System.out.println("[输出] " + new Impl(model).chat(input));
+    }
 }

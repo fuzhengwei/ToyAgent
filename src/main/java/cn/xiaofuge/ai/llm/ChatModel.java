@@ -13,4 +13,5 @@ public interface ChatModel {
 
     /** 输入一组对话消息，输出模型回复文本。 */
     String chat(List<Message> messages);
+
 }

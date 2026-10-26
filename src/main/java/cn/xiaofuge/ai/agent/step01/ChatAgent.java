@@ -35,4 +35,14 @@ public interface ChatAgent extends Agent {
             return model.chat(List.of(Message.user(input)));
         }
     }
+
+    /** 本地直接测试入口：java -cp target/classes cn.xiaofuge.ai.agent.step01.ChatAgent [你的问题] */
+    public static void main(String[] args) {
+        cn.xiaofuge.ai.llm.ChatModel model = cn.xiaofuge.ai.llm.Models.openAiOrNull();
+        if (model == null) model = cn.xiaofuge.ai.llm.Models.mock("demo");
+        String input = args.length > 0 ? String.join(" ", args) : "用一句话介绍你自己";
+        System.out.println("[输入] " + input);
+        System.out.println("[输出] " + new Impl(model).chat(input));
+    }
+
 }

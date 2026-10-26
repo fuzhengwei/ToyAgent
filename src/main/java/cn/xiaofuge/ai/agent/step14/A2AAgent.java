@@ -165,4 +165,13 @@ public interface A2AAgent extends Agent {
             return List.copyOf(lastTrace);
         }
     }
+
+    /** 本地直接测试入口：java -cp target/classes cn.xiaofuge.ai.agent.step14.A2AAgent [你的问题] */
+    public static void main(String[] args) {
+        cn.xiaofuge.ai.llm.ChatModel model = cn.xiaofuge.ai.llm.Models.openAiOrNull();
+        if (model == null) model = cn.xiaofuge.ai.llm.Models.mock("demo");
+        String input = args.length > 0 ? String.join(" ", args) : "向另一个智能体发起协作请求：什么是 A2A";
+        System.out.println("[输入] " + input);
+        System.out.println("[输出] " + new Impl(model).chat(input));
+    }
 }
