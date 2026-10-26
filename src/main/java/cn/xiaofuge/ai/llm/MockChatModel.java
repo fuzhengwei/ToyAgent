@@ -32,7 +32,6 @@ public final class MockChatModel implements ChatModel {
             case "step01" -> mockChat(last);
             case "step02" -> mockPrompt(last, system);
             case "step03" -> mockReAct(all, last);
-            case "step04" -> mockToolCall(last);
             case "step05" -> mockMemory(all, last);
             case "step06" -> mockRouter(last);
             case "step09" -> mockMcp(last);
@@ -56,6 +55,34 @@ public final class MockChatModel implements ChatModel {
             case "step26" -> mockSchedule(all, last, system);
             default -> "（Mock 模型）收到：" + last;
         };
+    }
+
+    /**
+     * 带 tools 的标准 Function Calling（Mock 侧同协议应答）：
+     * 最后一轮消息是 role=tool 时给出最终回答，否则按语义发起结构化 tool_calls。
+     */
+    @Override
+    public ChatResponse chat(List<Message> messages, List<Map<String, Object>> tools) {
+        if ("step04".equals(scenario) && tools != null && !tools.isEmpty()) {
+            Message last = messages.get(messages.size() - 1);
+            if ("tool".equals(last.role())) {
+                return new ChatResponse(
+                        "根据工具返回的结果：" + clip(last.content()) + "，这就是你要的答案 —— 工具调用链闭环完成。", List.of());
+            }
+            String lastUser = lastUserText(messages);
+            if (lastUser.contains("天气") || lastUser.contains("weather")) {
+                return new ChatResponse("", List.of(new ToolCall("mock-call-1", "get_weather",
+                        Json.write(Map.of("city", findCity(lastUser))))));
+            }
+            Matcher m = Pattern.compile("(\\d+\\s*[+\\-*/]\\s*\\d+)").matcher(lastUser);
+            if (m.find()) {
+                return new ChatResponse("", List.of(new ToolCall("mock-call-1", "calculator",
+                        Json.write(Map.of("expression", m.group(1))))));
+            }
+            return new ChatResponse(
+                    "这个问题不需要调用工具，我直接回答：「" + clip(lastUser) + "」—— 工具调用的关键在于：模型自己判断「要不要用工具、用哪个、参数是什么」。", List.of());
+        }
+        return new ChatResponse(chat(messages), List.of());
     }
 
     private String lastUserText(List<Message> messages) {
@@ -150,28 +177,6 @@ public final class MockChatModel implements ChatModel {
                 "thought", "用户询问了天气相关的问题，我需要先调用天气工具获取实时数据",
                 "action", "get_weather",
                 "action_input", city));
-    }
-
-    // ------------------------------------------------------------- step04 工具调用
-
-    private String mockToolCall(String last) {
-        // 工具结果回填轮：不再发起调用，基于事实生成回答
-        if (last.contains("执行结果") || last.contains("Observation")) {
-            String fact = extractAfter(last, "执行结果");
-            return "根据工具返回的结果：" + (fact.isBlank() ? clip(last) : clip(fact)) + "，这就是你要的答案 —— 工具调用链闭环完成。";
-        }
-        if (last.contains("天气") || last.contains("weather")) {
-            return Json.write(Map.of(
-                    "tool", "get_weather",
-                    "arguments", Map.of("city", findCity(last))));
-        }
-        Matcher m = Pattern.compile("(\\d+\\s*[+\\-*/]\\s*\\d+)").matcher(last);
-        if (m.find()) {
-            return Json.write(Map.of(
-                    "tool", "calculator",
-                    "arguments", Map.of("expression", m.group(1))));
-        }
-        return "这个问题不需要调用工具，我直接回答：「" + clip(last) + "」—— 工具调用的关键在于：模型自己判断「要不要用工具、用哪个、参数是什么」。";
     }
 
     // ------------------------------------------------------------- step05 记忆
