@@ -20,6 +20,11 @@ public final class Models {
     private static String apiKey;
     private static String modelName;
 
+    // Jev 决策模型（System One）配置：意图路由等结构化判断专用，见 JevModel
+    private static String jevUrl;
+    private static String jevApiKey;
+    private static String jevModel;
+
     static {
         load();
     }
@@ -50,6 +55,13 @@ public final class Models {
                 props.getProperty("model"),
                 env("LLM_MODEL", null), env("OPENAI_MODEL", null),
                 "deepseek-chat");
+        jevUrl = firstNonBlank(props.getProperty("jev-url"),
+                "https://geekai.co/api/v1/decisions");
+        jevApiKey = props.getProperty("jev-api-key") == null ? "" : props.getProperty("jev-api-key").trim();
+        jevModel = firstNonBlank(props.getProperty("jev-model"), "jev-1.14");
+        if (!jevApiKey.isBlank()) {
+            System.out.println("[ToyAgent] Jev 决策模型: " + jevModel + " @ " + jevUrl);
+        }
         String keySrc = props.getProperty("api-key");
         boolean keyFromFile = keySrc != null && !keySrc.isBlank();
         if (!apiKey.isBlank()) {
@@ -101,6 +113,12 @@ public final class Models {
         return apiKey.substring(0, 5) + "****" + apiKey.substring(apiKey.length() - 4);
     }
 
+    /** 有真实 Key 则返回 Jev 决策模型，否则返回 null（上层回落 LLM 判断）。 */
+    public static JevModel jevOrNull() {
+        if (jevApiKey == null || jevApiKey.isBlank()) return null;
+        return new JevModel(jevUrl, jevApiKey, jevModel);
+    }
+
     /** 页面配置：更新模型并持久化到 config.properties。 */
     public static synchronized void update(String newBaseUrl, String newApiKey, String newModel) {
         if (newBaseUrl != null && !newBaseUrl.isBlank()) baseUrl = newBaseUrl.trim();
@@ -126,7 +144,12 @@ public final class Models {
     }
 
     private static void save() {
+        // 先读回现有配置，只覆盖三个模型字段——jev-* 等其他键不能被页面保存抹掉
         Properties props = new Properties();
+        try (InputStream in = Files.newInputStream(Path.of("config.properties"))) {
+            props.load(in);
+        } catch (IOException ignored) {
+        }
         props.setProperty("base-url", baseUrl == null ? "" : baseUrl);
         props.setProperty("api-key", apiKey == null ? "" : apiKey);
         props.setProperty("model", modelName == null ? "" : modelName);

@@ -21,3 +21,19 @@ api-key=
 
 # 模型名称
 model=deepseek-chat
+
+# ------------------------------------------------------------------
+# Jev 决策模型（System One）配置 —— 仅 step06 的 JevRouterAgent 使用。
+# 不生成文本，只做结构化判断（choice / noul / score），
+# 返回概率分布 + 校准置信度。协议与 TypeSafe 官方 /v1/systemone 一致，
+# 换厂商（百炼 decision-model-preview / jev-local 等）只改下面三项。
+# jev-api-key 留空时 JevRouterAgent 自动回落 LLM 意图判断，主链路不受影响。
+
+# 决策端口地址
+jev-url=https://geekai.co/api/v1/decisions
+
+# 决策端口 API Key
+jev-api-key=
+
+# 决策模型名称
+jev-model=jev-1.14
