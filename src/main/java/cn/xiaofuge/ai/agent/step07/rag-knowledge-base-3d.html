@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG 知识库 · 3D 可视化</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #04050d; }
+  body { font-family: "PingFang SC", "Microsoft YaHei", sans-serif; color: #e8ecf7; }
+  #stage { position: fixed; inset: 0; }
+  canvas { display: block; }
+
+  .panel {
+    position: fixed; z-index: 10;
+    background: rgba(10, 16, 34, 0.72);
+    border: 1px solid rgba(120, 160, 255, 0.25);
+    border-radius: 14px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.45), inset 0 0 30px rgba(80, 120, 255, 0.05);
+  }
+
+  #titlePanel { top: 22px; left: 24px; padding: 14px 22px; }
+  #titlePanel h1 {
+    font-size: 20px; letter-spacing: 2px; font-weight: 700;
+    background: linear-gradient(90deg, #6ec6ff, #b388ff, #69f0ae);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  #titlePanel .sub { font-size: 11px; color: #7d8bb0; margin-top: 4px; letter-spacing: 1px; }
+
+  #descPanel {
+    top: 110px; left: 24px; width: 320px; padding: 18px 20px;
+    transition: opacity .5s;
+  }
+  #descPanel .step-tag {
+    display: inline-block; font-size: 11px; letter-spacing: 2px; color: #04050d;
+    background: linear-gradient(90deg, #6ec6ff, #b388ff);
+    padding: 3px 10px; border-radius: 20px; font-weight: 700; margin-bottom: 10px;
+  }
+  #descPanel h2 { font-size: 18px; margin-bottom: 10px; color: #dfe7ff; }
+  #descPanel p { font-size: 13px; line-height: 1.85; color: #aab6d4; }
+  #descPanel p b { color: #8fd0ff; font-weight: 600; }
+  #descPanel p em { color: #ffe082; font-style: normal; font-weight: 600; }
+
+  #stepper {
+    bottom: 26px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 10px; padding: 10px 14px; align-items: center;
+  }
+  .step-btn {
+    padding: 9px 18px; font-size: 13px; color: #9fb0d8; cursor: pointer;
+    border: 1px solid rgba(120, 160, 255, 0.25); border-radius: 10px;
+    background: rgba(20, 30, 60, 0.5); transition: all .25s; user-select: none;
+    letter-spacing: 1px;
+  }
+  .step-btn:hover { color: #fff; border-color: rgba(140, 180, 255, 0.6); }
+  .step-btn.active {
+    color: #04050d; font-weight: 700;
+    background: linear-gradient(90deg, #6ec6ff, #b388ff);
+    border-color: transparent;
+    box-shadow: 0 0 18px rgba(110, 198, 255, 0.5);
+  }
+
+  #qaPanel {
+    top: 110px; right: 24px; width: 330px; padding: 16px 18px;
+    opacity: 0; transition: opacity .5s; pointer-events: none;
+  }
+  #qaPanel .q-label, #qaPanel .a-label {
+    font-size: 11px; letter-spacing: 2px; color: #7d8bb0; margin-bottom: 6px;
+  }
+  #qaPanel .q-text {
+    font-size: 14px; color: #ffe082; line-height: 1.6; margin-bottom: 14px;
+    padding: 10px 12px; border-radius: 8px; background: rgba(255, 213, 79, 0.08);
+    border-left: 3px solid #ffd54f;
+  }
+  #qaPanel .a-label { color: #69f0ae; }
+  #qaPanel .a-text {
+    font-size: 13px; color: #c8f7dd; line-height: 1.8; min-height: 60px;
+    padding: 10px 12px; border-radius: 8px; background: rgba(105, 240, 174, 0.06);
+    border-left: 3px solid #69f0ae; white-space: pre-wrap;
+  }
+  #qaPanel .a-text::after { content: "▌"; color: #69f0ae; animation: blink 0.8s infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  #matchPanel {
+    top: 110px; right: 24px; width: 340px; padding: 16px 18px;
+    opacity: 0; transition: opacity .5s; pointer-events: none;
+  }
+  #matchPanel .mp-title { font-size: 11px; letter-spacing: 1px; color: #7d8bb0; margin-bottom: 12px; }
+  #matchPanel .mp-title b { color: #ffe082; }
+  .mp-row { margin: 11px 0; }
+  .mp-row .mp-head { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+  .mp-row .mp-name { color: #dfe7ff; }
+  .mp-row .mp-score { font-family: "SF Mono", Menlo, monospace; color: #8fd0ff; }
+  .mp-track { height: 8px; border-radius: 6px; background: rgba(120, 160, 255, 0.12); overflow: hidden; }
+  .mp-fill { height: 100%; width: 0%; border-radius: 6px; transition: width .3s; }
+  .mp-row.win .mp-name { color: #69f0ae; font-weight: 700; }
+  .mp-row.win .mp-name::after { content: "  ✓ Top-1"; color: #69f0ae; }
+  .mp-row.lose { opacity: 0.3; }
+  .mp-row.lose .mp-name { text-decoration: line-through; }
+  .mp-row.lose .mp-name::after { content: "  ✗ 淘汰"; color: #ff8a80; }
+
+  #subtitle {
+    position: fixed; z-index: 10; bottom: 86px; left: 50%; transform: translateX(-50%);
+    max-width: 900px; padding: 13px 26px 13px 16px; text-align: left;
+    display: flex; align-items: center; gap: 14px;
+    font-size: 15.5px; line-height: 1.75; color: #eef2ff; letter-spacing: 0.5px;
+    opacity: 0; transition: opacity .35s; pointer-events: none;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5), 0 0 24px rgba(110, 198, 255, 0.12);
+  }
+  #subtitle .s-avatar {
+    flex: none; width: 44px; height: 44px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: #04050d; letter-spacing: 1px;
+    background: linear-gradient(135deg, #6ec6ff, #b388ff);
+    box-shadow: 0 0 16px rgba(140, 180, 255, 0.6);
+  }
+  #subtitle b { color: #8fd0ff; font-weight: 600; }
+  #subtitle em { color: #ffe082; font-style: normal; font-weight: 600; }
+
+  #readout {
+    position: fixed; z-index: 9; pointer-events: none; opacity: 0; transition: opacity .4s;
+    font-family: "SF Mono", Menlo, monospace; font-size: 12px; color: #8fd0ff;
+    background: rgba(8, 14, 32, 0.85); border: 1px solid rgba(110, 198, 255, 0.4);
+    padding: 6px 10px; border-radius: 8px; white-space: nowrap;
+    text-shadow: 0 0 12px rgba(110, 198, 255, 0.8);
+  }
+
+  #legend {
+    bottom: 26px; right: 24px; padding: 12px 16px; font-size: 12px;
+  }
+  #legend .lg-title { font-size: 10px; letter-spacing: 2px; color: #7d8bb0; margin-bottom: 8px; }
+  #legend .lg-item { display: flex; align-items: center; gap: 8px; margin: 5px 0; color: #aab6d4; }
+  #legend .dot { width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
+
+  #hint {
+    bottom: 30px; left: 24px; font-size: 11px; color: #5a6a92; letter-spacing: 1px;
+    position: fixed; z-index: 10;
+  }
+
+  #loading {
+    position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center;
+    background: #04050d; color: #6ec6ff; font-size: 15px; letter-spacing: 3px;
+    transition: opacity .8s;
+  }
+  @media (max-width: 900px) {
+    #descPanel { width: 260px; }
+    #qaPanel, #matchPanel { display: none; }
+    #legend { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="loading">正在构建向量空间 …</div>
+
+<div id="titlePanel" class="panel">
+  <h1>RAG 知识库 · 三维演绎</h1>
+  <div class="sub">RETrieval-Augmented Generation — 向量如何存、如何取、多维在哪里</div>
+</div>
+
+<div id="descPanel" class="panel">
+  <span class="step-tag" id="descTag"></span>
+  <h2 id="descTitle"></h2>
+  <p id="descBody"></p>
+</div>
+
+<div id="qaPanel" class="panel">
+  <div class="q-label">USER QUERY · 用户提问</div>
+  <div class="q-text" id="qText"></div>
+  <div class="a-label">LLM ANSWER · 基于检索片段生成</div>
+  <div class="a-text" id="aText"></div>
+</div>
+
+<div id="matchPanel" class="panel">
+  <div class="mp-title">逐维相似度累加 · <b>sim(Q, D) = Σ qᵢ·dᵢ</b></div>
+  <div id="mpRows"></div>
+</div>
+
+<div id="subtitle" class="panel">
+  <span class="s-avatar">导读</span>
+  <span id="sText"></span>
+</div>
+
+<div id="readout"></div>
+
+<div id="stepper" class="panel">
+  <div class="step-btn" data-stage="0">总览</div>
+  <div class="step-btn" data-stage="1">① 搬书切卡</div>
+  <div class="step-btn" data-stage="2">② 发指纹入库</div>
+  <div class="step-btn" data-stage="3">③ 星云地图</div>
+  <div class="step-btn" data-stage="4">④ 比对打分</div>
+  <div class="step-btn" data-stage="5">⑤ 照卡作答</div>
+</div>
+
+<div id="legend" class="panel">
+  <div class="lg-title">知识来源（按语义聚簇）</div>
+  <div class="lg-item"><span class="dot" style="color:#4fc3f7;background:#4fc3f7"></span>产品手册</div>
+  <div class="lg-item"><span class="dot" style="color:#ba68c8;background:#ba68c8"></span>API 文档</div>
+  <div class="lg-item"><span class="dot" style="color:#ffd54f;background:#ffd54f"></span>FAQ 问答</div>
+  <div class="lg-item"><span class="dot" style="color:#69f0ae;background:#69f0ae"></span>运维指南</div>
+</div>
+
+<div id="hint">拖拽旋转 · 滚轮缩放 · 底部按钮切换环节</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ================= 基础场景 ================= */
+const container = document.getElementById('stage');
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x04050d, 0.0022);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 3000);
+camera.position.set(0, 70, 250);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setClearColor(0x04050d);
+container.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 60;
+controls.maxDistance = 600;
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+/* ================= 工具：光晕贴图 / 文字精灵 ================= */
+function makeGlowTexture(inner = 'rgba(255,255,255,1)') {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, inner);
+  g.addColorStop(0.18, 'rgba(255,255,255,0.95)');
+  g.addColorStop(0.45, 'rgba(255,255,255,0.28)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+}
+const glowTex = makeGlowTexture();
+
+function makeTextSprite(text, { fontSize = 30, color = '#dfe7ff', scale = 1 } = {}) {
+  const pad = 16;
+  const c = document.createElement('canvas');
+  const ctx = c.getContext('2d');
+  ctx.font = `${fontSize}px "PingFang SC", "Microsoft YaHei", sans-serif`;
+  const w = Math.ceil(ctx.measureText(text).width) + pad * 2;
+  c.width = w; c.height = fontSize + pad * 2;
+  const ctx2 = c.getContext('2d');
+  ctx2.font = `${fontSize}px "PingFang SC", "Microsoft YaHei", sans-serif`;
+  ctx2.fillStyle = color;
+  ctx2.textBaseline = 'middle';
+  ctx2.shadowColor = color; ctx2.shadowBlur = 14;
+  ctx2.fillText(text, pad, c.height / 2);
+  const tex = new THREE.CanvasTexture(c);
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
+  const sp = new THREE.Sprite(mat);
+  sp.scale.set((w / c.height) * fontSize * 0.09 * scale, fontSize * 0.09 * scale, 1);
+  return sp;
+}
+
+function makeDocTexture(title, colorCss) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 150;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = 'rgba(12,20,42,0.92)';
+  ctx.strokeStyle = colorCss; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.roundRect(4, 4, 248, 142, 12); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = colorCss;
+  ctx.beginPath(); ctx.roundRect(22, 26, 46, 54, 6); ctx.fill();
+  ctx.fillStyle = 'rgba(4,5,13,0.85)';
+  ctx.font = 'bold 26px sans-serif'; ctx.fillText('DOC', 26, 60);
+  ctx.fillStyle = '#e8ecf7';
+  ctx.font = 'bold 30px "PingFang SC", sans-serif';
+  ctx.fillText(title, 84, 56);
+  ctx.fillStyle = 'rgba(150,170,210,0.8)';
+  ctx.font = '18px sans-serif';
+  ctx.fillText('PDF / Markdown / Web', 24, 112);
+  ctx.fillStyle = colorCss; ctx.globalAlpha = 0.75;
+  ctx.fillText('→ 清洗 → 切块', 24, 136);
+  const tex = new THREE.CanvasTexture(c);
+  return tex;
+}
+
+/* ================= 缓动 & 补间引擎 ================= */
+const easeInOut = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+const easeOut = t => 1 - Math.pow(1 - t, 3);
+const tweens = [];
+function tween({ dur = 1000, delay = 0, ease = easeInOut, onUpdate, onComplete }) {
+  return new Promise(res => {
+    tweens.push({ start: performance.now() + delay, dur, ease, onUpdate, onComplete: () => { onComplete && onComplete(); res(); }, done: false });
+  });
+}
+function stepTweens(now) {
+  for (let i = tweens.length - 1; i >= 0; i--) {
+    const tw = tweens[i];
+    if (tw.done) { tweens.splice(i, 1); continue; }
+    if (now < tw.start) continue;
+    let t = (now - tw.start) / tw.dur;
+    if (t >= 1) t = 1;
+    tw.onUpdate && tw.onUpdate(tw.ease(t), t);
+    if (t >= 1) { tw.done = true; tw.onComplete && tw.onComplete(); }
+  }
+}
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+/* ================= 数据：四个语义聚簇 ================= */
+const DOCS = [
+  { name: '产品手册', color: 0x4fc3f7, css: '#4fc3f7', center: new THREE.Vector3(-75, 22, -15) },
+  { name: 'API 文档', color: 0xba68c8, css: '#ba68c8', center: new THREE.Vector3(75, 30, 15) },
+  { name: 'FAQ 问答', color: 0xffd54f, css: '#ffd54f', center: new THREE.Vector3(0, -48, 62) },
+  { name: '运维指南', color: 0x69f0ae, css: '#69f0ae', center: new THREE.Vector3(12, 58, -72) },
+];
+const POINTS_PER_DOC = 60;
+const totalPoints = DOCS.length * POINTS_PER_DOC;
+
+const spaceGroup = new THREE.Group();
+scene.add(spaceGroup);
+
+/* 向量点云 */
+const positions = new Float32Array(totalPoints * 3);
+const colors = new Float32Array(totalPoints * 3);
+const baseColors = new Float32Array(totalPoints * 3);
+const clusterOf = [];
+const tmpColor = new THREE.Color();
+DOCS.forEach((doc, di) => {
+  for (let i = 0; i < POINTS_PER_DOC; i++) {
+    const idx = di * POINTS_PER_DOC + i;
+    positions[idx * 3] = doc.center.x + (Math.random() - 0.5) * 55;
+    positions[idx * 3 + 1] = doc.center.y + (Math.random() - 0.5) * 48;
+    positions[idx * 3 + 2] = doc.center.z + (Math.random() - 0.5) * 55;
+    tmpColor.set(doc.color).multiplyScalar(0.78 + Math.random() * 0.4);
+    colors[idx * 3] = tmpColor.r; colors[idx * 3 + 1] = tmpColor.g; colors[idx * 3 + 2] = tmpColor.b;
+    clusterOf.push(di);
+  }
+});
+baseColors.set(colors);
+const sizes = new Float32Array(totalPoints);
+for (let i = 0; i < totalPoints; i++) sizes[i] = 5.5 + Math.random() * 5;
+const cloudGeo = new THREE.BufferGeometry();
+cloudGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+cloudGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+cloudGeo.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+const cloudMat = new THREE.ShaderMaterial({
+  uniforms: {
+    uMap: { value: glowTex },
+    uTime: { value: 0 },
+    uOpacity: { value: 0.95 },
+    uPixelRatio: { value: Math.min(devicePixelRatio, 2) }
+  },
+  vertexShader: `
+    attribute float aSize;
+    uniform float uTime;
+    uniform float uPixelRatio;
+    varying vec3 vColor;
+    void main() {
+      vColor = color;
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+      float tw = 0.85 + 0.25 * sin(uTime * 1.6 + position.x * 0.13 + position.y * 0.11);
+      gl_PointSize = aSize * uPixelRatio * tw * (280.0 / -mv.z);
+      gl_Position = projectionMatrix * mv;
+    }`,
+  fragmentShader: `
+    uniform sampler2D uMap;
+    uniform float uOpacity;
+    varying vec3 vColor;
+    void main() {
+      vec4 tex = texture2D(uMap, gl_PointCoord);
+      gl_FragColor = vec4(vColor * tex.rgb, tex.a) * uOpacity;
+    }`,
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, vertexColors: true
+});
+const cloud = new THREE.Points(cloudGeo, cloudMat);
+spaceGroup.add(cloud);
+function setCloudOp(v) { cloudMat.uniforms.uOpacity.value = v; }
+
+function setPointColor(idx, r, g, b) {
+  colors[idx * 3] = r; colors[idx * 3 + 1] = g; colors[idx * 3 + 2] = b;
+  cloudGeo.attributes.color.needsUpdate = true;
+}
+function boostPoint(idx, amount = 0.85) {
+  const b = baseColors;
+  setPointColor(idx,
+    b[idx * 3] + (1 - b[idx * 3]) * amount,
+    b[idx * 3 + 1] + (1 - b[idx * 3 + 1]) * amount,
+    b[idx * 3 + 2] + (1 - b[idx * 3 + 2]) * amount);
+}
+function restorePoint(idx) {
+  setPointColor(idx, baseColors[idx * 3], baseColors[idx * 3 + 1], baseColors[idx * 3 + 2]);
+}
+
+/* 星空背景 */
+{
+  const n = 1400, pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const r = 500 + Math.random() * 500, th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1);
+    pos[i * 3] = r * Math.sin(ph) * Math.cos(th);
+    pos[i * 3 + 1] = r * Math.sin(ph) * Math.sin(th);
+    pos[i * 3 + 2] = r * Math.cos(ph);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const stars = new THREE.Points(g, new THREE.PointsMaterial({
+    size: 1.6, map: glowTex, color: 0x8899cc, transparent: true, opacity: 0.5,
+    depthWrite: false, blending: THREE.AdditiveBlending
+  }));
+  scene.add(stars);
+}
+
+/* 底部极坐标网格 */
+const grid = new THREE.PolarGridHelper(190, 12, 48, 72, 0x1c2b52, 0x121c38);
+grid.position.y = -105;
+grid.material.transparent = true; grid.material.opacity = 0.5;
+scene.add(grid);
+
+/* ================= 坐标轴（多维展示） ================= */
+const axisGroup = new THREE.Group();
+axisGroup.visible = false;
+spaceGroup.add(axisGroup);
+const AXIS_LEN = 125;
+[['X', 0x6ec6ff, new THREE.Vector3(AXIS_LEN, 0, 0), new THREE.Vector3(0, 0, 0)],
+ ['Y', 0xb388ff, new THREE.Vector3(0, AXIS_LEN, 0), new THREE.Vector3(0, 0, 0)],
+ ['Z', 0x69f0ae, new THREE.Vector3(0, 0, AXIS_LEN), new THREE.Vector3(0, 0, 0)]].forEach(([nm, col, end], i) => {
+  const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), end]);
+  const line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.55 }));
+  axisGroup.add(line);
+  const tip = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  tip.position.copy(end); tip.scale.set(6, 6, 1);
+  axisGroup.add(tip);
+  const lbl = makeTextSprite(`维度 ${i + 1} (dim-${i + 1})`, { fontSize: 26, color: ['#8fd0ff', '#d3a6ff', '#9df5c8'][i] });
+  lbl.position.copy(end).multiplyScalar(1.14);
+  axisGroup.add(lbl);
+});
+const dimNote = makeTextSprite('真实向量 ≈ 1536 维 → 此处降维至 3D 演示', { fontSize: 24, color: '#7d8bb0' });
+dimNote.position.set(0, -132, 60);
+axisGroup.add(dimNote);
+
+/* 聚簇标签 + 星云光晕 */
+const clusterLabels = DOCS.map(doc => {
+  const lbl = makeTextSprite(doc.name, { fontSize: 30, color: doc.css, scale: 1.3 });
+  lbl.position.copy(doc.center).add(new THREE.Vector3(0, 48, 0));
+  lbl.material.opacity = 0;
+  spaceGroup.add(lbl);
+  return lbl;
+});
+const clusterHalos = DOCS.map(doc => {
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: glowTex, color: doc.color, transparent: true, opacity: 0.16,
+    depthWrite: false, blending: THREE.AdditiveBlending
+  }));
+  sp.position.copy(doc.center);
+  sp.scale.set(125, 112, 1);
+  spaceGroup.add(sp);
+  return sp;
+});
+
+/* ================= 文档面板 & 切块 ================= */
+const docGroup = new THREE.Group();
+docGroup.visible = false;
+scene.add(docGroup);
+const docPanels = DOCS.map((doc, i) => {
+  const mat = new THREE.MeshBasicMaterial({ map: makeDocTexture(doc.name, doc.css), transparent: true, opacity: 0, side: THREE.DoubleSide });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(34, 20), mat);
+  mesh.position.set(-175, 55 - i * 38, 40);
+  docGroup.add(mesh);
+  return mesh;
+});
+
+/* 分片演出：全文长条 / Chunk 板（带 overlap 重叠尾）/ 切割光刀 */
+function makeStripTexture() {
+  const c = document.createElement('canvas'); c.width = 1200; c.height = 88;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = 'rgba(13,22,46,0.95)';
+  ctx.beginPath(); ctx.roundRect(0, 0, 1200, 88, 10); ctx.fill();
+  ctx.strokeStyle = '#4fc3f7'; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.fillStyle = '#8fa8d8';
+  for (let i = 0; i < 3; i++) ctx.fillRect(26, 18 + i * 24, 1148 - (i % 3) * 220, 8);
+  return new THREE.CanvasTexture(c);
+}
+function makeChunkTexture(css) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 128;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = 'rgba(16,26,54,0.96)';
+  ctx.beginPath(); ctx.roundRect(2, 2, 252, 124, 8); ctx.fill();
+  ctx.strokeStyle = css; ctx.lineWidth = 3; ctx.stroke();
+  ctx.fillStyle = 'rgba(150,175,220,0.85)';
+  for (let i = 0; i < 4; i++) ctx.fillRect(18, 20 + i * 26, 220 - (i % 2) * 70, 7);
+  ctx.fillStyle = css;
+  ctx.font = 'bold 17px sans-serif';
+  ctx.fillText('CHUNK', 18, 118);
+  return new THREE.CanvasTexture(c);
+}
+function makeChunkSlab(css, width = 20) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, 10),
+    new THREE.MeshBasicMaterial({ map: makeChunkTexture(css), transparent: true, opacity: 0, side: THREE.DoubleSide })
+  );
+  const tail = new THREE.Mesh(
+    new THREE.PlaneGeometry(3.2, 10),
+    new THREE.MeshBasicMaterial({ color: new THREE.Color(css), transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })
+  );
+  tail.position.x = width / 2 + 1.6;
+  g.add(body); g.add(tail);
+  return g;
+}
+function makeCutter() {
+  const m = new THREE.Mesh(
+    new THREE.BoxGeometry(0.7, 26, 0.7),
+    new THREE.MeshBasicMaterial({ color: 0x8fd0ff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending })
+  );
+  return m;
+}
+
+/* ================= LLM 节点 ================= */
+const llmGroup = new THREE.Group();
+llmGroup.position.set(170, 8, -10);
+llmGroup.visible = false;
+scene.add(llmGroup);
+const llmCore = new THREE.Mesh(
+  new THREE.IcosahedronGeometry(9, 1),
+  new THREE.MeshBasicMaterial({ color: 0x6ec6ff, wireframe: true, transparent: true, opacity: 0.9 })
+);
+llmGroup.add(llmCore);
+const llmGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x4fc3f7, transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending }));
+llmGlow.scale.set(46, 46, 1);
+llmGroup.add(llmGlow);
+const llmLabel = makeTextSprite('LLM 大模型', { fontSize: 30, color: '#8fd0ff' });
+llmLabel.position.y = 24;
+llmGroup.add(llmLabel);
+
+/* ================= 动态元素：查询点 / 连线 / 光束粒子 ================= */
+let querySprite = null;
+let dynLines = [];   // THREE.Line
+let beams = [];      // {sprite, from, to, speed, phase}
+let readoutTargetIdx = -1;
+
+const dynLineMat = () => new THREE.LineBasicMaterial({ color: 0x6ec6ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending });
+
+function makeBeam(from, to, color = 0x6ec6ff) {
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, transparent: true, opacity: 0.95, depthWrite: false, blending: THREE.AdditiveBlending }));
+  sp.scale.set(3.4, 3.4, 1);
+  scene.add(sp);
+  beams.push({ sprite: sp, from: from.clone(), to: to.clone(), speed: 0.35 + Math.random() * 0.3, phase: Math.random() });
+}
+
+function clearDynamic() {
+  if (querySprite) { scene.remove(querySprite); querySprite = null; }
+  dynLines.forEach(l => {
+    if (l.parent) l.parent.remove(l);
+    if (l.isGroup) l.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+    if (l.geometry) l.geometry.dispose();
+    if (l.material) l.material.dispose();
+  });
+  dynLines = [];
+  beams.forEach(b => scene.remove(b.sprite));
+  beams = [];
+  readoutTargetIdx = -1;
+  document.getElementById('readout').style.opacity = 0;
+  document.getElementById('qaPanel').style.opacity = 0;
+  document.getElementById('matchPanel').style.opacity = 0;
+  for (let i = 0; i < totalPoints; i++) restorePoint(i);
+}
+
+/* ================= UI 控制 ================= */
+const STAGES = [
+  {
+    tag: '导览 · 一个比喻讲明白', title: 'RAG 是什么？',
+    body: '一句话：让 AI <b>先查资料、再回答</b>。把你的文档变成一座「AI 图书馆」，每次提问，管理员先翻出<b>最相关的几段</b>，AI 照着回答 —— 所以答案<b>准确、有出处、随时更新</b>。接下来像讲故事一样，分五步看它怎么运作。',
+    dur: 12000
+  },
+  {
+    tag: 'STEP 1 · 搬书 & 切卡片', title: '① 搬书 & 切卡片',
+    body: '把 PDF、网页等文档<b>搬进图书馆</b>（解析成文字、登记来源）；整本书太厚没法查，切成一张张<em>知识卡片（Chunk）</em>：每张约 <b>300~500 字</b>；相邻卡片故意保留 <em>10%~20% 重复（Overlap）</em>，句子被切断也不怕；进阶还有「<em>小卡片负责被搜到，命中后把整个章节给 AI</em>」的父子分片。',
+    dur: 20000
+  },
+  {
+    tag: 'STEP 2 · 发指纹 & 入库', title: '② 发指纹 & 入库',
+    body: 'AI 模型给每张卡片算一个「<b>语义指纹</b>」—— 一串 <b>1536 个数字</b>，学名叫<em>向量（Embedding）</em>。<b>意思越近，指纹越像</b>。卡片连指纹存进向量数据库，再织好一张 <b>HNSW 导航网</b>，百万张卡片也能毫秒级定位。',
+    dur: 15000
+  },
+  {
+    tag: 'STEP 3 · 星云地图', title: '③ 星云地图（多维度）',
+    body: '把指纹画成星星才能看见（1536 维降成 3D）。<b>意思相近的星星靠在一起</b>，自然聚成四团星云。「<b>多维度</b>」的秘密：指纹里<em>每个数字都记录一种含义特征</em> —— 主题、实体、句式、情感……AI 靠它们判断两段话像不像。',
+    dur: 16000
+  },
+  {
+    tag: 'STEP 4 · 比对打分', title: '④ 比对打分（检索）',
+    body: '你提问「怎么重置密码？」，问题也变成一颗<b>白星</b>飞进地图。检索一层层进行：<em>先锁定星云</em>（粗筛）→ <em>逐个特征比对打分</em>（sim = Σ qᵢ·dᵢ，1536 次「对答案」）→ <em>重排精选（Rerank）</em>，只留下最相关的 <b>Top-K</b> 张卡片。',
+    dur: 18000
+  },
+  {
+    tag: 'STEP 5 · 照卡作答', title: '⑤ 照卡作答（生成）',
+    body: '最后把「<b>你的问题 + 最相关的几张卡片</b>」一起交给 AI，要求它<em>只准照卡片回答、注明出处</em>。答案<b>可溯源、可核验</b> —— 比起让 AI 凭记忆猜，幻觉率能降低数倍。这就是 RAG 的全部秘密。',
+    dur: 20000
+  }
+];
+
+const descTag = document.getElementById('descTag');
+const descTitle = document.getElementById('descTitle');
+const descBody = document.getElementById('descBody');
+const stepBtns = [...document.querySelectorAll('.step-btn')];
+
+let runToken = 0;
+let stageIdx = -1;
+let autoTimer = null;
+
+/* 底部字幕：随动画节奏同步解说 */
+const subtitleEl = document.getElementById('subtitle');
+const subTextEl = document.getElementById('sText');
+function narrate(html) {
+  const tk = ++narrateSeq;
+  subtitleEl.style.opacity = 0;
+  setTimeout(() => {
+    if (tk !== narrateSeq) return;
+    subTextEl.innerHTML = html;
+    subtitleEl.style.opacity = 1;
+  }, 280);
+}
+let narrateSeq = 0;
+
+function setDescUI(i) {
+  const s = STAGES[i];
+  descTag.textContent = s.tag;
+  descTitle.textContent = s.title;
+  descBody.innerHTML = s.body;
+  stepBtns.forEach(b => b.classList.toggle('active', +b.dataset.stage === i));
+}
+
+function gotoStage(i) {
+  clearTimeout(autoTimer);
+  stageIdx = i;
+  setDescUI(i);
+  playStage(i);
+  autoTimer = setTimeout(() => gotoStage((i + 1) % STAGES.length), STAGES[i].dur);
+}
+stepBtns.forEach(b => b.addEventListener('click', () => gotoStage(+b.dataset.stage)));
+
+/* ================= 相机飞行 ================= */
+function flyCamera(pos, target, dur = 1800) {
+  const p0 = camera.position.clone(), t0 = controls.target.clone();
+  return tween({ dur, onUpdate: t => {
+    camera.position.lerpVectors(p0, pos, t);
+    controls.target.lerpVectors(t0, target, t);
+  }});
+}
+
+/* ================= 各阶段剧本 ================= */
+async function playStage(i) {
+  const tok = ++runToken;
+  clearDynamic();
+  docGroup.visible = false;
+  docPanels.forEach(p => p.material.opacity = 0);
+  axisGroup.visible = false;
+  llmGroup.visible = false;
+  clusterLabels.forEach(l => l.material.opacity = 0);
+  document.getElementById('qaPanel').style.opacity = 0;
+
+  if (i === 0) await stageOverview(tok);
+  else if (i === 1) await stageChunking(tok);
+  else if (i === 2) await stageEmbedding(tok);
+  else if (i === 3) await stageSpace(tok);
+  else if (i === 4) await stageMatching(tok);
+  else if (i === 5) await stageRAG(tok);
+}
+
+/* --- 阶段0：总览 --- */
+async function stageOverview(tok) {
+  flyCamera(new THREE.Vector3(0, 70, 250), new THREE.Vector3(0, 0, 0), 1800);
+  narrate('想象一座<b>超级图书馆</b>：把你的文档放进去，提问时管理员先<b>翻出最相关的几页</b>，AI 照着回答 —— 这就是 RAG');
+  setCloudOp(0);
+  tween({ dur: 1500, onUpdate: t => setCloudOp(t * 0.95) });
+  clusterLabels.forEach((l, idx) => tween({ dur: 600, delay: 250 + idx * 150, onUpdate: t => l.material.opacity = t * 0.95 }));
+  // 点出关键比喻：一颗光点 = 一张知识卡片
+  const ann = makeTextSprite('一颗光点 = 一张知识卡片', { fontSize: 26, color: '#ffe082' });
+  ann.position.set(-10, 112, 30);
+  ann.material.opacity = 0;
+  scene.add(ann);
+  dynLines.push(ann);
+  tween({ dur: 900, delay: 1200, onUpdate: t => ann.material.opacity = t });
+  await wait(2000);
+}
+
+/* --- 阶段1：加载与分片 --- */
+const CHUNK_ROW_Y = 40, STRIP_Y = 85;
+const CHUNK_XS = [-57.5, -34.5, -11.5, 11.5, 34.5, 57.5];
+
+async function stageChunking(tok) {
+  flyCamera(new THREE.Vector3(0, 55, 225), new THREE.Vector3(0, 45, 0), 1800);
+  setCloudOp(0.18);
+  narrate('第一步 · <b>搬书</b>：把 PDF、Markdown、网页统统搬进图书馆，登记好书名和来源');
+
+  // 四份文档依次登场（顶部一排）
+  docGroup.visible = true;
+  docPanels.forEach((p, i) => {
+    const tx = -69 + i * 46;
+    tween({ dur: 800, delay: i * 200, onUpdate: t => {
+      p.material.opacity = t;
+      p.position.set(tx, 88, 40);
+    }});
+  });
+  await wait(2000); if (tok !== runToken) return;
+
+  // 聚焦第一份文档：展开成全文长条
+  narrate('第二步 · <b>切卡片</b>：整本书太厚没法查，切成一张张知识卡片，每张约 <em>300~500 字</em>');
+  docPanels.forEach((p, i) => tween({ dur: 500, delay: i * 80, onUpdate: t => p.material.opacity = (i === 0 ? 1 - t : t * 0.25) }));
+  const strip = new THREE.Mesh(new THREE.PlaneGeometry(150, 13), new THREE.MeshBasicMaterial({ map: makeStripTexture(), transparent: true, opacity: 0, side: THREE.DoubleSide }));
+  strip.position.set(0, STRIP_Y, 40);
+  strip.scale.set(0.05, 1, 1);
+  scene.add(strip); dynLines.push(strip);
+  const stripLbl = makeTextSprite('《产品手册 v3.2 · 全文》', { fontSize: 24, color: '#8fd0ff' });
+  stripLbl.position.set(0, STRIP_Y + 22, 40);
+  stripLbl.material.opacity = 0;
+  scene.add(stripLbl); dynLines.push(stripLbl);
+  tween({ dur: 1100, ease: easeOut, onUpdate: t => { strip.material.opacity = t; strip.scale.x = 0.05 + t * 0.95; } });
+  tween({ dur: 600, delay: 700, onUpdate: t => stripLbl.material.opacity = t });
+  await wait(1800); if (tok !== runToken) return;
+
+  // 切割光刀从左到右扫过，逐块切落
+  narrate('切割线扫过全文，按固定长度切出一个个 <b>Chunk</b>……');
+  const cutter = makeCutter();
+  cutter.position.set(-80, STRIP_Y, 40);
+  scene.add(cutter); dynLines.push(cutter);
+  const slabs = [];
+  CHUNK_XS.forEach(cx => {
+    const slab = makeChunkSlab('#4fc3f7');
+    slab.position.set(cx, STRIP_Y, 42);
+    slab.scale.setScalar(0.01);
+    scene.add(slab); dynLines.push(slab);
+    slabs.push(slab);
+    tween({ dur: 700, delay: 700 + slabs.length * 620 - 620, ease: easeOut, onUpdate: t => {
+      slab.scale.setScalar(0.01 + t * 0.99);
+      slab.children.forEach(o => o.material.opacity = t);
+      slab.position.y = STRIP_Y - t * (STRIP_Y - CHUNK_ROW_Y);
+      slab.position.z = 42 - t * 2;
+    }});
+  });
+  await tween({ dur: 4600, ease: t => t, onUpdate: t => {
+    cutter.position.x = -80 + t * 160;
+    cutter.material.opacity = 0.9 * Math.sin(Math.min(1, t * 1.15) * Math.PI);
+  }});
+  if (tok !== runToken) return;
+  strip.material.opacity = 0.25;
+  await wait(400); if (tok !== runToken) return;
+
+  // 给中间那张卡片挂上「示例内容」标签 —— 为第④⑤幕的提问埋下伏笔
+  const exLbl = makeTextSprite('例：这张卡片写着「如何重置密码」', { fontSize: 22, color: '#ffd54f' });
+  exLbl.position.set(CHUNK_XS[2], CHUNK_ROW_Y + 14, 42);
+  exLbl.material.opacity = 0;
+  scene.add(exLbl); dynLines.push(exLbl);
+  tween({ dur: 700, delay: 200, onUpdate: t => exLbl.material.opacity = t });
+
+  // Overlap 重叠讲解：块尾亮条脉冲
+  narrate('看每张卡片右侧的亮条 —— 和下一张<b>故意抄重复的一小段</b>（Overlap），句子被拦腰切断也不怕');
+  const ovLbl = makeTextSprite('重叠区 Overlap 10%~20%', { fontSize: 24, color: '#ffe082' });
+  ovLbl.position.set(CHUNK_XS[2] + 24, CHUNK_ROW_Y + 15, 42);
+  ovLbl.material.opacity = 0;
+  scene.add(ovLbl); dynLines.push(ovLbl);
+  tween({ dur: 700, onUpdate: t => ovLbl.material.opacity = t });
+  await tween({ dur: 2400, ease: t => t, onUpdate: t => {
+    const pulse = 0.5 + 0.45 * Math.sin(t * Math.PI * 4);
+    slabs.forEach(s => { if (s.children[1]) s.children[1].material.opacity = Math.max(pulse, 0.4); });
+  }});
+  if (tok !== runToken) return;
+
+  // 进阶策略：父子分片
+  narrate('进阶玩法：<b>小卡片负责被搜到</b>，命中后把整个章节给 AI 看 —— 细节和上下文都不丢');
+  const parent = new THREE.Mesh(new THREE.PlaneGeometry(76, 16), new THREE.MeshBasicMaterial({ color: 0xba68c8, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+  parent.position.set(CHUNK_XS[2], CHUNK_ROW_Y, 38);
+  scene.add(parent); dynLines.push(parent);
+  const parentLbl = makeTextSprite('父块 Parent：检索子块 · 返回父块上下文', { fontSize: 22, color: '#d3a6ff' });
+  parentLbl.position.set(CHUNK_XS[2], CHUNK_ROW_Y - 15, 40);
+  parentLbl.material.opacity = 0;
+  scene.add(parentLbl); dynLines.push(parentLbl);
+  tween({ dur: 900, onUpdate: t => { parent.material.opacity = t * 0.2; parentLbl.material.opacity = t; } });
+  await wait(3200); if (tok !== runToken) return;
+
+  narrate('卡片做好啦！接下来给每张卡片发一张「语义指纹」');
+  await wait(1600);
+}
+
+/* --- 阶段2：向量化与入库 --- */
+async function stageEmbedding(tok) {
+  flyCamera(new THREE.Vector3(-25, 50, 235), new THREE.Vector3(-10, 20, 10), 1800);
+  setCloudOp(0.3);
+  narrate('第三步 · <b>发指纹</b>：AI 模型把每张卡片变成 <em>1536 个数字</em> —— 意思越近，指纹越像，这叫<b>向量</b>');
+
+  // 复现一排 Chunk（承上一幕）
+  const slabs = CHUNK_XS.map((cx, i) => {
+    const s = makeChunkSlab(DOCS[i % DOCS.length].css);
+    s.position.set(cx * 1.2, CHUNK_ROW_Y - 5, 30);
+    s.children.forEach(o => o.material.opacity = 0.95);
+    scene.add(s); dynLines.push(s);
+    return s;
+  });
+  await wait(1800); if (tok !== runToken) return;
+
+  narrate('卡片飞进数据库，<b>意思相近的自动落在同一个书架区</b>（入库和查询必须用同一个指纹模型）');
+  slabs.forEach((s, i) => {
+    const targetIdx = (i % DOCS.length) * POINTS_PER_DOC + Math.floor(Math.random() * POINTS_PER_DOC);
+    const target = new THREE.Vector3(positions[targetIdx * 3], positions[targetIdx * 3 + 1], positions[targetIdx * 3 + 2]);
+    const from = s.position.clone();
+    tween({ dur: 1700, delay: i * 380, ease: easeInOut, onUpdate: t => {
+      s.position.lerpVectors(from, target, t);
+      s.scale.setScalar(1 - t * 0.8);
+      s.rotation.y = t * 2.2;
+      s.children.forEach(o => o.material.opacity = 0.95 * (1 - t * 0.9));
+    }, onComplete: () => {
+      scene.remove(s);
+      boostPoint(targetIdx, 0.9);
+      const r = colors[targetIdx * 3], g = colors[targetIdx * 3 + 1], b = colors[targetIdx * 3 + 2];
+      setTimeout(() => { if (tok === runToken && stageIdx === 2) tween({ dur: 2200, onUpdate: t => setPointColor(targetIdx, r + (baseColors[targetIdx * 3] - r) * t, g + (baseColors[targetIdx * 3 + 1] - g) * t, b + (baseColors[targetIdx * 3 + 2] - b) * t) }); }, 800);
+    }});
+  });
+  await wait(4200); if (tok !== runToken) return;
+
+  // HNSW 索引网
+  narrate('最后织一张「导航网」（<b>HNSW 索引</b>）：百万张卡片，也能毫秒级找到');
+  const netPos = [];
+  for (let k = 0; k < 90; k++) {
+    const a = Math.floor(Math.random() * totalPoints), b = Math.floor(Math.random() * totalPoints);
+    if (clusterOf[a] !== clusterOf[b]) continue;
+    netPos.push(positions[a * 3], positions[a * 3 + 1], positions[a * 3 + 2], positions[b * 3], positions[b * 3 + 1], positions[b * 3 + 2]);
+  }
+  const netGeo = new THREE.BufferGeometry();
+  netGeo.setAttribute('position', new THREE.Float32BufferAttribute(netPos, 3));
+  const net = new THREE.LineSegments(netGeo, new THREE.LineBasicMaterial({ color: 0x6a7fc0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending }));
+  spaceGroup.add(net); dynLines.push(net);
+  tween({ dur: 1400, onUpdate: t => net.material.opacity = t * 0.35 });
+  tween({ dur: 2500, onUpdate: t => setCloudOp(0.3 + t * 0.65) });
+  flyCamera(new THREE.Vector3(0, 70, 250), new THREE.Vector3(0, 0, 0), 2400);
+  await wait(4200);
+}
+
+/* --- 阶段2：多维向量空间 --- */
+async function stageSpace(tok) {
+  flyCamera(new THREE.Vector3(90, 45, 200), new THREE.Vector3(0, 5, 0), 1800);
+  narrate('把指纹画成<b>星星</b>才能看见：意思相近的星星靠在一起，聚成了四团星云');
+  setCloudOp(0.95);
+  axisGroup.visible = true;
+  axisGroup.children.forEach(ch => {
+    if (ch.material) ch.material.transparent = true, ch.material.opacity = 0;
+    tween({ dur: 1000, delay: 300, onUpdate: t => { if (ch.material) ch.material.opacity = t * (ch.isSprite && ch.material.map ? 0.95 : 0.75); } });
+  });
+
+  // 选中一个代表向量，投影出维度读数
+  await wait(1200); if (tok !== runToken) return;
+  const heroIdx = 2 * POINTS_PER_DOC + 10; // FAQ 簇里取一个
+  readoutTargetIdx = heroIdx;
+  boostPoint(heroIdx, 1);
+  document.getElementById('readout').style.opacity = 1;
+
+  // 相机绕场一周，展示"每个角度都是语义"
+  const r0 = 210;
+  await tween({ dur: 9000, ease: t => t, onUpdate: t => {
+    if (tok !== runToken) return;
+    const a = t * Math.PI * 1.6 + 0.4;
+    camera.position.set(Math.sin(a) * r0 * 0.9, 45 + Math.sin(t * Math.PI) * 35, Math.cos(a) * r0 * 0.9);
+    controls.target.set(0, 5, 0);
+  }});
+  if (tok !== runToken) return;
+
+  // 聚簇标签浮现
+  narrate('「<b>多维度</b>」的秘密：指纹里每个数字记录一种含义特征 —— 主题、实体、句式…… AI 靠它们判断两段话像不像');
+  clusterLabels.forEach((l, idx) => tween({ dur: 700, delay: idx * 150, onUpdate: t => l.material.opacity = t * 0.95 }));
+  flyCamera(new THREE.Vector3(0, 70, 250), new THREE.Vector3(0, 0, 0), 2000);
+  await wait(3000);
+}
+
+/* --- 阶段3：逐层匹配（粗筛 → 逐维打分 → 淘汰） --- */
+const MATCH_CANDS = [
+  { name: 'API 文档', idx: 1 * POINTS_PER_DOC + 20, score: 0.28, css: '#ba68c8' },
+  { name: '产品手册', idx: 0 * POINTS_PER_DOC + 5,  score: 0.41, css: '#4fc3f7' },
+  { name: 'FAQ 问答', idx: 2 * POINTS_PER_DOC + 10, score: 0.92, css: '#ffd54f' },
+  { name: '运维指南', idx: 3 * POINTS_PER_DOC + 8,  score: 0.33, css: '#69f0ae' },
+];
+const posOf = idx => new THREE.Vector3(positions[idx * 3], positions[idx * 3 + 1], positions[idx * 3 + 2]);
+
+function buildMatchRows() {
+  const wrap = document.getElementById('mpRows');
+  wrap.innerHTML = '';
+  return MATCH_CANDS.map(c => {
+    const row = document.createElement('div');
+    row.className = 'mp-row';
+    row.innerHTML = `<div class="mp-head"><span class="mp-name">${c.name}</span><span class="mp-score">0.00</span></div><div class="mp-track"><div class="mp-fill" style="background:${c.css}"></div></div>`;
+    wrap.appendChild(row);
+    return row;
+  });
+}
+
+async function stageMatching(tok) {
+  flyCamera(new THREE.Vector3(-10, 30, 215), new THREE.Vector3(0, -15, 25), 1800);
+  narrate('你提问：<b>「我怎么重置密码？」</b>—— 问题也变成一颗白星，飞进图书馆');
+  setCloudOp(0.9);
+  clusterLabels.forEach((l, idx) => tween({ dur: 600, delay: idx * 100, onUpdate: t => l.material.opacity = t * 0.9 }));
+
+  await wait(800); if (tok !== runToken) return;
+
+  // 用户提问 → 白色查询向量飞入
+  document.getElementById('qText').textContent = '“我怎么重置密码？”';
+  document.getElementById('aText').textContent = '';
+  document.getElementById('qaPanel').style.opacity = 1;
+
+  querySprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffffff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  querySprite.scale.set(11, 11, 1);
+  const qFrom = new THREE.Vector3(40, -130, 140);
+  const qTo = new THREE.Vector3(positions[(2 * POINTS_PER_DOC) * 3] * 0.3, -40, 55);
+  querySprite.position.copy(qFrom);
+  scene.add(querySprite);
+  await tween({ dur: 1500, ease: easeInOut, onUpdate: t => {
+    querySprite.position.lerpVectors(qFrom, qTo, t);
+    querySprite.material.opacity = t;
+  }});
+  if (tok !== runToken) return;
+
+  // 标出「你的问题」
+  const qLbl = makeTextSprite('你的问题', { fontSize: 24, color: '#ffffff' });
+  qLbl.position.copy(qTo).add(new THREE.Vector3(0, 16, 0));
+  scene.add(qLbl); dynLines.push(qLbl);
+
+  /* 第 1 层 · 粗筛：只保留 FAQ 语义簇，其余变暗 */
+  narrate('第一层 · <b>先找对书架</b>：白星落在哪片星云，就只在里面找 —— 锁定 FAQ 区，别处不用翻');
+  const coarseLbl = makeTextSprite('第 1 层 · 粗筛：定位语义簇', { fontSize: 26, color: '#8fd0ff' });
+  coarseLbl.position.copy(qTo).add(new THREE.Vector3(0, 34, 0));
+  scene.add(coarseLbl); dynLines.push(coarseLbl);
+  await tween({ dur: 1200, onUpdate: t => {
+    const f = 1 - t * 0.78;
+    for (let i = 0; i < totalPoints; i++) {
+      if (clusterOf[i] === 2) { // FAQ 簇反而提亮
+        setPointColor(i, Math.min(1, baseColors[i * 3] * (1 + t * 0.3)), Math.min(1, baseColors[i * 3 + 1] * (1 + t * 0.3)), Math.min(1, baseColors[i * 3 + 2] * (1 + t * 0.3)));
+      } else {
+        setPointColor(i, baseColors[i * 3] * f, baseColors[i * 3 + 1] * f, baseColors[i * 3 + 2] * f);
+      }
+    }
+  }});
+  if (tok !== runToken) return;
+  await wait(900); if (tok !== runToken) return;
+
+  /* 第 2 层 · 逐维打分：候选点连线 + 脉冲逐维累加 */
+  narrate('第二层 · <b>逐个特征比对</b>：每道金色脉冲就是比一个特征，分数越滚越高');
+  const fineLbl = makeTextSprite('第 2 层 · 逐维累加：sim = Σ qᵢ·dᵢ', { fontSize: 26, color: '#ffe082' });
+  fineLbl.position.copy(qTo).add(new THREE.Vector3(0, 34, 0));
+  fineLbl.material.opacity = 0;
+  scene.add(fineLbl); dynLines.push(fineLbl);
+  coarseLbl.material.opacity = 0; // 换标签
+  tween({ dur: 600, onUpdate: t => fineLbl.material.opacity = t });
+
+  const rows = buildMatchRows();
+  document.getElementById('matchPanel').style.opacity = 1;
+
+  // 连线（按候选分两批：败者线 / 胜者线，便于淘汰时分别淡出）
+  const loserCands = MATCH_CANDS.filter(c => c.score < 0.8);
+  const winnerCand = MATCH_CANDS.find(c => c.score >= 0.8);
+  const mkLines = cands => {
+    const arr = [];
+    cands.forEach(c => { const p = posOf(c.idx); arr.push(qTo.x, qTo.y, qTo.z, p.x, p.y, p.z); });
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
+    const m = new THREE.LineBasicMaterial({ color: 0x6ec6ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending });
+    const l = new THREE.LineSegments(g, m);
+    scene.add(l); dynLines.push(l);
+    return l;
+  };
+  const loserLines = mkLines(loserCands);
+  const winnerLine = mkLines([winnerCand]);
+  tween({ dur: 800, onUpdate: t => { loserLines.material.opacity = t * 0.55; winnerLine.material.opacity = t * 0.8; } });
+
+  // 脉冲：每一次脉冲 = 一个维度的匹配，命中即累加分数
+  const STEPS = 10;
+  MATCH_CANDS.forEach((c, ci) => {
+    const row = rows[ci];
+    const fill = row.querySelector('.mp-fill');
+    const scoreEl = row.querySelector('.mp-score');
+    const target = posOf(c.idx);
+    for (let d = 0; d < STEPS; d++) {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: c.score >= 0.8 ? 0xffe082 : 0x8899bb, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+      sp.scale.set(3.6, 3.6, 1);
+      scene.add(sp); dynLines.push(sp);
+      tween({ dur: 620, delay: 600 + ci * 260 + d * 340, ease: t => t, onUpdate: t => {
+        sp.position.lerpVectors(qTo, target, t);
+        sp.material.opacity = Math.sin(t * Math.PI);
+      }, onComplete: () => {
+        scene.remove(sp);
+        const acc = c.score * (d + 1) / STEPS;
+        fill.style.width = (acc * 100) + '%';
+        scoreEl.textContent = acc.toFixed(2);
+        if (d === STEPS - 1) boostPoint(c.idx, 1); // 打分完成点亮该候选
+      }});
+    }
+  });
+
+  await wait(600 + MATCH_CANDS.length * 260 + STEPS * 340 + 800);
+  if (tok !== runToken) return;
+
+  /* 淘汰：低分候选连线熄灭，胜者标注 Top-1 */
+  narrate('最后一轮<b>精挑细选（重排）</b>：不相关的全部淘汰，只留最像的几张');
+  rows.forEach((row, i) => row.classList.add(MATCH_CANDS[i].score >= 0.8 ? 'win' : 'lose'));
+  loserCands.forEach(c => restorePoint(c.idx));
+  tween({ dur: 900, onUpdate: t => loserLines.material.opacity = 0.55 * (1 - t) });
+  const winLbl = makeTextSprite('✓ 最像的卡片，胜出！', { fontSize: 26, color: '#69f0ae' });
+  winLbl.position.copy(posOf(winnerCand.idx)).add(new THREE.Vector3(0, 20, 0));
+  scene.add(winLbl); dynLines.push(winLbl);
+  await wait(2600);
+}
+
+/* --- 阶段5：检索 · 增强生成 --- */
+async function stageRAG(tok) {
+  flyCamera(new THREE.Vector3(30, 60, 235), new THREE.Vector3(30, 0, 10), 1800);
+  narrate('最后一步：把<b>你的问题 + 最像的几张卡片</b>一起交给 AI，要求它「<em>只准照卡片回答</em>」');
+  setCloudOp(0.95);
+  clusterLabels.forEach((l, idx) => tween({ dur: 600, delay: idx * 100, onUpdate: t => l.material.opacity = t * 0.9 }));
+
+  // 用户提问出现
+  await wait(900); if (tok !== runToken) return;
+  document.getElementById('qText').textContent = '“我怎么重置密码？”';
+  document.getElementById('aText').textContent = '';
+  document.getElementById('qaPanel').style.opacity = 1;
+
+  // 提问向量化：一颗白色查询点飞入 FAQ 簇
+  querySprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffffff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  querySprite.scale.set(11, 11, 1);
+  const qFrom = new THREE.Vector3(40, -130, 140);
+  const qTo = new THREE.Vector3(positions[(2 * POINTS_PER_DOC) * 3] * 0.3, -40, 55); // FAQ 簇附近
+  querySprite.position.copy(qFrom);
+  scene.add(querySprite);
+  await tween({ dur: 1500, ease: easeInOut, onUpdate: t => {
+    querySprite.position.lerpVectors(qFrom, qTo, t);
+    querySprite.material.opacity = t;
+  }});
+  if (tok !== runToken) return;
+
+  // 余弦相似度公式标签
+  const simLbl = makeTextSprite('cos θ = A·B / (‖A‖·‖B‖)  →  Top-K', { fontSize: 26, color: '#ffe082' });
+  simLbl.position.copy(qTo).add(new THREE.Vector3(0, 22, 0));
+  scene.add(simLbl);
+  dynLines.push(simLbl); // 借用清理列表
+
+  // 找 Top-5 最近邻（欧氏近似演示）
+  const qv = qTo;
+  const dists = [];
+  for (let i = 0; i < totalPoints; i++) {
+    const dx = positions[i * 3] - qv.x, dy = positions[i * 3 + 1] - qv.y, dz = positions[i * 3 + 2] - qv.z;
+    dists.push([dx * dx + dy * dy + dz * dz, i]);
+  }
+  dists.sort((a, b) => a[0] - b[0]);
+  const topK = dists.slice(0, 5).map(d => d[1]);
+
+  // 连线 + 点亮
+  await wait(500); if (tok !== runToken) return;
+  const linePosArr = [];
+  topK.forEach((idx, k) => {
+    boostPoint(idx, 1);
+    linePosArr.push(qv.x, qv.y, qv.z, positions[idx * 3], positions[idx * 3 + 1], positions[idx * 3 + 2]);
+    makeBeam(new THREE.Vector3(positions[idx * 3], positions[idx * 3 + 1], positions[idx * 3 + 2]),
+             llmGroup.position, 0x6ec6ff);
+  });
+  const lineGeo = new THREE.BufferGeometry();
+  lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(linePosArr, 3));
+  const lineMat = dynLineMat();
+  const lineMesh = new THREE.LineSegments(lineGeo, lineMat);
+  scene.add(lineMesh);
+  dynLines.push(lineMesh);
+  tween({ dur: 700, onUpdate: t => lineMat.opacity = t * 0.8 });
+
+  // LLM 登场，接收片段，开始生成
+  await wait(800); if (tok !== runToken) return;
+  llmGroup.visible = true;
+  llmGroup.scale.setScalar(0.1);
+  tween({ dur: 800, ease: easeOut, onUpdate: t => llmGroup.scale.setScalar(0.1 + t * 0.9) });
+  await wait(600); if (tok !== runToken) return;
+
+  // Prompt 组装标注：问题 + Top-K 片段 → 一起送入模型
+  const promptLbl = makeTextSprite('Prompt = 用户问题 + Top-K 片段', { fontSize: 24, color: '#9df5c8' });
+  promptLbl.position.copy(llmGroup.position).add(new THREE.Vector3(0, -24, 0));
+  scene.add(promptLbl); dynLines.push(promptLbl);
+
+  const answer = '根据知识库中《产品手册》与《FAQ》的相关片段：\n① 进入「账号设置 → 安全中心」；\n② 点击「忘记密码」，通过绑定邮箱 / 手机验证；\n③ 设置新密码后，其他设备需重新登录。\n—— 以上由 LLM 基于检索到的 5 个最相似片段综合生成，可溯源。';
+  const aEl = document.getElementById('aText');
+  for (const ch of answer) {
+    if (tok !== runToken) return;
+    aEl.textContent += ch;
+    await wait(26);
+  }
+  narrate('看到没 —— 答案和第①幕那张<b>「重置密码」卡片</b>对上了，还标了出处。<b>可溯源</b>，这就是 RAG 比普通 AI 可靠的原因');
+  await wait(2500);
+}
+
+/* ================= 渲染循环 ================= */
+const readoutEl = document.getElementById('readout');
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const now = performance.now();
+  stepTweens(now);
+  controls.update();
+  cloudMat.uniforms.uTime.value = clock.getElapsedTime();
+
+  // 星云光晕呼吸
+  clusterHalos.forEach((h, i) => {
+    const s = 1 + Math.sin(now * 0.0012 + i * 1.7) * 0.06;
+    h.scale.set(125 * s, 112 * s, 1);
+  });
+
+  // 空间缓慢自转（除相机绕行阶段）
+  if (stageIdx !== 2) spaceGroup.rotation.y += 0.0011;
+  llmCore.rotation.y += 0.01; llmCore.rotation.x += 0.006;
+  const pulse = 1 + Math.sin(now * 0.004) * 0.08;
+  llmGlow.scale.set(46 * pulse, 46 * pulse, 1);
+
+  // 光束粒子流动
+  beams.forEach(b => {
+    b.phase = (b.phase + b.speed * 0.012) % 1;
+    b.sprite.position.lerpVectors(b.from, b.to, b.phase);
+    b.sprite.material.opacity = 0.9 * Math.sin(b.phase * Math.PI);
+  });
+
+  // 高亮点的呼吸
+  if (readoutTargetIdx >= 0) {
+    const s = 0.75 + Math.sin(now * 0.005) * 0.25;
+    const b = baseColors;
+    setPointColor(readoutTargetIdx, b[readoutTargetIdx * 3] + (1 - b[readoutTargetIdx * 3]) * s,
+      b[readoutTargetIdx * 3 + 1] + (1 - b[readoutTargetIdx * 3 + 1]) * s,
+      b[readoutTargetIdx * 3 + 2] + (1 - b[readoutTargetIdx * 3 + 2]) * s);
+    // 投影到屏幕
+    const wp = new THREE.Vector3(
+      positions[readoutTargetIdx * 3], positions[readoutTargetIdx * 3 + 1], positions[readoutTargetIdx * 3 + 2]
+    ).applyMatrix4(spaceGroup.matrixWorld).project(camera);
+    readoutEl.style.left = ((wp.x * 0.5 + 0.5) * innerWidth + 14) + 'px';
+    readoutEl.style.top = ((-wp.y * 0.5 + 0.5) * innerHeight - 10) + 'px';
+    readoutEl.textContent = `[${(positions[readoutTargetIdx * 3] / 100).toFixed(3)}, ${(positions[readoutTargetIdx * 3 + 1] / 100).toFixed(3)}, ${(positions[readoutTargetIdx * 3 + 2] / 100).toFixed(3)}, …] ← 1536 维中的前 3 维`;
+  }
+
+  renderer.render(scene, camera);
+}
+
+/* ================= 启动 ================= */
+try {
+  animate();
+  document.getElementById('loading').style.opacity = 0;
+  setTimeout(() => document.getElementById('loading').remove(), 900);
+  gotoStage(0);
+} catch (e) {
+  document.getElementById('loading').textContent = '初始化失败：' + e.message;
+}
+</script>
+</body>
+</html>
