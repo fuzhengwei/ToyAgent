@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM-Wiki 知识图谱 · 3D 可视化</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #050a0a; }
+  body { font-family: "PingFang SC", "Microsoft YaHei", sans-serif; color: #e6f5ee; }
+  #stage { position: fixed; inset: 0; }
+  canvas { display: block; }
+
+  .panel {
+    position: fixed; z-index: 10;
+    background: rgba(8, 22, 18, 0.72);
+    border: 1px solid rgba(90, 220, 180, 0.25);
+    border-radius: 14px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.45), inset 0 0 30px rgba(60, 200, 160, 0.05);
+  }
+
+  #titlePanel { top: 22px; left: 24px; padding: 14px 22px; }
+  #titlePanel h1 {
+    font-size: 20px; letter-spacing: 2px; font-weight: 700;
+    background: linear-gradient(90deg, #69f0ae, #4dd0e1, #ffe082);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  #titlePanel .sub { font-size: 11px; color: #6f9688; margin-top: 4px; letter-spacing: 1px; }
+
+  /* 统计卡：节点 / 边 / 边类型 */
+  #statsBar { top: 22px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; padding: 10px 14px; }
+  .stat { min-width: 92px; text-align: center; padding: 4px 10px; }
+  .stat .num {
+    font-size: 24px; font-weight: 800; font-family: "SF Mono", Menlo, monospace;
+    background: linear-gradient(180deg, #aef3d8, #4dd0e1);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .stat .lbl { font-size: 11px; color: #6f9688; margin-top: 2px; letter-spacing: 1px; }
+
+  #descPanel { top: 110px; left: 24px; width: 320px; padding: 18px 20px; }
+  #descPanel .step-tag {
+    display: inline-block; font-size: 11px; letter-spacing: 2px; color: #050a0a;
+    background: linear-gradient(90deg, #69f0ae, #4dd0e1);
+    padding: 3px 10px; border-radius: 20px; font-weight: 700; margin-bottom: 10px;
+  }
+  #descPanel h2 { font-size: 18px; margin-bottom: 10px; color: #dcf5ea; }
+  #descPanel p { font-size: 13px; line-height: 1.85; color: #9dbcaf; }
+  #descPanel p b { color: #7fead0; font-weight: 600; }
+  #descPanel p em { color: #ffe082; font-style: normal; font-weight: 600; }
+
+  #stepper { bottom: 26px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; padding: 10px 14px; align-items: center; }
+  .step-btn {
+    padding: 9px 16px; font-size: 13px; color: #8fb5a8; cursor: pointer;
+    border: 1px solid rgba(90, 220, 180, 0.25); border-radius: 10px;
+    background: rgba(14, 40, 32, 0.5); transition: all .25s; user-select: none; letter-spacing: 1px;
+  }
+  .step-btn:hover { color: #fff; border-color: rgba(120, 240, 200, 0.6); }
+  .step-btn.active {
+    color: #050a0a; font-weight: 700;
+    background: linear-gradient(90deg, #69f0ae, #4dd0e1);
+    border-color: transparent; box-shadow: 0 0 18px rgba(105, 240, 174, 0.5);
+  }
+
+  /* 课程讲解区（右侧常驻） */
+  #coursePanel {
+    top: 110px; right: 24px; width: 360px;
+    max-height: calc(100vh - 280px);
+    display: flex; flex-direction: column;
+    padding: 16px 18px 12px;
+  }
+  .co-header {
+    font-size: 13px; font-weight: 700; color: #dcf5ea; letter-spacing: 2px;
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding-bottom: 10px; margin-bottom: 10px;
+    border-bottom: 1px solid rgba(90, 220, 180, 0.2);
+  }
+  .co-header span { font-size: 10px; color: #51756a; font-weight: 400; letter-spacing: 1.5px; }
+  #courseOutline { flex: none; }
+  .co-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 5px 9px; margin: 3px 0; border-radius: 8px;
+    font-size: 12.5px; color: #8fb5a8; cursor: pointer;
+    border: 1px solid transparent; transition: all .2s; user-select: none;
+  }
+  .co-item:hover { background: rgba(90, 220, 180, 0.08); color: #dcf5ea; }
+  .co-item.active {
+    background: rgba(105, 240, 174, 0.12); color: #eafff5; font-weight: 600;
+    border-color: rgba(105, 240, 174, 0.35);
+    box-shadow: inset 2px 0 0 #69f0ae;
+  }
+  .co-item .co-num {
+    flex: none; width: 20px; height: 20px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10.5px; font-weight: 700; color: #050a0a;
+    background: rgba(90, 220, 180, 0.35);
+  }
+  .co-item.active .co-num { background: linear-gradient(135deg, #69f0ae, #4dd0e1); }
+  .co-item.done .co-num { background: rgba(77, 208, 225, 0.55); }
+  #courseDetail { flex: 1; overflow-y: auto; margin-top: 12px; padding-right: 6px; }
+  #courseDetail::-webkit-scrollbar { width: 5px; }
+  #courseDetail::-webkit-scrollbar-thumb { background: rgba(90, 220, 180, 0.25); border-radius: 3px; }
+  .co-sec { margin-bottom: 13px; }
+  .co-sec-t {
+    font-size: 11px; letter-spacing: 2px; color: #7fead0; font-weight: 700;
+    margin-bottom: 6px; display: flex; align-items: center; gap: 7px;
+  }
+  .co-sec-t::before { content: ""; width: 3px; height: 11px; border-radius: 2px; background: linear-gradient(180deg, #69f0ae, #4dd0e1); }
+  .co-sec ul { list-style: none; }
+  .co-sec li {
+    font-size: 12.5px; line-height: 1.8; color: #9dbcaf;
+    padding-left: 14px; position: relative; margin-bottom: 4px;
+  }
+  .co-sec li::before {
+    content: ""; position: absolute; left: 2px; top: 9px;
+    width: 5px; height: 5px; border-radius: 50%; background: #4dd0e1; opacity: 0.7;
+  }
+  .co-sec li b { color: #7fead0; font-weight: 600; }
+  .co-sec li em { color: #ffe082; font-style: normal; font-weight: 600; }
+  .co-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .co-chips span {
+    font-size: 11px; padding: 3px 10px; border-radius: 12px;
+    background: rgba(179, 136, 255, 0.13); color: #cdb8ff;
+    border: 1px solid rgba(179, 136, 255, 0.3);
+  }
+  .co-sum p {
+    font-size: 12.5px; line-height: 1.8; color: #eafff5;
+    padding: 8px 11px; border-radius: 8px;
+    background: rgba(105, 240, 174, 0.07); border-left: 3px solid #69f0ae;
+  }
+  .co-sum p b { color: #7fead0; }
+
+  /* 悬停信息卡（移至右下，图例上方） */
+  #infoPanel { bottom: 216px; right: 24px; width: 300px; padding: 16px 18px; opacity: 0; transition: opacity .3s; pointer-events: none; }
+  #infoPanel .ip-name { font-size: 16px; font-weight: 700; color: #eafff5; margin-bottom: 4px; }
+  #infoPanel .ip-type { display: inline-block; font-size: 11px; padding: 2px 10px; border-radius: 12px; margin-bottom: 10px; color: #050a0a; font-weight: 700; }
+  #infoPanel .ip-row { font-size: 12.5px; color: #9dbcaf; line-height: 1.8; }
+  #infoPanel .ip-row b { color: #7fead0; }
+  #infoPanel .ip-links { margin-top: 8px; font-size: 12px; line-height: 1.9; }
+  #infoPanel .ip-links span { display: inline-block; margin: 2px 6px 2px 0; padding: 2px 9px; border-radius: 10px; background: rgba(90, 220, 180, 0.12); color: #aef3d8; }
+
+  /* 问答卡（第④⑤幕，移至左列、解说面板下方） */
+  #qaPanel { top: 388px; left: 24px; width: 320px; padding: 16px 18px; opacity: 0; transition: opacity .5s; pointer-events: none; }
+  #qaPanel .q-label, #qaPanel .a-label { font-size: 11px; letter-spacing: 2px; color: #6f9688; margin-bottom: 6px; }
+  #qaPanel .q-text {
+    font-size: 14px; color: #ffe082; line-height: 1.6; margin-bottom: 14px;
+    padding: 10px 12px; border-radius: 8px; background: rgba(255, 213, 79, 0.08);
+    border-left: 3px solid #ffd54f;
+  }
+  #qaPanel .a-label { color: #69f0ae; }
+  #qaPanel .a-text {
+    font-size: 13px; color: #d2f7e2; line-height: 1.8; min-height: 60px;
+    padding: 10px 12px; border-radius: 8px; background: rgba(105, 240, 174, 0.06);
+    border-left: 3px solid #69f0ae; white-space: pre-wrap;
+  }
+  #qaPanel .a-text::after { content: "▌"; color: #69f0ae; animation: blink 0.8s infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  #subtitle {
+    position: fixed; z-index: 10; bottom: 86px; left: 50%; transform: translateX(-50%);
+    max-width: 900px; padding: 13px 26px 13px 16px; text-align: left;
+    display: flex; align-items: center; gap: 14px;
+    font-size: 15.5px; line-height: 1.75; color: #eafff5; letter-spacing: 0.5px;
+    opacity: 0; transition: opacity .35s; pointer-events: none;
+  }
+  #subtitle .s-avatar {
+    flex: none; width: 44px; height: 44px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: #050a0a; letter-spacing: 1px;
+    background: linear-gradient(135deg, #69f0ae, #4dd0e1);
+    box-shadow: 0 0 16px rgba(105, 240, 174, 0.5);
+  }
+  #subtitle b { color: #7fead0; font-weight: 600; }
+  #subtitle em { color: #ffe082; font-style: normal; font-weight: 600; }
+
+  #legend { bottom: 26px; right: 24px; padding: 12px 16px; font-size: 12px; }
+  #legend .lg-title { font-size: 10px; letter-spacing: 2px; color: #6f9688; margin-bottom: 8px; }
+  #legend .lg-item { display: flex; align-items: center; gap: 8px; margin: 5px 0; color: #9dbcaf; }
+  #legend .dot { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
+  #legend .line { width: 16px; height: 2px; border-radius: 2px; }
+
+  #hint { bottom: 30px; left: 24px; font-size: 11px; color: #51756a; letter-spacing: 1px; position: fixed; z-index: 10; }
+
+  #loading {
+    position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center;
+    background: #050a0a; color: #69f0ae; font-size: 15px; letter-spacing: 3px; transition: opacity .8s;
+  }
+  @media (max-width: 980px) {
+    #descPanel { width: 250px; }
+    #qaPanel, #infoPanel, #legend, #statsBar, #coursePanel { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="loading">正在编织知识图谱 …</div>
+
+<div id="titlePanel" class="panel">
+  <h1>LLM-Wiki 知识图谱 · 三维演绎</h1>
+  <div class="sub">KNOWLEDGE GRAPH — 节点是知识，边是关系，检索是顺藤摸瓜</div>
+</div>
+
+<div id="statsBar" class="panel">
+  <div class="stat"><div class="num" id="stNodes">0</div><div class="lbl">节点</div></div>
+  <div class="stat"><div class="num" id="stEdges">0</div><div class="lbl">边</div></div>
+  <div class="stat"><div class="num" id="stTypes">0</div><div class="lbl">边类型</div></div>
+</div>
+
+<div id="descPanel" class="panel">
+  <span class="step-tag" id="descTag"></span>
+  <h2 id="descTitle"></h2>
+  <p id="descBody"></p>
+</div>
+
+<div id="coursePanel" class="panel">
+  <div class="co-header">课程结构<span>COURSE OUTLINE</span></div>
+  <div id="courseOutline"></div>
+  <div id="courseDetail"></div>
+</div>
+
+<div id="infoPanel" class="panel">
+  <div class="ip-name" id="ipName"></div>
+  <span class="ip-type" id="ipType"></span>
+  <div class="ip-row">关联度 <b id="ipDeg"></b> · 高亮连线即关系圈</div>
+  <div class="ip-links" id="ipLinks"></div>
+</div>
+
+<div id="qaPanel" class="panel">
+  <div class="q-label">USER QUERY · 用户提问</div>
+  <div class="q-text" id="qText"></div>
+  <div class="a-label">LLM ANSWER · 沿图谱路径生成</div>
+  <div class="a-text" id="aText"></div>
+</div>
+
+<div id="subtitle" class="panel">
+  <span class="s-avatar">导读</span>
+  <span id="sText"></span>
+</div>
+
+<div id="stepper" class="panel">
+  <div class="step-btn" data-stage="0">总览</div>
+  <div class="step-btn" data-stage="1">① 页面入库</div>
+  <div class="step-btn" data-stage="2">② 抽关系织网</div>
+  <div class="step-btn" data-stage="3">③ 图谱成形</div>
+  <div class="step-btn" data-stage="4">④ 沿图检索</div>
+  <div class="step-btn" data-stage="5">⑤ 照图作答</div>
+</div>
+
+<div id="legend" class="panel">
+  <div class="lg-title">节点与关系类型</div>
+  <div class="lg-item"><span class="dot" style="color:#ffb74d;background:#ffb74d"></span>Wiki 门户（中心节点）</div>
+  <div class="lg-item"><span class="dot" style="color:#4dd0e1;background:#4dd0e1"></span>Wiki 条目（页面）</div>
+  <div class="lg-item"><span class="dot" style="color:#b388ff;background:#b388ff"></span>概念 / 实体（抽取所得）</div>
+  <div class="lg-item"><span class="line" style="background:#4dd0e1"></span>「涵盖」关系</div>
+  <div class="lg-item"><span class="line" style="background:#b388ff"></span>「引用」关系</div>
+</div>
+
+<div id="hint">拖拽旋转 · 滚轮缩放 · 悬停/点击节点查看关系圈</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ================= 基础场景 ================= */
+const container = document.getElementById('stage');
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x050a0a, 0.0022);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 3000);
+camera.position.set(0, 45, 210);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setClearColor(0x050a0a);
+container.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 60;
+controls.maxDistance = 600;
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+/* ================= 工具 ================= */
+function makeGlowTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.18, 'rgba(255,255,255,0.95)');
+  g.addColorStop(0.45, 'rgba(255,255,255,0.28)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+}
+const glowTex = makeGlowTexture();
+
+function makeTextSprite(text, { fontSize = 26, color = '#dfe7ff', scale = 1 } = {}) {
+  const pad = 14;
+  const c = document.createElement('canvas');
+  let ctx = c.getContext('2d');
+  ctx.font = `${fontSize}px "PingFang SC", "Microsoft YaHei", sans-serif`;
+  const w = Math.ceil(ctx.measureText(text).width) + pad * 2;
+  c.width = w; c.height = fontSize + pad * 2;
+  ctx = c.getContext('2d');
+  ctx.font = `${fontSize}px "PingFang SC", "Microsoft YaHei", sans-serif`;
+  ctx.fillStyle = color;
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = color; ctx.shadowBlur = 12;
+  ctx.fillText(text, pad, c.height / 2);
+  const tex = new THREE.CanvasTexture(c);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  sp.scale.set((w / c.height) * fontSize * 0.085 * scale, fontSize * 0.085 * scale, 1);
+  return sp;
+}
+
+/* ================= 缓动 & 补间引擎 ================= */
+const easeInOut = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+const easeOut = t => 1 - Math.pow(1 - t, 3);
+const tweens = [];
+function tween({ dur = 1000, delay = 0, ease = easeInOut, onUpdate, onComplete }) {
+  return new Promise(res => {
+    tweens.push({ start: performance.now() + delay, dur, ease, onUpdate, onComplete: () => { onComplete && onComplete(); res(); }, done: false });
+  });
+}
+function stepTweens(now) {
+  for (let i = tweens.length - 1; i >= 0; i--) {
+    const tw = tweens[i];
+    if (tw.done) { tweens.splice(i, 1); continue; }
+    if (now < tw.start) continue;
+    let t = (now - tw.start) / tw.dur;
+    if (t >= 1) t = 1;
+    tw.onUpdate && tw.onUpdate(tw.ease(t), t);
+    if (t >= 1) { tw.done = true; tw.onComplete && tw.onComplete(); }
+  }
+}
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+/* ================= 图谱数据 ================= */
+const TYPE_STYLE = {
+  hub:     { color: 0xffb74d, css: '#ffb74d', label: 'Wiki 门户', r: 5.5 },
+  page:    { color: 0x4dd0e1, css: '#4dd0e1', label: 'Wiki 条目', r: 3.4 },
+  concept: { color: 0xb388ff, css: '#b388ff', label: '概念实体', r: 2.8 }
+};
+const EDGE_STYLE = {
+  cover: { color: 0x2e9aa2, label: '涵盖' },
+  ref:   { color: 0x9a7fe8, label: '引用' }
+};
+
+const NODE_DEFS = [
+  { id: 'hub',      name: 'ToyAgent 项目 Wiki', type: 'hub' },
+  { id: 'arch',     name: '架构概览',   type: 'page' },
+  { id: 'guide',    name: '开发指南',   type: 'page' },
+  { id: 'config',   name: '配置系统',   type: 'page' },
+  { id: 'channel',  name: '渠道系统',   type: 'page' },
+  { id: 'db',       name: '数据库设计', type: 'page' },
+  { id: 'frontend', name: '前端架构',   type: 'page' },
+  { id: 'mcp',      name: 'MCP 服务',   type: 'page' },
+  { id: 'wiki',     name: 'Wiki 系统',  type: 'page' },
+  { id: 'rag',      name: 'RAG 引擎',   type: 'page' },
+  { id: 'compile',  name: '知识编译',   type: 'concept' },
+  { id: 'bigram',   name: 'Bigram 检索', type: 'concept' },
+  { id: 'vector',   name: '向量检索',   type: 'concept' },
+  { id: 'graphrag', name: 'GraphRAG',   type: 'concept' },
+  { id: 'plugin',   name: '插件机制',   type: 'concept' }
+];
+const EDGE_DEFS = [
+  ['hub', 'arch', 'cover'], ['hub', 'guide', 'cover'], ['hub', 'config', 'cover'],
+  ['hub', 'channel', 'cover'], ['hub', 'db', 'cover'], ['hub', 'frontend', 'cover'],
+  ['hub', 'mcp', 'cover'], ['hub', 'wiki', 'cover'],
+  ['arch', 'rag', 'ref'], ['arch', 'db', 'ref'], ['arch', 'frontend', 'ref'],
+  ['guide', 'config', 'ref'], ['guide', 'plugin', 'ref'],
+  ['channel', 'config', 'ref'], ['channel', 'db', 'ref'],
+  ['wiki', 'compile', 'ref'], ['wiki', 'rag', 'ref'], ['wiki', 'bigram', 'ref'],
+  ['rag', 'vector', 'ref'], ['rag', 'graphrag', 'ref'],
+  ['graphrag', 'vector', 'ref'], ['frontend', 'mcp', 'ref'], ['mcp', 'plugin', 'ref']
+];
+const nodeById = {};
+NODE_DEFS.forEach(n => nodeById[n.id] = n);
+
+/* ================= 图谱对象构建 ================= */
+const graphGroup = new THREE.Group();
+scene.add(graphGroup);
+
+const nodes = [];
+const nodeMeshList = [];
+const edges = [];
+const nodeDegree = {};
+EDGE_DEFS.forEach(([a, b]) => { nodeDegree[a] = (nodeDegree[a] || 0) + 1; nodeDegree[b] = (nodeDegree[b] || 0) + 1; });
+
+NODE_DEFS.forEach(def => {
+  const st = TYPE_STYLE[def.type];
+  const group = new THREE.Group();
+  group.position.set((Math.random() - 0.5) * 60, (Math.random() - 0.5) * 60, (Math.random() - 0.5) * 40);
+  const sphere = new THREE.Mesh(
+    new THREE.SphereGeometry(st.r, 22, 22),
+    new THREE.MeshBasicMaterial({ color: st.color, transparent: true, opacity: 0.95 })
+  );
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: glowTex, color: st.color, transparent: true, opacity: 0.5,
+    depthWrite: false, blending: THREE.AdditiveBlending
+  }));
+  glow.scale.setScalar(st.r * 6);
+  const label = makeTextSprite(def.name, { fontSize: def.type === 'hub' ? 30 : 24, color: st.css, scale: def.type === 'hub' ? 1.15 : 1 });
+  label.position.y = st.r + 7;
+  group.add(sphere); group.add(glow); group.add(label);
+  group.scale.setScalar(0.001);
+  graphGroup.add(group);
+  nodeMeshList.push(sphere);
+  sphere.userData.nodeIdx = nodes.length;
+  nodes.push({ def, group, sphere, glow, label, st,
+    pos: group.position, vel: new THREE.Vector3(),
+    baseColor: new THREE.Color(st.color), dim: 1, focusT: 0 });
+});
+
+EDGE_DEFS.forEach(([a, b, type]) => {
+  const na = nodes[NODE_DEFS.findIndex(n => n.id === a)];
+  const nb = nodes[NODE_DEFS.findIndex(n => n.id === b)];
+  const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+  const mat = new THREE.LineBasicMaterial({
+    color: EDGE_STYLE[type].color, transparent: true, opacity: 0,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  });
+  const line = new THREE.Line(geo, mat);
+  graphGroup.add(line);
+  edges.push({ a: na, b: nb, type, line, baseOp: type === 'cover' ? 0.3 : 0.38, targetOp: 0, curOp: 0, hot: false });
+});
+
+/* 力导向布局：斥力 + 弹簧 + 向心力 */
+let layoutBoost = 0.5;
+function physicsStep() {
+  for (let i = 0; i < nodes.length; i++) {
+    const ni = nodes[i];
+    for (let j = i + 1; j < nodes.length; j++) {
+      const nj = nodes[j];
+      const d = new THREE.Vector3().subVectors(ni.pos, nj.pos);
+      const len = Math.max(d.length(), 1);
+      const f = Math.min((1600 / (len * len)) * layoutBoost, 2.5);
+      d.normalize().multiplyScalar(f);
+      ni.vel.add(d);
+      nj.vel.sub(d);
+    }
+  }
+  edges.forEach(e => {
+    const d = new THREE.Vector3().subVectors(e.b.pos, e.a.pos);
+    const len = Math.max(d.length(), 1);
+    const rest = e.type === 'cover' ? 54 : 46;
+    d.normalize().multiplyScalar((len - rest) * 0.012 * layoutBoost);
+    e.a.vel.add(d); e.b.vel.sub(d);
+  });
+  nodes.forEach(n => {
+    n.vel.addScaledVector(n.pos, -0.012 * layoutBoost);
+    n.vel.multiplyScalar(0.86);
+    n.pos.add(n.vel);
+  });
+}
+for (let i = 0; i < 320; i++) physicsStep(); // 预热：布局先收敛再亮相
+
+/* 星空 & 网格 */
+{
+  const n = 1200, pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const r = 500 + Math.random() * 500, th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1);
+    pos[i * 3] = r * Math.sin(ph) * Math.cos(th);
+    pos[i * 3 + 1] = r * Math.sin(ph) * Math.sin(th);
+    pos[i * 3 + 2] = r * Math.cos(ph);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({
+    size: 1.6, map: glowTex, color: 0x6fa898, transparent: true, opacity: 0.45,
+    depthWrite: false, blending: THREE.AdditiveBlending
+  })));
+}
+const grid = new THREE.PolarGridHelper(190, 12, 48, 72, 0x144036, 0x0d2a24);
+grid.position.y = -110;
+grid.material.transparent = true; grid.material.opacity = 0.5;
+scene.add(grid);
+
+/* LLM 节点（第⑤幕登场） */
+const llmGroup = new THREE.Group();
+llmGroup.position.set(175, 15, -20);
+llmGroup.visible = false;
+scene.add(llmGroup);
+llmGroup.add(new THREE.Mesh(new THREE.IcosahedronGeometry(9, 1),
+  new THREE.MeshBasicMaterial({ color: 0x69f0ae, wireframe: true, transparent: true, opacity: 0.9 })));
+const llmGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x69f0ae, transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending }));
+llmGlow.scale.set(46, 46, 1);
+llmGroup.add(llmGlow);
+const llmLabel = makeTextSprite('LLM 大模型', { fontSize: 30, color: '#aef3d8' });
+llmLabel.position.y = 24;
+llmGroup.add(llmLabel);
+
+/* ================= 剧本引擎 ================= */
+const subtitleEl = document.getElementById('subtitle');
+const subTextEl = document.getElementById('sText');
+let narrateSeq = 0;
+function narrate(html) {
+  const tk = ++narrateSeq;
+  subtitleEl.style.opacity = 0;
+  setTimeout(() => {
+    if (tk !== narrateSeq) return;
+    subTextEl.innerHTML = html;
+    subtitleEl.style.opacity = 1;
+  }, 280);
+}
+
+const STAGES = [
+  { tag: '导览 · 图谱是什么', title: 'Wiki 凭什么不一样？',
+    body: '普通 RAG 把知识存成一张张<em>孤立的卡片</em>，卡片之间互不认识。Wiki 知识库则把知识编成一张<b>网</b>：<b>节点</b>是条目和概念，<b>边</b>是它们之间的关系 —— 这就是<em>知识图谱</em>。现在就悬停任何节点，看看它的<b>关系圈</b>。',
+    dur: 15000 },
+  { tag: 'STEP 1 · 编译入库', title: '① 页面入库（知识编译）',
+    body: 'Wiki 的知识从哪来？你对 AI 说一句「<b>编译：主题：内容</b>」，它就沉淀成一个<em>条目节点</em> —— 项目文档、经验结论，条条有名字、可追溯，重启也不丢（持久化成 Markdown 文件）。',
+    dur: 17000 },
+  { tag: 'STEP 2 · 关系抽取', title: '② 抽关系，织成网',
+    body: '光有节点还不是图谱。大模型阅读每个条目，回答三个问题：<em>这页讲什么？提到谁？属于谁？</em>—— 从文字里抽出<b>实体</b>（紫色节点）和<b>关系</b>（连线）：「涵盖」「引用」…… 知识从此连成一片。',
+    dur: 18000 },
+  { tag: 'STEP 3 · 图谱成形', title: '③ 图谱成形',
+    body: '力导向布局让<b>关系紧密的节点自然靠拢</b>，孤立的被推到边缘。现在从任何节点出发，<em>顺着边都能走到任何其他节点</em> —— 知识不再是孤岛，而是可漫游的大陆。而且<b>越织越聪明</b>：每加一条边，检索就多一条路。',
+    dur: 15000 },
+  { tag: 'STEP 4 · 沿图检索', title: '④ 沿图检索（多跳）',
+    body: '提问「Wiki 系统和 RAG 引擎怎么配合？」—— 先命中<b>入口节点</b>，再<em>沿着边跳 1~2 跳</em>，把相关条目一网打尽。这叫<b>图遍历检索</b>（GraphRAG 的核心）：普通 RAG 只会找「最近邻」，图谱却懂「<em>顺藤摸瓜</em>」。',
+    dur: 20000 },
+  { tag: 'STEP 5 · 照图作答', title: '⑤ 照图作答',
+    body: '把「<b>问题 + 命中的子图</b>」交给 AI，答案还注明<em>推理路径</em>：Wiki 系统 → RAG 引擎 → GraphRAG。每句话都能沿图回溯到源头条目 —— <b>可解释、可核验</b>，这是知识图谱给 RAG 的最大加分。',
+    dur: 22000 }
+];
+
+const descTag = document.getElementById('descTag');
+const descTitle = document.getElementById('descTitle');
+const descBody = document.getElementById('descBody');
+const stepBtns = [...document.querySelectorAll('.step-btn')];
+
+/* ================= 课程讲解区数据 ================= */
+const OUTLINE_NAMES = ['总览 · 图谱是什么', '① 页面入库', '② 抽关系织网', '③ 图谱成形', '④ 沿图检索', '⑤ 照图作答'];
+const COURSE = [
+  {
+    goals: ['建立「Wiki 知识库 vs 普通 RAG」的整体认知框架', '看懂节点、边、图谱三要素在 3D 场景中的对应物'],
+    concepts: ['知识图谱', '节点 Node', '关系边 Edge', '关系圈'],
+    points: [
+      '<b>普通 RAG</b>：知识存成一张张<em>孤立卡片</em>，卡片之间互不认识，检索只能「比谁最像」',
+      '<b>Wiki 知识库</b>：知识编成一张<em>网</em> —— 节点是条目和概念，边是它们之间的关系',
+      '场景对应：<b>三种颜色的球</b>就是三类节点，<b>连线</b>就是两种关系边，悬停任意节点可以看到它的<b>关系圈</b>',
+      '本课路线：入库 → 织网 → 成形 → 沿图检索 → 照图作答，正好是一条知识「先存后用」的完整生命周期'
+    ],
+    summary: '一句话记住区别：<b>RAG 是一堆卡片，Wiki 是一张网</b> —— 卡片只能被找到，网上的知识还能被「顺藤摸瓜」。'
+  },
+  {
+    goals: ['理解知识如何以「条目节点」的形式写入 Wiki', '掌握「编译」指令的格式与持久化机制'],
+    concepts: ['知识编译', '条目节点', '持久化', '元数据'],
+    points: [
+      '<b>入库指令</b>：对 AI 说一句「<em>编译：主题：内容</em>」，一句话即沉淀为一个条目节点 —— 不需要填表单、不需要手动建页面',
+      '<b>条目即节点</b>：每个条目有名字（主题）、有内容、有来源与时间等<em>元数据</em>，可追溯、可更新、可删除',
+      '<b>持久化</b>：条目落盘为 Markdown 文件，服务重启知识不丢 —— 对应场景里节点「常亮不灭」',
+      '<b>此刻的局限</b>：节点刚就位时是一座座<em>孤岛</em> —— 没有关系边，检索只能靠关键词或向量相似度'
+    ],
+    summary: '入库 = <b>把一句话变成一个有名字的知识节点</b>；但孤岛还不是图谱 —— 关键的一步在下一幕。'
+  },
+  {
+    goals: ['理解「节点 → 图谱」的关键一步：关系抽取', '知道 LLM 抽关系时问的三个问题与两种边类型'],
+    concepts: ['实体抽取', '关系抽取', '边类型', '原子化三元组'],
+    points: [
+      '<b>三问法</b>：大模型逐条阅读条目，回答三个问题 —— <em>这页讲什么？提到谁？属于谁？</em>',
+      '<b>抽出的两类东西</b>：实体（紫色<b>概念节点</b>，如 GraphRAG、向量检索）和关系（<b>边</b>，即连线）',
+      '<b>两种边类型</b>：「<em>涵盖</em>」（门户 → 条目，表示目录归属）与「<em>引用</em>」（条目 ↔ 概念，表示内容关联）',
+      '<b>原子化</b>：一条边只表达一个关系，复杂知识拆成多条边 —— 这样检索时路径才精确、可解释'
+    ],
+    summary: '织网 = <b>LLM 读文字、抽实体、连关系</b>；知识从孤岛连成大陆，全靠这一步。'
+  },
+  {
+    goals: ['理解力导向布局与图谱的组织性质', '建立「越织越聪明」的网络效应直觉'],
+    concepts: ['力导向布局', '连通性', '网络效应'],
+    points: [
+      '<b>力导向布局</b>：把每条边当弹簧、节点间互相排斥，反复迭代后<em>关系紧密的节点自然靠拢</em> —— 图的形状就是知识结构的形状',
+      '<b>连通性</b>：从任何节点出发，顺着边都能走到任何其他节点 —— 知识不再是孤岛，而是<em>可漫游的大陆</em>',
+      '<b>网络效应</b>：每新增一条边，检索就多一条路、每个节点就多一层上下文 —— 图谱是<b>越织越聪明</b>的',
+      '<b>课堂互动</b>：让大家观察哪些节点抱团最紧（如 Wiki 系统 → RAG 引擎 → GraphRAG），那正是本项目最核心的知识区'
+    ],
+    summary: '图谱成形后，<b>形状即语义</b>：抱团的节点是主题，桥接的节点是枢纽 —— 这为下一幕的「沿图检索」铺路。'
+  },
+  {
+    goals: ['理解图遍历检索与最近邻检索的本质区别', '掌握「入口命中 → 多跳扩展 → 子图收集」的完整流程'],
+    concepts: ['入口命中', '多跳遍历', '子图', 'GraphRAG'],
+    points: [
+      '<b>流程四步</b>：① 提问转向量 → ② 命中<b>入口节点</b>（本例：Wiki 系统）→ ③ 沿边<em>跳 1~2 跳</em>扩展 → ④ 收齐相关<em>子图</em>',
+      '<b>第一跳</b>：点亮 Wiki 系统的直接邻居 —— 知识编译、RAG 引擎、Bigram 检索',
+      '<b>第二跳</b>：顺着 RAG 引擎继续走，又牵出向量检索、GraphRAG —— 这叫<em>多跳遍历</em>',
+      '<b>与普通 RAG 的分水岭</b>：普通 RAG 只会找「最近邻」的 K 张卡片；图谱懂「<em>顺藤摸瓜</em>」—— 拿回来的不只是相似文本，还有<em>关系上下文</em>',
+      '<b>为什么更好</b>：跨条目、多实体的问题（「A 和 B 怎么配合」）靠最近邻会漏，靠图遍历不会 —— 因为关系本身就是答案的一部分'
+    ],
+    summary: '图检索 = <b>先定位、再顺藤摸瓜</b>：拿回的不是 5 张卡片，而是一小块<em>带关系的知识地图</em>。'
+  },
+  {
+    goals: ['理解生成阶段如何使用子图，并做到答案可溯源', '能完整复述 Wiki 知识库「存 → 织 → 查 → 答」全链路'],
+    concepts: ['Prompt 组装', '推理路径', '可解释性', '幻觉抑制'],
+    points: [
+      '<b>Prompt 组装</b>：把「<em>问题 + 命中的子图</em>」（节点 + 关系序列化后）一起交给 LLM，约束它只根据子图作答',
+      '<b>推理路径</b>：答案注明走过的路 —— <em>Wiki 系统 → RAG 引擎 → GraphRAG</em>，每句话都能沿图回溯到源头条目',
+      '<b>可解释、可核验</b>：与纯 LLM 直接回答相比，有据可查、有路可走，幻觉率大幅下降',
+      '<b>全课总结</b>（对照课程结构逐条回顾）：编译入库存节点 → 抽关系织成网 → 力导向聚成形 → 多跳遍历取子图 → 照图作答可溯源'
+    ],
+    summary: '图谱给 RAG 的最大加分：<b>答案不只「对」，还能指出「为什么对」</b> —— 因为它是一条走得通的路。'
+  }
+];
+
+/* ================= 课程讲解区渲染 ================= */
+const outlineEl = document.getElementById('courseOutline');
+const detailEl = document.getElementById('courseDetail');
+function renderOutline(activeIdx) {
+  outlineEl.innerHTML = OUTLINE_NAMES.map((name, i) =>
+    `<div class="co-item ${i === activeIdx ? 'active' : ''} ${i < activeIdx ? 'done' : ''}" data-stage="${i}">
+       <span class="co-num">${i < activeIdx ? '✓' : (i === 0 ? '导' : ['①', '②', '③', '④', '⑤'][i - 1])}</span>
+       <span>${name}</span>
+     </div>`).join('');
+}
+function renderCourseDetail(i) {
+  const c = COURSE[i];
+  detailEl.innerHTML = `
+    <div class="co-sec"><div class="co-sec-t">学习目标</div>
+      <ul>${c.goals.map(g => `<li>${g}</li>`).join('')}</ul></div>
+    <div class="co-sec"><div class="co-sec-t">核心概念</div>
+      <div class="co-chips">${c.concepts.map(x => `<span>${x}</span>`).join('')}</div></div>
+    <div class="co-sec"><div class="co-sec-t">讲解要点</div>
+      <ul>${c.points.map(p => `<li>${p}</li>`).join('')}</ul></div>
+    <div class="co-sec co-sum"><div class="co-sec-t">一句话小结</div>
+      <p>${c.summary}</p></div>`;
+  detailEl.scrollTop = 0;
+}
+outlineEl.addEventListener('click', ev => {
+  const item = ev.target.closest('.co-item');
+  if (item) gotoStage(+item.dataset.stage);
+});
+
+let runToken = 0;
+let stageIdx = -1;
+let autoTimer = null;
+
+function setDescUI(i) {
+  const s = STAGES[i];
+  descTag.textContent = s.tag;
+  descTitle.textContent = s.title;
+  descBody.innerHTML = s.body;
+  stepBtns.forEach(b => b.classList.toggle('active', +b.dataset.stage === i));
+  renderOutline(i);
+  renderCourseDetail(i);
+}
+function gotoStage(i) {
+  clearTimeout(autoTimer);
+  stageIdx = i;
+  setDescUI(i);
+  playStage(i);
+  autoTimer = setTimeout(() => gotoStage((i + 1) % STAGES.length), STAGES[i].dur);
+}
+stepBtns.forEach(b => b.addEventListener('click', () => gotoStage(+b.dataset.stage)));
+
+function flyCamera(pos, target, dur = 1800) {
+  const p0 = camera.position.clone(), t0 = controls.target.clone();
+  return tween({ dur, onUpdate: t => {
+    camera.position.lerpVectors(p0, pos, t);
+    controls.target.lerpVectors(t0, target, t);
+  }});
+}
+
+/* ================= 视觉状态 & 悬停交互 ================= */
+let hovered = null, pinned = null;
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+let pointerMoved = false;
+
+renderer.domElement.addEventListener('pointermove', ev => {
+  pointer.x = (ev.clientX / innerWidth) * 2 - 1;
+  pointer.y = -(ev.clientY / innerHeight) * 2 + 1;
+  pointerMoved = true;
+});
+renderer.domElement.addEventListener('click', () => {
+  pinned = (hovered && hovered !== pinned) ? hovered : null;
+  if (!pinned && !hovered) document.getElementById('infoPanel').style.opacity = 0;
+});
+
+function showInfo(n) {
+  document.getElementById('ipName').textContent = n.def.name;
+  const t = document.getElementById('ipType');
+  t.textContent = n.st.label;
+  t.style.background = n.st.css;
+  document.getElementById('ipDeg').textContent = (nodeDegree[n.def.id] || 0) + ' 条';
+  const links = edges.filter(e => e.a === n || e.b === n)
+    .map(e => `${EDGE_STYLE[e.type].label} → ${e.a === n ? e.b.def.name : e.a.def.name}`);
+  document.getElementById('ipLinks').innerHTML = links.map(s => `<span>${s}</span>`).join('');
+  document.getElementById('infoPanel').style.opacity = 1;
+}
+
+function updateHover() {
+  if (!pointerMoved) return;
+  pointerMoved = false;
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(nodeMeshList, false);
+  const n = hits.length ? nodes[hits[0].object.userData.nodeIdx] : null;
+  if (n !== hovered) {
+    hovered = n;
+    renderer.domElement.style.cursor = n ? 'pointer' : 'default';
+  }
+  const active = pinned || hovered;
+  if (active) showInfo(active);
+}
+
+/* 动态元素登记（换幕清理） */
+const dynamic = { querySprite: null, beams: [] };
+function clearDynamic() {
+  if (dynamic.querySprite) { scene.remove(dynamic.querySprite); dynamic.querySprite = null; }
+  dynamic.beams.forEach(b => scene.remove(b.sprite));
+  dynamic.beams = [];
+}
+
+/* 统计卡 */
+function setStats(n, e, t) {
+  document.getElementById('stNodes').textContent = n;
+  document.getElementById('stEdges').textContent = e;
+  document.getElementById('stTypes').textContent = t;
+}
+function animateStats(nT, eT, tT, dur) {
+  tween({ dur, ease: easeOut, onUpdate: t => setStats(Math.round(nT * t), Math.round(eT * t), Math.round(tT * t)) });
+}
+
+/* ================= 各幕剧本 ================= */
+async function playStage(i) {
+  const tok = ++runToken;
+  clearDynamic();
+  nodes.forEach(n => { n.dim = 1; n.focusT = 0; });
+  edges.forEach(e => { e.targetOp = e.baseOp; e.hot = false; });
+  llmGroup.visible = false;
+  pinned = null; hovered = null;
+  document.getElementById('infoPanel').style.opacity = 0;
+  document.getElementById('qaPanel').style.opacity = 0;
+  layoutBoost = 0.35;
+
+  if (i === 0) await stageOverview(tok);
+  else if (i === 1) await stageIngest(tok);
+  else if (i === 2) await stageWeave(tok);
+  else if (i === 3) await stageForm(tok);
+  else if (i === 4) await stageTraverse(tok);
+  else if (i === 5) await stageAnswer(tok);
+}
+
+/* --- 阶段0：总览：整图亮相 --- */
+async function stageOverview(tok) {
+  flyCamera(new THREE.Vector3(0, 45, 210), new THREE.Vector3(0, 0, 0), 1600);
+  narrate('和普通 RAG 的「一堆积卡片」不同：Wiki 知识库存的是一张<b>关系网</b> —— 节点是知识，边是关系。现在就悬停任意节点，看看它的<b>关系圈</b>');
+  layoutBoost = 1;
+  nodes.forEach((n, i) => tween({ dur: 700, delay: i * 90, ease: easeOut, onUpdate: t => n.group.scale.setScalar(0.001 + t * 0.999) }));
+  edges.forEach((e, i) => tween({ dur: 900, delay: 700 + i * 60, onUpdate: t => e.curOp = t * e.baseOp }));
+  animateStats(NODE_DEFS.length, EDGE_DEFS.length, 2, 2200);
+  await wait(3400);
+}
+
+/* --- 阶段1：页面入库 --- */
+async function stageIngest(tok) {
+  flyCamera(new THREE.Vector3(0, 60, 190), new THREE.Vector3(0, 0, 0), 1600);
+  narrate('第一步 · <b>页面入库（知识编译）</b>：对 AI 说一句「编译：主题：内容」，它就沉淀成一个<b>条目节点</b> —— 条条有名字、可追溯');
+  nodes.forEach(n => n.group.scale.setScalar(0.001));
+  edges.forEach(e => e.curOp = 0);
+  setStats(0, 0, 0);
+  const order = [...nodes].sort((a, b) => (a.def.type === 'hub' ? -1 : b.def.type === 'hub' ? 1 : 0));
+  order.forEach((n, i) => {
+    tween({ dur: 650, delay: 400 + i * 320, ease: easeOut, onUpdate: t => n.group.scale.setScalar(0.001 + t * 0.999) });
+  });
+  animateStats(NODE_DEFS.length, 0, 0, 400 + nodes.length * 320);
+  await wait(400 + nodes.length * 320 + 900); if (tok !== runToken) return;
+  narrate('节点就位 —— 但此刻它们只是<b>一座座孤岛</b>，互相不认识');
+  await wait(1800);
+}
+
+/* --- 阶段2：抽关系织网 --- */
+async function stageWeave(tok) {
+  narrate('第二步 · <b>抽关系织网</b>：大模型阅读每个条目，问三个问题 —— <em>讲什么？提到谁？属于谁？</em>—— 抽出关系，织成边');
+  layoutBoost = 0.5;
+  nodes.forEach(n => { if (n.def.type === 'concept') n.group.scale.setScalar(0.001); });
+  nodes.filter(n => n.def.type === 'concept').forEach((n, i) => {
+    tween({ dur: 600, delay: 900 + i * 240, ease: easeOut, onUpdate: t => n.group.scale.setScalar(0.001 + t * 0.999) });
+  });
+  edges.forEach((e, i) => {
+    tween({ dur: 500, delay: 500 + i * 220, onUpdate: t => e.curOp = t * e.baseOp, onComplete: () => {
+      e.hot = true;
+      setTimeout(() => { if (tok === runToken && stageIdx === 2) e.hot = false; }, 700);
+    }});
+  });
+  animateStats(NODE_DEFS.length, EDGE_DEFS.length, 2, 500 + edges.length * 220);
+  await wait(500 + edges.length * 220 + 1200); if (tok !== runToken) return;
+  narrate('「涵盖」与「引用」两种关系织好了 —— 知识从<b>孤岛连成了大陆</b>');
+  await wait(2200);
+}
+
+/* --- 阶段3：图谱成形 --- */
+async function stageForm(tok) {
+  flyCamera(new THREE.Vector3(60, 35, 195), new THREE.Vector3(0, 0, 0), 1800);
+  narrate('第三步 · <b>图谱成形</b>：力导向布局让关系紧密的节点自然靠拢 —— 从任何节点出发，顺着边都能走到任何其他节点');
+  layoutBoost = 1.6;
+  await wait(4200); if (tok !== runToken) return;
+  layoutBoost = 0.5;
+  narrate('这张网有个特点：<b>越织越聪明</b> —— 每加一条边，检索能走的路就多一条');
+  await wait(2600);
+}
+
+/* --- 阶段4：沿图检索（多跳遍历） --- */
+async function stageTraverse(tok) {
+  flyCamera(new THREE.Vector3(20, 30, 200), new THREE.Vector3(0, 0, 10), 1600);
+  narrate('提问：<b>「Wiki 系统和 RAG 引擎怎么配合？」</b>—— 检索从命中<b>入口节点</b>开始，不再对着全部卡片算相似度');
+  document.getElementById('qText').textContent = '“Wiki 系统和 RAG 引擎怎么配合？”';
+  document.getElementById('aText').textContent = '';
+  document.getElementById('qaPanel').style.opacity = 1;
+
+  const entry = nodes.find(n => n.def.id === 'wiki');
+  const qSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffffff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  qSprite.scale.set(11, 11, 1);
+  const from = new THREE.Vector3(60, -110, 120);
+  qSprite.position.copy(from);
+  scene.add(qSprite);
+  dynamic.querySprite = qSprite;
+  await tween({ dur: 1400, ease: easeInOut, onUpdate: t => {
+    qSprite.position.lerpVectors(from, entry.pos, t);
+    qSprite.material.opacity = t;
+  }});
+  if (tok !== runToken) return;
+
+  nodes.forEach(n => setNodeDim(n, n === entry ? 1 : 0.35));
+  function setNodeDim(n, d) { n.dim = d; }
+  edges.forEach(e => e.targetOp = e.baseOp * 0.4);
+
+  narrate('命中<b>「Wiki 系统」</b> → 第一跳：邻接边逐条点亮 —— <b>知识编译、RAG 引擎、Bigram 检索</b>浮出水面');
+  const hop1Edges = edges.filter(e => e.a === entry || e.b === entry);
+  for (const e of hop1Edges) {
+    if (tok !== runToken) return;
+    e.targetOp = 0.95; e.hot = true;
+    setNodeDim(e.a === entry ? e.b : e.a, 1);
+    await wait(420);
+  }
+  await wait(900); if (tok !== runToken) return;
+
+  narrate('第二跳：顺着<b>「RAG 引擎」</b>继续走 —— 又牵出<b>向量检索、GraphRAG</b>。这叫<em>多跳遍历</em>，普通最近邻检索做不到');
+  const rag = nodes.find(n => n.def.id === 'rag');
+  const hop2Edges = edges.filter(e => (e.a === rag || e.b === rag) && !hop1Edges.includes(e));
+  for (const e of hop2Edges) {
+    if (tok !== runToken) return;
+    e.targetOp = 0.95; e.hot = true;
+    setNodeDim(e.a === rag ? e.b : e.a, 1);
+    await wait(420);
+  }
+  await wait(1400); if (tok !== runToken) return;
+  narrate('子图收齐：<b>1 个入口 + 5 个关联节点</b> —— 比「只取最像的 5 张卡片」多了<em>关系上下文</em>');
+  await wait(2200);
+}
+
+/* --- 阶段5：照图作答 --- */
+async function stageAnswer(tok) {
+  narrate('最后一步：把<b>问题 + 命中的子图</b>一起交给 AI —— 每个答案都能沿图回溯到源头条目');
+  llmGroup.visible = true;
+  llmGroup.scale.setScalar(0.1);
+  tween({ dur: 800, ease: easeOut, onUpdate: t => llmGroup.scale.setScalar(0.1 + t * 0.9) });
+  await wait(700); if (tok !== runToken) return;
+
+  const ids = ['wiki', 'compile', 'rag', 'bigram', 'vector', 'graphrag'];
+  const gathered = nodes.filter(n => ids.includes(n.def.id));
+  dynamic.beams = [];
+  gathered.forEach(n => {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x69f0ae, transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending }));
+    sp.scale.set(3.4, 3.4, 1);
+    scene.add(sp);
+    dynamic.beams.push({ sprite: sp, from: n.pos.clone(), to: llmGroup.position.clone(), speed: 0.35 + Math.random() * 0.3, phase: Math.random() });
+  });
+  await wait(900); if (tok !== runToken) return;
+
+  const answer = '两套系统这样配合：\n· Wiki 系统把项目知识编译成「条目节点」，检索时沿图谱多跳遍历；\n· RAG 引擎提供向量相似度打分，为遍历挑出最相关入口；\n· GraphRAG 把两者合一：先向量定位、再沿边扩展子图。\n—— 推理路径：Wiki 系统 → RAG 引擎 → GraphRAG，可沿图溯源。';
+  const aEl = document.getElementById('aText');
+  for (const ch of answer) {
+    if (tok !== runToken) return;
+    aEl.textContent += ch;
+    await wait(24);
+  }
+  narrate('答案里那条 <b>Wiki 系统 → RAG 引擎 → GraphRAG</b>，正是刚才两次「跳跃」走过的路 —— <b>可解释、可溯源</b>，这就是知识图谱给 RAG 的最大加分');
+  await wait(3000);
+}
+
+/* ================= 渲染循环 ================= */
+const tmpColor = new THREE.Color();
+const white = new THREE.Color(0xffffff);
+function animate() {
+  requestAnimationFrame(animate);
+  const now = performance.now();
+  stepTweens(now);
+  controls.update();
+  updateHover();
+
+  physicsStep();
+
+  // 节点视觉
+  const active = pinned || hovered;
+  const neighborSet = new Set();
+  if (active) {
+    edges.forEach(e => {
+      if (e.a === active) neighborSet.add(e.b);
+      if (e.b === active) neighborSet.add(e.a);
+    });
+  }
+  nodes.forEach((n, i) => {
+    const isHot = active && (n === active || neighborSet.has(n));
+    n.focusT += ((isHot ? 1 : 0) - n.focusT) * 0.15;
+    const vis = active && !isHot ? 0.3 : 1;
+    const dimF = n.dim * vis;
+    const breathe = 1 + Math.sin(now * 0.003 + i * 1.3) * 0.04;
+    n.sphere.scale.setScalar(breathe * (0.9 + n.focusT * 0.35));
+    n.glow.scale.setScalar(n.st.r * 6 * breathe * (0.9 + n.focusT * 0.4));
+    tmpColor.copy(n.baseColor).multiplyScalar((0.35 + 0.65 * dimF) * (1 + n.focusT * 0.5));
+    n.sphere.material.color.copy(tmpColor);
+    n.glow.material.color.copy(tmpColor);
+    n.label.material.opacity = Math.min(1, 0.35 + 0.65 * dimF + n.focusT * 0.5);
+  });
+
+  // 边视觉
+  edges.forEach(e => {
+    e.curOp += (e.targetOp - e.curOp) * 0.12;
+    const pos = e.line.geometry.attributes.position;
+    pos.setXYZ(0, e.a.pos.x, e.a.pos.y, e.a.pos.z);
+    pos.setXYZ(1, e.b.pos.x, e.b.pos.y, e.b.pos.z);
+    pos.needsUpdate = true;
+    const hotBoost = e.hot ? 0.45 + Math.sin(now * 0.01) * 0.2 : 0;
+    e.line.material.opacity = Math.min(1, e.curOp + hotBoost);
+    tmpColor.set(EDGE_STYLE[e.type].color);
+    if (e.hot || (active && (e.a === active || e.b === active))) tmpColor.lerp(white, 0.4);
+    e.line.material.color.copy(tmpColor);
+  });
+
+  // 光束粒子
+  dynamic.beams.forEach(b => {
+    b.phase = (b.phase + b.speed * 0.012) % 1;
+    b.sprite.position.lerpVectors(b.from, b.to, b.phase);
+    b.sprite.material.opacity = 0.9 * Math.sin(b.phase * Math.PI);
+  });
+  if (llmGroup.visible) llmGlow.scale.setScalar(46 * (1 + Math.sin(now * 0.004) * 0.08));
+
+  renderer.render(scene, camera);
+}
+
+/* ================= 启动 ================= */
+try {
+  animate();
+  document.getElementById('loading').style.opacity = 0;
+  setTimeout(() => document.getElementById('loading').remove(), 900);
+  gotoStage(0);
+} catch (e) {
+  document.getElementById('loading').textContent = '初始化失败：' + e.message;
+}
+</script>
+</body>
+</html>

@@ -77,6 +77,7 @@ public interface WikiAgent extends Agent {
                     "type", "load",
                     "label", "加载项目 Wiki",
                     "detail", "共 " + wiki.size() + " 个条目（内置 " + BASE_WIKI.size() + " + 已编译 " + userWiki.size() + "），无需每次重新检索原始文档"));
+            System.out.println("[ToyAgent][Wiki] 加载 Wiki：内置 " + BASE_WIKI.size() + " + 已编译 " + userWiki.size() + " = " + wiki.size() + " 条");
 
             // ---------------- 相关条目选取（教学版 bigram 打分，生产换 Embedding） ----------------
             record Hit(String topic, String content, double score) {}
@@ -88,11 +89,29 @@ public interface WikiAgent extends Agent {
             List<Hit> hits = ranked.stream().filter(h -> h.score() > 0).toList();
             lastTrace.add(Map.of(
                     "type", "retrieve",
-                    "label", "命中条目",
+                    "label", "条目匹配打分（bigram 重合率，取 top2）",
+                    "detail", ranked.isEmpty()
+                            ? "Wiki 为空"
+                            : ranked.stream()
+                                    .map(h -> h.topic() + "（%.0f 分%s）".formatted(
+                                            h.score() * 100,
+                                            h.score() > 0 ? "，已注入" : "，低于阈值未注入"))
+                                    .reduce((a, b) -> a + " ｜ " + b).orElse("")));
+            lastTrace.add(Map.of(
+                    "type", "retrieve",
+                    "label", "命中条目内容",
                     "detail", hits.isEmpty()
                             ? "无相关条目"
-                            : hits.stream().map(h -> h.topic() + "（%.0f 分）".formatted(h.score() * 100))
-                                    .reduce((a, b) -> a + " ｜ " + b).orElse("")));
+                            : hits.stream().map(h -> "◆ " + h.topic() + "：" + (h.content().length() > 40
+                                            ? h.content().substring(0, 40) + "…"
+                                            : h.content()))
+                                    .reduce((a, b) -> a + "\n" + b).orElse("")));
+
+            System.out.println("[ToyAgent][Wiki] 匹配打分：" + (ranked.isEmpty() ? "Wiki 为空"
+                    : ranked.stream().map(h -> h.topic() + "=%.0f%%".formatted(h.score() * 100))
+                            .reduce((a, b) -> a + ", " + b).orElse("")));
+            System.out.println("[ToyAgent][Wiki] 注入 " + hits.size() + " 条："
+                    + (hits.isEmpty() ? "无" : hits.stream().map(Hit::topic).reduce((a, b) -> a + ", " + b).orElse("")));
 
             // ---------------- 增强生成 ----------------
             List<Message> messages = new ArrayList<>();
@@ -111,6 +130,8 @@ public interface WikiAgent extends Agent {
                     "type", "final",
                     "label", "基于 Wiki 作答完成",
                     "detail", hits.isEmpty() ? "模型按约定提示可编译新条目" : "回答基于 " + hits.size() + " 个 Wiki 条目"));
+            System.out.println("[ToyAgent][Wiki] 作答完成：" + (hits.isEmpty() ? "无条目命中，提示可编译" : "基于 " + hits.size() + " 条"));
+            System.out.println("[ToyAgent][Wiki] 回答：" + answer.replaceAll("\\s+", " "));
             return answer;
         }
 
@@ -121,6 +142,7 @@ public interface WikiAgent extends Agent {
             if (sep < 0) sep = body.indexOf(':');
             if (body.isBlank() || sep <= 0 || sep == body.length() - 1) {
                 lastTrace.add(Map.of("type", "compile", "label", "编译失败", "detail", "格式：编译：主题：内容"));
+                System.out.println("[ToyAgent][Wiki] 编译失败：格式错误，输入=" + input);
                 return "编译格式不对哦。请用：「编译：主题：内容」，例如「编译：发布流程：每周三灰度，周五全量上线」。";
             }
             String topic = body.substring(0, sep).trim();
@@ -133,6 +155,7 @@ public interface WikiAgent extends Agent {
                     "type", "compile",
                     "label", update ? "更新条目" : "新增条目",
                     "detail", "◆ " + topic + "（已持久化到 " + USER_WIKI_FILE + "，重启不丢）"));
+            System.out.println("[ToyAgent][Wiki] " + (update ? "更新" : "新增") + "条目：◆ " + topic + "（已持久化到 " + USER_WIKI_FILE + "）");
             lastTrace.add(Map.of(
                     "type", "final",
                     "label", "知识编译完成",
@@ -156,6 +179,7 @@ public interface WikiAgent extends Agent {
                 Files.writeString(USER_WIKI_FILE, sb.toString(), StandardCharsets.UTF_8);
             } catch (IOException e) {
                 System.err.println("[ToyAgent] 写入 user-wiki 失败: " + e.getMessage());
+                System.out.println("[ToyAgent][Wiki] 持久化失败：" + e.getMessage() + "（条目仅保存在内存，重启会丢）");
             }
         }
 
