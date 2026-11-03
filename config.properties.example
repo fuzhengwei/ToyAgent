@@ -37,3 +37,12 @@ jev-api-key=
 
 # 决策模型名称
 jev-model=jev-1.14
+
+# ------------------------------------------------------------------
+# Step09+ MCP 真实对接（JSON-RPC 2.0 over SSE）—— 百度 AppBuilder AI 搜索。
+# Key 不要写进任何被 git 跟踪的文件（GitHub Push Protection 会拦截密钥推送）。
+# 申请入口：https://console.bce.baidu.com/iam/#/iam/apikey/list
+# mcp-search-api-key=粘贴你的百度百炼 API Key（形如 bce 开头的一长串）
+# 也可用完整地址整体覆盖（含 api_key 参数）：
+# mcp-search-url=http://appbuilder.baidu.com/v2/ai_search/mcp/sse?api_key=粘贴你的Key
+# 容器化部署可用环境变量 MCP_SEARCH_URL 指向完整 SSE 地址。

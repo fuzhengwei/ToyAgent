@@ -553,6 +553,60 @@ String result = client.callTool("get_weather",
 </div>
 `
   },
+  "step09-real": {
+    title: "MCP 真实对接：100 行写一个能用的 MCP Client",
+    lede: "把教学版协议换成真网络：SSE 长连接 + JSON-RPC 2.0，接入百度 AI 搜索 MCP Server，Agent 骨架零改动。",
+    chapters: ["ch07b MCP", "ch11 MCP：工具的标准化接口（真实对接）"],
+    html: `
+<h2>从模拟到真实，差的是一层传输</h2>
+<p>上一节（09）用两个嵌套接口在<strong>进程内</strong>模拟了 MCP。真实世界里 Client 与 Server 是两个网络端点，
+通信走 <strong>JSON-RPC 2.0 over HTTP+SSE</strong>：请求走 POST，响应从一条 SSE 长连接异步推回。</p>
+
+<h2>一次完整会话的报文流</h2>
+<div class="flow">
+  <span class="fnode">GET /mcp/sse</span><span class="farrow">→</span>
+  <span class="fnode">event: endpoint</span><span class="farrow">→</span>
+  <span class="fnode">POST initialize</span><span class="farrow">→</span>
+  <span class="fnode">tools/list</span><span class="farrow">→</span>
+  <span class="fnode">tools/call</span>
+</div>
+<pre><code data-lang="text"># 1. 建立 SSE 长连接，Server 立刻下发消息回传地址（带 session_id）
+event: endpoint
+data: /v2/ai_search/mcp/messages?session_id=...
+
+# 2. 所有 JSON-RPC 请求 POST 到这个地址（Server 返回 202 Accepted）
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{...}}
+
+# 3. 响应从刚才那条 SSE 长连接异步推回，靠 id 配对
+event: message
+data: {"jsonrpc":"2.0","id":1,"result":{"serverInfo":{"name":"AIsearch",...}}}</code></pre>
+
+<h2>零依赖实现要点（JDK 原生）</h2>
+<pre><code data-lang="java">// SSE 读流：BufferedReader 逐行解析 event:/data:/空行分发
+// 请求发送：JDK HttpClient POST 到 endpoint 下发的地址
+// 响应配对：ConcurrentHashMap&lt;id, 响应&gt; + CountDownLatch 按 id 等待
+CountDownLatch latch = pending.put(id, new CountDownLatch(1));
+post(Json.write(rpc(id, "tools/call", params)));       // 出站：POST
+latch.await(120, TimeUnit.SECONDS);                    // 入站：等 SSE 推回 id 对应响应</code></pre>
+
+<h2>教学版 vs 真实对接：只换了一行</h2>
+<table>
+  <tr><th></th><th>09 · 教学版</th><th>09+ · 真实对接</th></tr>
+  <tr><td>Client 实现</td><td>进程内接口直调</td><td>SSE 长连接 + JSON-RPC</td></tr>
+  <tr><td>Server 形态</td><td>嵌套类模拟</td><td>百度 AppBuilder AIsearch 1.4.1（远程）</td></tr>
+  <tr><td>Agent 流程</td><td colspan="2" style="text-align:center">完全一致：发现 → 决策 → 调用 → 总结</td></tr>
+</table>
+<p>这正是 MCP 的价值：<strong>工具侧怎么实现、走什么网络，智能体只认 tools/list 和 tools/call 两个方法</strong>。
+SseMcpClient 换掉 McpClient，其余代码一行不改。</p>
+
+<div class="callout core">
+  <div class="co-title">💡 面试考点</div>
+  「MCP 的 SSE 传输里，为什么请求走 POST、响应却从 SSE 推回？」—— SSE 是单向的服务器推送通道，
+  天然适合异步下发；POST 承载请求可以让报文体任意大、无需长连接保持请求态。两条通道 + JSON-RPC id 配对，
+  就构成了双向全双工的协议底座（新版 Streamable HTTP 思想相同，只是把两条通道合并了）。
+</div>
+`
+  },
   step10: {
     title: "Skills：从单步工具到可复用的能力包",
     lede: "工具解决一步的问题，技能解决一类的问题。L0 提示词、L1 工具组合、L2 子流程，三层沉淀。",

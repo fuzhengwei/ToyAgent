@@ -359,7 +359,8 @@
     step03: ["react", "ReAct"],           step04: ["tool_call", "ToolCall"],
     step05: ["memory", "Memory"],         step06: ["router", "Router"],
     step07: ["rag", "Rag"],               step08: ["wiki", "Wiki"],
-    step09: ["mcp", "Mcp"],               step10: ["skill", "Skill"],
+    step09: ["mcp", "Mcp"],               "step09-real": ["mcp", "Mcp"],
+    step10: ["skill", "Skill"],
     step11: ["registry", "Registry"],     step12: ["multi", "Multi"],
     step13: ["subagent", "Subagent"],     step14: ["a2a", "A2A"],
     step15: ["loop", "Loop"],             step16: ["workflow", "Workflow"],
@@ -872,7 +873,7 @@
       const tool = steps.find((s) => s.type === "tool" || s.type === "action");
       lines.push("participant T as 🛠 " + (tool ? mq(tool.label, 10) : "工具"));
       mid = "T";
-    } else if (id === "step09") {
+    } else if (id === "step09" || id === "step09-real") {
       lines.push("participant M as 🔌 MCP Server");
       mid = "M";
     } else if (id === "step05") {
@@ -895,7 +896,7 @@
         case "intent": lines.push("L-->>A: 意图 → " + clip(s, 20)); break;
         case "action":
         case "tool":
-          lines.push("A->>" + mid + ": " + (id === "step09" ? "tools/call · " : "") + clip(s, 20));
+          lines.push("A->>" + mid + ": " + (id === "step09" || id === "step09-real" ? "tools/call · " : "") + clip(s, 20));
           break;
         case "mcp":
           if (/list|清单|发现/.test(s.label + s.detail)) {
@@ -925,7 +926,7 @@
       if (id === "step12") return mqMultiAgent(steps, userMsg);
       if (id === "step16") return mqWorkflow(steps, userMsg);
       if (id === "step18") return mqFullSequence(steps, userMsg);
-      if (id === "step04" || id === "step05" || id === "step09" || id === "step10" || id === "step07")
+      if (id === "step04" || id === "step05" || id === "step09" || id === "step09-real" || id === "step10" || id === "step07")
         return mqSequence(id, steps, userMsg);
       return mqFlowchart(steps, userMsg);
     } catch (e) {

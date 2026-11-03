@@ -8,6 +8,7 @@ import cn.xiaofuge.ai.agent.step04.ToolCallAgent;
 import cn.xiaofuge.ai.agent.step05.MemoryAgent;
 import cn.xiaofuge.ai.agent.step06.RouterAgent;
 import cn.xiaofuge.ai.agent.step09.McpAgent;
+import cn.xiaofuge.ai.agent.step09.McpRealAgent;
 import cn.xiaofuge.ai.agent.step10.SkillAgent;
 import cn.xiaofuge.ai.agent.step07.RagAgent;
 import cn.xiaofuge.ai.agent.step12.MultiAgent;
@@ -103,6 +104,7 @@ public final class Application {
         map.put("step05", () -> new MemoryAgent.Impl(scoped("step05", real)));
         map.put("step06", () -> new RouterAgent.Impl(scoped("step06", real)));
         map.put("step09", () -> new McpAgent.Impl(scoped("step09", real)));
+        map.put("step09-real", () -> new McpRealAgent.Impl(scoped("step09-real", real)));
         map.put("step10", () -> new SkillAgent.Impl(scoped("step10", real)));
         map.put("step07", () -> new RagAgent.Impl(scoped("step07", real)));
         map.put("step12", () -> new MultiAgent.Impl(scoped("step12", real)));

@@ -84,6 +84,14 @@ const SCENARIOS = [
     samples: ["杭州现在几点？天气如何", "查一下北京的天气", "MCP 是什么协议？"]
   },
   {
+    id: "step09-real",
+    num: "09+",
+    group: "工具的进化",
+    title: "MCP 真实对接",
+    subtitle: "SSE 长连接 + JSON-RPC，接入百度 AI 搜索 MCP Server",
+    samples: ["Java 虚拟线程是什么？", "搜一下最近的 Agent 框架趋势", "ToyAgent 项目怎么部署？"]
+  },
+  {
     id: "step10",
     num: "10",
     group: "工具的进化",

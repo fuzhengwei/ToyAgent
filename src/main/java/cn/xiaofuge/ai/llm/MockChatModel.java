@@ -35,6 +35,7 @@ public final class MockChatModel implements ChatModel {
             case "step05" -> mockMemory(all, last);
             case "step06" -> mockRouter(last);
             case "step09" -> mockMcp(last);
+            case "step09-real" -> mockMcpReal(last);
             case "step10" -> mockSkill(all, last);
             case "step07" -> mockRag(all, last);
             case "step12" -> mockMulti(all, system);
@@ -231,6 +232,19 @@ public final class MockChatModel implements ChatModel {
                     "params", Map.of("name", "get_weather", "arguments", Map.of("city", findCity(last)))));
         }
         return "（Mock 模型）MCP 的核心是把「工具」标准化：统一注册、统一发现（tools/list）、统一调用（tools/call）。这个问题我直接回答即可，无需调用工具。";
+    }
+
+    /** step09-real：真实对接百度 AI 搜索 MCP Server。Mock 只负责"决策"，工具调用是真的走网络。 */
+    private String mockMcpReal(String last) {
+        // 工具结果回填轮：不再发起调用
+        if (last.contains("工具结果")) {
+            String fact = extractAfter(last, "工具结果");
+            return "基于百度 AI 搜索 MCP Server 返回的事实：" + (fact.isBlank() ? clip(last) : clip(fact))
+                    + " —— 真实协议链路（SSE 长连接 + JSON-RPC）闭环完成。";
+        }
+        return Json.write(Map.of(
+                "method", "tools/call",
+                "params", Map.of("name", "AIsearch", "arguments", Map.of("query", last))));
     }
 
     // ------------------------------------------------------------- step10 技能
