@@ -194,7 +194,9 @@ public interface RuntimeAgent extends Agent {
 
             @Override public String name() { return "get_weather"; }
             @Override public String description() { return "查询指定城市的实时天气"; }
-            @Override public Map<String, String> parameters() { return Map.of("city", "string，城市名"); }
+            @Override public Map<String, Object> parameters() {
+                return Map.of("city", Map.of("type", "string", "description", "城市名"));
+            }
             @Override public String execute(Map<String, Object> args) {
                 String city = String.valueOf(args.getOrDefault("city", "")).trim();
                 return DATA.getOrDefault(city, "未收录城市 " + city + " 的数据");
@@ -204,7 +206,9 @@ public interface RuntimeAgent extends Agent {
         record CalculatorTool() implements ToolDefinition {
             @Override public String name() { return "calculator"; }
             @Override public String description() { return "计算四则运算，如 12*8"; }
-            @Override public Map<String, String> parameters() { return Map.of("expression", "string，算式"); }
+            @Override public Map<String, Object> parameters() {
+                return Map.of("expression", Map.of("type", "string", "description", "算式"));
+            }
             @Override public String execute(Map<String, Object> args) {
                 Matcher m = Pattern.compile("\\s*(\\d+(?:\\.\\d+)?)\\s*([+\\-*/])\\s*(\\d+(?:\\.\\d+)?)\\s*")
                         .matcher(String.valueOf(args.getOrDefault("expression", "")));
@@ -225,7 +229,9 @@ public interface RuntimeAgent extends Agent {
         record EchoTool() implements ToolDefinition {
             @Override public String name() { return "echo"; }
             @Override public String description() { return "回显输入文本（演示用）"; }
-            @Override public Map<String, String> parameters() { return Map.of("text", "string，要回显的内容"); }
+            @Override public Map<String, Object> parameters() {
+                return Map.of("text", Map.of("type", "string", "description", "要回显的内容"));
+            }
             @Override public String execute(Map<String, Object> args) {
                 return "echo: " + args.getOrDefault("text", "");
             }

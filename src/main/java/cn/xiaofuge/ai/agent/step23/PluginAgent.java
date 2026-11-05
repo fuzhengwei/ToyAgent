@@ -307,7 +307,7 @@ public interface PluginAgent extends Agent {
         record UptimeTool(Instant startedAt) implements ToolDefinition {
             @Override public String name() { return "uptime"; }
             @Override public String description() { return "查询宿主进程已运行时长"; }
-            @Override public Map<String, String> parameters() { return Map.of(); }
+            @Override public Map<String, Object> parameters() { return Map.of(); }
             @Override public String execute(Map<String, Object> args) {
                 long sec = Duration.between(startedAt, Instant.now()).getSeconds();
                 long h = sec / 3600, m = (sec % 3600) / 60, s = sec % 60;
@@ -320,7 +320,7 @@ public interface PluginAgent extends Agent {
             private static final Random R = new Random();
             @Override public String name() { return "coin_flip"; }
             @Override public String description() { return "掷一次硬币，返回正面或反面"; }
-            @Override public Map<String, String> parameters() { return Map.of(); }
+            @Override public Map<String, Object> parameters() { return Map.of(); }
             @Override public String execute(Map<String, Object> args) {
                 return R.nextBoolean() ? "正面" : "反面";
             }

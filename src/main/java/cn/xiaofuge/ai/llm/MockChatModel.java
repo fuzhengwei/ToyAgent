@@ -42,7 +42,6 @@ public final class MockChatModel implements ChatModel {
             case "step15" -> mockLoop(last, all);
             case "step16" -> mockWorkflow(all, last);
             case "step18" -> mockFull(all, last);
-            case "step11" -> mockRegistry(last);
             case "step17" -> mockRuntime(all, last);
             case "step19" -> mockAsk(all, last);
             case "step20" -> mockApproval(last);
@@ -61,14 +60,19 @@ public final class MockChatModel implements ChatModel {
     /**
      * 带 tools 的标准 Function Calling（Mock 侧同协议应答）：
      * 最后一轮消息是 role=tool 时给出最终回答，否则按语义发起结构化 tool_calls。
+     * step04（手写清单）与 step11（注册表生成清单）共用同一协议链路。
      */
     @Override
     public ChatResponse chat(List<Message> messages, List<Map<String, Object>> tools) {
-        if ("step04".equals(scenario) && tools != null && !tools.isEmpty()) {
+        boolean registryScenario = "step11".equals(scenario);
+        if (("step04".equals(scenario) || registryScenario) && tools != null && !tools.isEmpty()) {
             Message last = messages.get(messages.size() - 1);
             if ("tool".equals(last.role())) {
+                String tail = registryScenario
+                        ? " —— 执行器全程只查注册表，不认识任何具体工具。"
+                        : " —— 工具调用链闭环完成。";
                 return new ChatResponse(
-                        "根据工具返回的结果：" + clip(last.content()) + "，这就是你要的答案 —— 工具调用链闭环完成。", List.of());
+                        "根据工具返回的结果：" + clip(last.content()) + "，这就是你要的答案" + tail, List.of());
             }
             String lastUser = lastUserText(messages);
             if (lastUser.contains("天气") || lastUser.contains("weather")) {
@@ -79,6 +83,10 @@ public final class MockChatModel implements ChatModel {
             if (m.find()) {
                 return new ChatResponse("", List.of(new ToolCall("mock-call-1", "calculator",
                         Json.write(Map.of("expression", m.group(1))))));
+            }
+            if (registryScenario && (lastUser.contains("几点") || lastUser.contains("时间"))) {
+                return new ChatResponse("", List.of(new ToolCall("mock-call-1", "get_time",
+                        Json.write(Map.of()))));
             }
             return new ChatResponse(
                     "这个问题不需要调用工具，我直接回答：「" + clip(lastUser) + "」—— 工具调用的关键在于：模型自己判断「要不要用工具、用哪个、参数是什么」。", List.of());
@@ -334,27 +342,6 @@ public final class MockChatModel implements ChatModel {
             return base.isBlank() ? "润色完成：「" + clip(last) + "」。" : "润色完成：" + clip(base);
         }
         return "这是 FAQ 节点的直接回答。「" + clip(last) + "」属于常见问题，无需工具，命中预设答案后进入 polish 润色。";
-    }
-
-    // ------------------------------------------------------------- step11 工具注册表
-
-    /** 与 step04 同一套 {"tool","arguments"} 协议，但工具清单来自注册表。 */
-    private String mockRegistry(String last) {
-        if (last.contains("执行结果")) {
-            String fact = extractAfter(last, "执行结果");
-            return "根据工具返回的结果：" + (fact.isBlank() ? clip(last) : clip(fact)) + " —— 执行器全程只查注册表，不认识任何具体工具。";
-        }
-        if (last.contains("天气") || last.contains("weather")) {
-            return Json.write(Map.of("tool", "get_weather", "arguments", Map.of("city", findCity(last))));
-        }
-        Matcher m = Pattern.compile("(\\d+\\s*[+\\-*/]\\s*\\d+)").matcher(last);
-        if (m.find()) {
-            return Json.write(Map.of("tool", "calculator", "arguments", Map.of("expression", m.group(1))));
-        }
-        if (last.contains("几点") || last.contains("时间")) {
-            return Json.write(Map.of("tool", "get_time", "arguments", Map.of()));
-        }
-        return "这个问题不需要调用工具，直接回答即可 —— 工具清单由注册表动态生成，注册即生效、注销即消失。";
     }
 
     // ------------------------------------------------------------- step17 ReAct 运行时
