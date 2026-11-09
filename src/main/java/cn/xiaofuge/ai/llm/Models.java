@@ -20,6 +20,10 @@ public final class Models {
     private static String apiKey;
     private static String modelName;
 
+    // 免鉴权模式：keyless=true 且 api-key 留空时，仍走真实模型（不发 Authorization 头），
+    // 适用于 Kilo free 等无需 Key 的 OpenAI 兼容网关。默认 false，保持「无 Key 即 Mock」的原行为。
+    private static boolean keyless;
+
     // Jev 决策模型（System One）配置：意图路由等结构化判断专用，见 JevModel
     private static String jevUrl;
     private static String jevApiKey;
@@ -64,9 +68,13 @@ public final class Models {
         }
         String keySrc = props.getProperty("api-key");
         boolean keyFromFile = keySrc != null && !keySrc.isBlank();
+        keyless = "true".equalsIgnoreCase(
+                props.getProperty("keyless") == null ? "" : props.getProperty("keyless").trim());
         if (!apiKey.isBlank()) {
             System.out.println("[ToyAgent] 默认模型: " + modelName + " @ " + baseUrl
                     + (keyFromFile ? "（Key 来自 config.properties）" : "（Key 来自环境变量）"));
+        } else if (keyless) {
+            System.out.println("[ToyAgent] 默认模型: " + modelName + " @ " + baseUrl + "（keyless 免鉴权模式）");
         }
     }
 
@@ -83,10 +91,10 @@ public final class Models {
         return (v == null || v.isBlank()) ? def : v;
     }
 
-    /** 有真实 Key 则返回 OpenAI 兼容模型，否则返回 null（使用 Mock）。 */
+    /** 有真实 Key（或 keyless 免鉴权模式）则返回 OpenAI 兼容模型，否则返回 null（使用 Mock）。 */
     public static OpenAiChatModel openAiOrNull() {
-        if (apiKey == null || apiKey.isBlank()) return null;
-        return new OpenAiChatModel(baseUrl, apiKey, modelName);
+        if (!isRealModel()) return null;
+        return new OpenAiChatModel(baseUrl, apiKey == null ? "" : apiKey, modelName);
     }
 
     /** 教学演示用 Mock 模型。 */
@@ -95,6 +103,7 @@ public final class Models {
     }
 
     public static boolean isRealModel() {
+        if (keyless) return true;
         return apiKey != null && !apiKey.isBlank();
     }
 
@@ -127,9 +136,10 @@ public final class Models {
         save();
     }
 
-    /** 页面切换：回到 Mock 演示模式（清空 Key）。 */
+    /** 页面切换：回到 Mock 演示模式（清空 Key 并关闭 keyless）。 */
     public static synchronized void useMock() {
         apiKey = "";
+        keyless = false;
         save();
     }
 
@@ -153,6 +163,7 @@ public final class Models {
         props.setProperty("base-url", baseUrl == null ? "" : baseUrl);
         props.setProperty("api-key", apiKey == null ? "" : apiKey);
         props.setProperty("model", modelName == null ? "" : modelName);
+        props.setProperty("keyless", keyless ? "true" : "false");
         try (OutputStream out = Files.newOutputStream(Path.of("config.properties"))) {
             props.store(out, "ToyAgent model config (edited from web UI)");
         } catch (IOException e) {

@@ -52,13 +52,16 @@ public final class OpenAiChatModel implements ChatModel {
         }
         body.put("temperature", 0.7);
 
-        HttpRequest request = HttpRequest.newBuilder()
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/chat/completions"))
                 .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + apiKey)
                 .timeout(Duration.ofSeconds(120))
-                .POST(HttpRequest.BodyPublishers.ofString(Json.write(body)))
-                .build();
+                .POST(HttpRequest.BodyPublishers.ofString(Json.write(body)));
+        // 免鉴权网关（如 Kilo free）：api-key 留空时不发 Authorization 头，发了无效 token 反而 401
+        if (apiKey != null && !apiKey.isBlank()) {
+            builder.header("Authorization", "Bearer " + apiKey);
+        }
+        HttpRequest request = builder.build();
 
         try {
             // 2. 调用模型
