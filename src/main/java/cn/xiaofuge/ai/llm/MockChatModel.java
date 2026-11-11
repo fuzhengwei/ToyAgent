@@ -65,6 +65,9 @@ public final class MockChatModel implements ChatModel {
     @Override
     public ChatResponse chat(List<Message> messages, List<Map<String, Object>> tools) {
         boolean registryScenario = "step11".equals(scenario);
+        if ("step13".equals(scenario) && tools != null && !tools.isEmpty()) {
+            return mockSubagentToolCall(messages);
+        }
         if (("step04".equals(scenario) || registryScenario) && tools != null && !tools.isEmpty()) {
             Message last = messages.get(messages.size() - 1);
             if ("tool".equals(last.role())) {
@@ -507,37 +510,39 @@ public final class MockChatModel implements ChatModel {
 
     // ------------------------------------------------------------- step13 子代理
 
-    /** 子代理剧本：system 带【子代理身份】为子代理回合（fork 能看到父会话里的紫色）；否则为主代理回合。 */
+    /** 主代理回合（标准 Function Calling）：按语义发起结构化 dispatch_subagent tool_calls；结果回填轮汇总作答。 */
+    private ChatResponse mockSubagentToolCall(List<Message> messages) {
+        Message last = messages.get(messages.size() - 1);
+        if ("tool".equals(last.role())) {
+            return new ChatResponse("子代理已完成任务，结果如下：\n" + clip(last.content())
+                    + " —— 主代理汇总子代理结果向用户作答（结果按 tool_call_id 对号入座）。", List.of());
+        }
+        String lastUser = lastUserText(messages);
+        if (lastUser.contains("fork") || lastUser.contains("继承")) {
+            return new ChatResponse("", List.of(new ToolCall("mock-call-1", "dispatch_subagent",
+                    Json.write(Map.of("name", "writer", "mode", "fork", "task", "写一句贺词")))));
+        }
+        if (lastUser.contains("spawn") || lastUser.contains("全新")) {
+            return new ChatResponse("", List.of(new ToolCall("mock-call-1", "dispatch_subagent",
+                    Json.write(Map.of("name", "writer", "mode", "spawn", "task", "写一句贺词")))));
+        }
+        if (lastUser.contains("调研") || lastUser.contains("研究") || lastUser.contains("趋势")) {
+            return new ChatResponse("", List.of(new ToolCall("mock-call-1", "dispatch_subagent",
+                    Json.write(Map.of("name", "researcher", "mode", "spawn", "task", "调研 Agent 趋势")))));
+        }
+        return new ChatResponse("好的，已记下，这条信息已进入父会话消息列表 —— 之后 fork 出去的子代理都能看到它。"
+                + " 试试：「fork 一个子代理，让它写一句贺词」或「spawn 一个子代理写贺词」，体会两种派遣的上下文差异。", List.of());
+    }
+
+    /** 子代理回合（单轮应答）：fork 的子代理能从复制的父会话消息列表里看到「紫色」，spawn 看不到。 */
     private String mockSubagent(String all, String last, String system) {
-        if (system.contains("子代理身份")) {
-            boolean forkKnows = system.contains("继承的父会话上下文") && system.contains("紫色");
-            if (system.contains("写作子代理")) {
-                return forkKnows
-                        ? "愿你的每一天都被喜爱的事物环绕 —— 像那一抹恰到好处的紫色。（fork：我从父会话记得你最喜欢紫色）"
-                        : "愿你所行皆坦途，所遇皆温暖，往后的每一天都值得期待。（spawn：我只知道任务本身）";
-            }
-            return "Agent 调研要点：1) 工具标准化（MCP）成为默认范式；2) 运行时基座（审批/沙箱/事件）走向生产化；3) 多代理协作从固定流水线走向动态派遣。";
+        if (system.contains("写作子代理")) {
+            boolean forkKnows = all.contains("紫色");
+            return forkKnows
+                    ? "愿你的每一天都被喜爱的事物环绕 —— 像那一抹恰到好处的紫色。（fork：我从父会话消息里记得你最喜欢紫色）"
+                    : "愿你所行皆坦途，所遇皆温暖，往后的每一天都值得期待。（spawn：我只知道任务本身）";
         }
-        if (last.contains("执行结果")) {
-            String fact = extractAfter(last, "执行结果");
-            return "子代理已完成任务，结果如下：\n" + (fact.isBlank() ? clip(last) : fact);
-        }
-        if (last.contains("fork") || last.contains("继承")) {
-            return Json.write(Map.of("tool", "dispatch_subagent", "name", "writer", "mode", "fork", "task", "写一句贺词"));
-        }
-        if (last.contains("spawn") || last.contains("全新")) {
-            return Json.write(Map.of("tool", "dispatch_subagent", "name", "writer", "mode", "spawn", "task", "写一句贺词"));
-        }
-        if (last.contains("调研") || last.contains("研究") || last.contains("趋势")) {
-            return Json.write(Map.of("tool", "dispatch_subagent", "name", "researcher", "mode", "spawn", "task", "调研 Agent 趋势"));
-        }
-        if (last.contains("记住") || last.contains("最喜欢")) {
-            return "好的，已记下。这条信息已进入父会话上下文 —— 之后 fork 出去的子代理都能看到它。";
-        }
-        if (last.contains("对比")) {
-            return "两次贺词的差异就是 spawn 与 fork 的差异：fork 的子代理继承了「最喜欢紫色」，贺词带了紫色；spawn 的子代理是全新实例，只会写通用贺词。";
-        }
-        return "（Mock 模型）试试：「fork 一个子代理，让它写一句贺词」或「spawn 一个子代理写贺词」，体会两种派遣的上下文差异。";
+        return "Agent 调研要点：1) 工具标准化（MCP）成为默认范式；2) 运行时基座（审批/沙箱/事件）走向生产化；3) 多代理协作从固定流水线走向动态派遣。";
     }
 
     // ------------------------------------------------------------- step24 钩子体系

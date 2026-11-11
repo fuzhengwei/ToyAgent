@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Step12 · 多智能体协作 —— 从一个大脑到一支团队</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #f7f6f3;
+    --panel: #ffffff;
+    --ink: #262338;
+    --muted: #6b6880;
+    --line: #e4e2dc;
+    --purple: #534AB7;
+    --purple-soft: #EEEDFE;
+    --blue: #185FA5;
+    --blue-soft: #E6F1FB;
+    --green: #3B6D11;
+    --green-soft: #EAF3DE;
+    --coral: #993C1D;
+    --coral-soft: #FAECE7;
+    --red: #A32D2D;
+    --red-soft: #FCEBEB;
+    --amber-soft: #FAEEDA;
+    --amber: #854F0B;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    overflow: hidden;
+  }
+  .deck { position: relative; width: 100%; height: 100vh; }
+  .slide {
+    position: absolute; inset: 0;
+    padding: 56px 84px 84px;
+    opacity: 0; visibility: hidden;
+    transition: opacity .35s ease;
+    overflow-y: auto;
+    display: flex; flex-direction: column;
+  }
+  .slide.active { opacity: 1; visibility: visible; z-index: 2; }
+  .kicker {
+    font-size: 13px; letter-spacing: .18em; color: var(--purple);
+    font-weight: 600; margin-bottom: 10px; text-transform: uppercase;
+  }
+  h1 { font-size: 46px; font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; }
+  h2 { font-size: 32px; font-weight: 700; margin-bottom: 22px; letter-spacing: -0.01em; }
+  h3 { font-size: 17px; font-weight: 600; margin-bottom: 8px; }
+  p.lead { font-size: 17px; color: var(--muted); line-height: 1.7; }
+  .grow { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+
+  .cards { display: grid; gap: 18px; margin-top: 8px; }
+  .cards.c3 { grid-template-columns: repeat(3, 1fr); }
+  .cards.c2 { grid-template-columns: repeat(2, 1fr); }
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 14px; padding: 22px 22px 20px;
+  }
+  .card .tag {
+    display: inline-block; font-size: 12px; font-weight: 600;
+    padding: 3px 10px; border-radius: 999px; margin-bottom: 12px;
+  }
+  .card p { font-size: 14px; color: var(--muted); line-height: 1.75; }
+  .card p b { color: var(--ink); }
+  .card code { font-size: 12.5px; }
+  .t-purple { background: var(--purple-soft); color: var(--purple); }
+  .t-blue   { background: var(--blue-soft);   color: var(--blue); }
+  .t-green  { background: var(--green-soft);  color: var(--green); }
+  .t-coral  { background: var(--coral-soft);  color: var(--coral); }
+  .t-red    { background: var(--red-soft);    color: var(--red); }
+  .t-amber  { background: var(--amber-soft);  color: var(--amber); }
+  .bd-purple { border-top: 3px solid var(--purple); }
+  .bd-blue   { border-top: 3px solid var(--blue); }
+  .bd-green  { border-top: 3px solid var(--green); }
+  .bd-coral  { border-top: 3px solid var(--coral); }
+  .bd-red    { border-top: 3px solid var(--red); }
+
+  pre.code {
+    background: #211f2e; color: #e8e6f2;
+    border-radius: 12px; padding: 20px 24px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13.5px; line-height: 1.7;
+    overflow-x: auto; margin-top: 6px;
+  }
+  pre.code .cm { color: #8f8ca8; }
+  pre.code .kw { color: #c792ea; }
+  pre.code .st { color: #a5d6a7; }
+  pre.code .fn { color: #82aaff; }
+  .code-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; margin-top: 4px; }
+  .code-wrap .side { padding-top: 6px; }
+
+  table.compare { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
+  table.compare th, table.compare td { padding: 14px 18px; text-align: left; font-size: 14.5px; line-height: 1.6; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.compare th { background: var(--purple-soft); color: var(--purple); font-weight: 600; font-size: 14px; }
+  table.compare tr:last-child td { border-bottom: none; }
+  table.compare td:first-child { font-weight: 600; white-space: nowrap; }
+  table.compare td { color: #4a475e; }
+
+  .diagram-box {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 14px; padding: 18px 22px; margin-top: 4px;
+  }
+  .diagram-box .cap { font-size: 12.5px; color: var(--muted); text-align: center; margin-top: 6px; }
+  .mermaid { display: flex; justify-content: center; }
+
+  .quote {
+    background: var(--panel); border-left: 4px solid var(--purple);
+    border-radius: 0 14px 14px 0; padding: 26px 30px;
+    font-size: 21px; line-height: 1.7; font-weight: 500; margin: 18px 0;
+  }
+  .quote small { display: block; font-size: 13px; color: var(--muted); font-weight: 400; margin-top: 10px; }
+
+  .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin: 22px 0; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px; text-align: center; }
+  .stat .num { font-size: 34px; font-weight: 700; color: var(--red); }
+  .stat .lbl { font-size: 13.5px; color: var(--muted); margin-top: 6px; line-height: 1.6; }
+
+  .footer-hint {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 28px; font-size: 12.5px; color: var(--muted);
+    background: linear-gradient(to top, rgba(247,246,243,.95), rgba(247,246,243,0));
+    pointer-events: none;
+  }
+  .pagenum { font-variant-numeric: tabular-nums; }
+  .progress { position: fixed; top: 0; left: 0; height: 3px; background: var(--purple); z-index: 11; transition: width .3s ease; }
+  .nav-btns { position: fixed; right: 26px; bottom: 44px; z-index: 12; display: flex; gap: 8px; }
+  .nav-btns button {
+    width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line);
+    background: var(--panel); color: var(--ink); font-size: 16px; cursor: pointer;
+  }
+  .nav-btns button:hover { border-color: var(--purple); color: var(--purple); }
+
+  .chip-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+  .chip { font-size: 13px; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); }
+  .chip b { color: var(--ink); }
+
+  .cover-emoji { font-size: 52px; margin-bottom: 18px; }
+  .arrow-note { font-size: 13.5px; color: var(--muted); margin-top: 14px; }
+  .arrow-note b { color: var(--coral); }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck" id="deck">
+
+  <!-- 1 封面 -->
+  <section class="slide active">
+    <div class="grow">
+      <div class="kicker">ToyAgent · Step 12 · 多智能体协作</div>
+      <div class="cover-emoji">🧠 → 🧭🔬✍️🔍</div>
+      <h1>从一个大脑，到一支团队</h1>
+      <p class="lead" style="margin-top:18px; max-width: 720px;">
+        60 行 Java 代码，复刻 Claude Code / Codex / WorkBuddy 共同的多智能体骨架：
+        角色注册表 · 上下文隔离 · 质量门禁与循环护栏。
+      </p>
+      <div class="chip-row">
+        <span class="chip">🧭 规划者</span>
+        <span class="chip">🔬 研究员</span>
+        <span class="chip">✍️ 写手</span>
+        <span class="chip">🔍 审查员</span>
+        <span class="chip">🏁 主持者</span>
+      </div>
+      <p class="arrow-note" style="margin-top:34px;">按 <b>← → 方向键</b> 或右下角按钮翻页</p>
+    </div>
+  </section>
+
+  <!-- 2 困境 -->
+  <section class="slide">
+    <div class="kicker">先制造困境</div>
+    <h2>如果让一个大脑干所有事，会发生什么？</h2>
+    <p class="lead">做一个实验：让单个 Agent 一口气完成「调研 → 写作 → 审查」，并把它的完整上下文打印出来。随着轮次增加，你会亲眼看到——</p>
+    <div class="stat-row">
+      <div class="stat">
+        <div class="num">注意力稀释</div>
+        <div class="lbl">搜索日志、中间草稿、重试错误全堆在一个上下文里，模型越聊越糊涂，开始忘记最初的要求</div>
+      </div>
+      <div class="stat">
+        <div class="num">角色打架</div>
+        <div class="lbl">写手的发散提示词和审查员的挑剔提示词混在一条系统消息里，互相抵消，谁也调优不动</div>
+      </div>
+      <div class="stat">
+        <div class="num">错误无人拦</div>
+        <div class="lbl">既当运动员又当裁判，自查自查，一路错到底也没有独立反馈喊停</div>
+      </div>
+    </div>
+    <div class="quote">
+      官方给这种现象起了个名字：<b>Context Rot（上下文腐化）</b>——主会话只应装需求与决策，不装噪声。
+      <small>这不是模型不够强，而是「单大脑架构」的必然结局。</small>
+    </div>
+  </section>
+
+  <!-- 3 真实场景 -->
+  <section class="slide">
+    <div class="kicker">真实场景</div>
+    <h2>真实产品已经给出了同一个答案</h2>
+    <p class="lead">Codex、Claude Code、WorkBuddy 的多智能体设计高度一致，核心就三条。Step12 就是把这三条各对应一处代码。</p>
+    <div style="margin-top:20px;">
+      <table class="compare">
+        <tr><th>产品级设计</th><th>真实工具里的样子</th><th>ToyAgent 里对应</th></tr>
+        <tr>
+          <td>角色是配置文件</td>
+          <td>Codex 用 <code>.codex/agents/*.toml</code>，Claude Code 用 <code>.claude/agents/*.md</code> 声明名字 + 职责 + 提示词 + 工具白名单</td>
+          <td><code>Map&lt;String, AgentSpec&gt; ROLES</code> 注册表</td>
+        </tr>
+        <tr>
+          <td>上下文隔离</td>
+          <td>每个子代理在全新上下文里干活，搜索结果、草稿、日志留在内部，只回传「结论摘要」</td>
+          <td><code>dispatch()</code> 每次新建消息列表</td>
+        </tr>
+        <tr>
+          <td>质量门禁 + 循环护栏</td>
+          <td>审查员是独立角色（Codex 的 reviewer 挂只读沙箱），不通过打回重做，但最多 N 轮（max_iterations）</td>
+          <td><code>MAX_REVIEW_ROUNDS = 2</code> 的审查循环</td>
+        </tr>
+      </table>
+    </div>
+    <p class="arrow-note">读者视角：摸清这三条，就摸到了所有主流 Agent 产品的多智能体骨架。</p>
+  </section>
+
+  <!-- 4 流水线总览 -->
+  <section class="slide">
+    <div class="kicker">全景流程图</div>
+    <h2>一条固定的协作流水线</h2>
+    <div class="diagram-box grow" style="justify-content:center;">
+      <div class="mermaid">
+flowchart LR
+    U(["👤 用户任务"]) --> P["🧭 规划者<br/>拆解任务出计划"]
+    P --> R["🔬 研究员<br/>独立上下文收集素材<br/>只回传要点"]
+    R --> W["✍️ 写手<br/>只拿摘要成稿"]
+    W --> V{"🔍 审查员<br/>只输出 通过 / 不过"}
+    V -->|✅ 通过| H["🏁 主持者<br/>汇总交付用户"]
+    V -->|❌ 打回·带意见| W
+    H --> O(["📦 最终结论"])
+      </div>
+      <div class="cap">每个方框都是一次<b>全新上下文</b>的 LLM 调用；红色回路是「写手 ⇄ 审查员」的打回循环，护栏最多 2 轮。</div>
+    </div>
+  </section>
+
+  <!-- 5 设计一：角色是数据 -->
+  <section class="slide">
+    <div class="kicker">设计之一</div>
+    <h2>角色是「数据」，不是「代码」</h2>
+    <div class="code-wrap">
+      <div>
+        <pre class="code"><span class="cm">// 角色注册表 —— 等价于 .claude/agents/ 目录</span>
+<span class="kw">private static final</span> Map&lt;String, AgentSpec&gt; ROLES = <span class="kw">new</span> <span class="fn">LinkedHashMap</span>&lt;&gt;();
+<span class="kw">static</span> {
+    ROLES.<span class="fn">put</span>(<span class="st">"planner"</span>, <span class="kw">new</span> <span class="fn">AgentSpec</span>(<span class="st">"planner"</span>, <span class="st">"🧭"</span>, <span class="st">"""
+        你是规划者。把任务拆解为三个角色的执行计划…
+        """</span>));
+    ROLES.<span class="fn">put</span>(<span class="st">"researcher"</span>, <span class="kw">new</span> <span class="fn">AgentSpec</span>(<span class="st">"researcher"</span>, <span class="st">"🔬"</span>, <span class="st">"""
+        你是研究员。围绕任务输出 3 条以内研究要点…
+        """</span>));
+    <span class="cm">// writer / reviewer 同理…</span>
+}</pre>
+      </div>
+      <div class="side">
+        <div class="card bd-green">
+          <span class="tag t-green">加一个角色</span>
+          <h3>一行 <code>put</code>，流程零改动</h3>
+          <p>协作流水线只认注册表的 <b>key</b>，不关心里面装了谁。想加一个「译者」「画师」？加一行配置，主流程一行代码都不用动。</p>
+        </div>
+        <div class="card bd-purple" style="margin-top:18px;">
+          <span class="tag t-purple">这是开闭原则的 Agent 翻版</span>
+          <h3>对扩展开放，对修改关闭</h3>
+          <p>角色是<b>数据</b>（提示词、名字、emoji），不是硬编码的 if-else。这正是早期硬编码 Agent 与现代 Agent 框架的分水岭。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 设计二：上下文隔离 -->
+  <section class="slide">
+    <div class="kicker">设计之二</div>
+    <h2>上下文隔离 —— 团队感来自「每次从白纸开始」</h2>
+    <div class="code-wrap">
+      <div>
+        <pre class="code"><span class="cm">/// 派遣一个角色 —— 多智能体的最小执行单元</span>
+<span class="kw">private</span> String <span class="fn">dispatch</span>(String key, String task) {
+    AgentSpec spec = ROLES.<span class="fn">get</span>(key);
+    <span class="kw">return</span> model.<span class="fn">chat</span>(
+        List.<span class="fn">of</span>(                        <span class="cm">// ← 全新消息列表</span>
+            Message.<span class="fn">system</span>(spec.system()),
+            Message.<span class="fn">user</span>(task)
+        )
+    ).<span class="fn">trim</span>();
+}</pre>
+        <p class="arrow-note">所谓「一支团队」，只是<b>每次调用都从空上下文开始</b>。</p>
+      </div>
+      <div class="side">
+        <div class="card bd-blue">
+          <span class="tag t-blue">过程噪声，留在子代理内部</span>
+          <h3>研究员翻了几千 token 的资料</h3>
+          <p>搜索日志、读了一半的文档、试错记录——全部随子代理的上下文一起「用完即焚」。<b>主线只收到 3 条要点摘要。</b></p>
+        </div>
+        <div class="card bd-coral" style="margin-top:18px;">
+          <span class="tag t-coral">写手只拿摘要</span>
+          <h3>而不是研究员的完整过程</h3>
+          <p><code>dispatch("writer", "任务 + 研究笔记")</code> —— 主线始终保持干净：只装需求、决策与结论。这就是对抗 Context Rot 的第一现场。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 设计三：质量门禁 -->
+  <section class="slide">
+    <div class="kicker">设计之三</div>
+    <h2>质量门禁 + 循环护栏 —— 有反馈，但不许失控</h2>
+    <div class="diagram-box">
+      <div class="mermaid">
+sequenceDiagram
+    participant W as ✍️ 写手
+    participant V as 🔍 审查员（独立上下文）
+    W->>V: 提交草稿
+    V-->>W: ❌ {"pass": false, "comment": "一句话点评"}
+    Note over W: 带审查意见重写（全新上下文）
+    W->>V: 提交修订稿
+    V-->>H: ✅ {"pass": true}
+    participant H as 🏁 主持者
+    Note over V,H: 护栏 MAX_REVIEW_ROUNDS = 2<br/>到轮次上限即使未过审也带意见交付
+      </div>
+      <div class="cap">审查员与写手<b>互不共享上下文</b>——独立视角才有真判断力；护栏防止二者无限打转。</div>
+    </div>
+    <div class="cards c2" style="margin-top:20px;">
+      <div class="card bd-green">
+        <span class="tag t-green">为什么要独立角色审查</span>
+        <p>写手自查自己，等于<b>既当运动员又当裁判</b>。审查员在全新上下文里只看稿子本身，没有被写作过程「带节奏」，才能给出真评价。</p>
+      </div>
+      <div class="card bd-red">
+        <span class="tag t-red">为什么必须设护栏</span>
+        <p><b>有反馈回路但没有护栏的系统是失控系统。</b>真实工具的 max_iterations / kill criteria 与这里的 <code>MAX_REVIEW_ROUNDS = 2</code> 是同一件事。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 思想源流 -->
+  <section class="slide">
+    <div class="kicker">这类思想来自哪里</div>
+    <h2>两百年的分工智慧，四十年的学术积累</h2>
+    <div class="diagram-box grow" style="justify-content:center;">
+      <div class="mermaid">
+timeline
+    title 多智能体思想源流
+    1776 : 组织学起点 —— 亚当·斯密《国富论》：分工让专责角色完成大任务（康威定律是其工程投影）
+    1986 : 认知理论 —— Minsky《Society of Mind》：智能是大量简单 agent 相互作用的涌现
+    1980s : 学术起点 —— 分布式 AI / 黑板系统：Hearsay-II 用多个「知识源专家」在共享黑板上协作
+    2023 : LLM 时代点火 —— AutoGPT / BabyAGI 引爆；CAMEL、MetaGPT、AutoGen 成型「角色扮演软件公司」范式
+    2024 : 极简收敛 —— OpenAI Swarm / Agents SDK 把多智能体收敛成最小原语
+    2025 : 产品化 —— Claude Code / Codex subagents：角色即配置文件，成为所有主流产品的标配
+      </div>
+      <div class="cap">多智能体不是新发明，而是把几百年验证过的组织学方法，搬进了 prompt。</div>
+    </div>
+  </section>
+
+  <!-- 9 价值总结 -->
+  <section class="slide">
+    <div class="kicker">价值总结</div>
+    <h2>三座大山，三个动作</h2>
+    <p class="lead">单个 LLM 干复杂任务的三座大山，被「分工 + 隔离 + 审查闭环」三个动作同时拆掉。</p>
+    <div style="margin-top:22px;">
+      <table class="compare">
+        <tr><th>单大脑的困境</th><th>多智能体的动作</th><th>价值</th></tr>
+        <tr>
+          <td>上下文被过程噪声腐化</td>
+          <td>子代理独立上下文，只回传摘要</td>
+          <td>主线只装需求与决策，长任务不「越干越糊涂」</td>
+        </tr>
+        <tr>
+          <td>角色混杂，提示词互相打架</td>
+          <td>角色即数据：注册表一行一个角色</td>
+          <td>每个角色可单独调优、按任务选模型、加角色不改流程</td>
+        </tr>
+        <tr>
+          <td>无独立反馈，一路错到底</td>
+          <td>独立审查员 + 打回循环 + 轮次护栏</td>
+          <td>质量闭环可控收敛，既当裁判又不许失控</td>
+        </tr>
+      </table>
+    </div>
+    <div class="chip-row">
+      <span class="chip">这就是它从学术玩具变成<b>所有主流产品标配</b>的原因</span>
+    </div>
+  </section>
+
+  <!-- 10 结尾 -->
+  <section class="slide">
+    <div class="grow">
+      <div class="kicker">记住一句话</div>
+      <div class="quote" style="font-size: 26px;">
+        多智能体最反直觉的地方在于：<br>
+        团队感不是来自多个模型，<br>
+        而是来自<b>每次对话都从一张白纸开始</b>。
+        <small>读者记住这句话，就记住了 dispatch() 那三行代码的全部意义。</small>
+      </div>
+      <div class="card bd-purple" style="margin-top: 10px; max-width: 760px;">
+        <span class="tag t-purple">下一步 · Step 13 钩子</span>
+        <h3>从「结构化流水线」到「动态派遣」</h3>
+        <p>Step12 里角色和顺序都是写死的；Step13 让主代理自己决定<b>派谁、派几个</b>——也就是 Claude Code 的 Task 工具。</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="footer-hint">
+  <span>ToyAgent · Step12 多智能体协作 · 古法编程学 AI Agent</span>
+  <span class="pagenum" id="pagenum">1 / 10</span>
+</div>
+<div class="nav-btns">
+  <button onclick="go(-1)" aria-label="上一页">←</button>
+  <button onclick="go(1)" aria-label="下一页">→</button>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: '-apple-system, "PingFang SC", "Microsoft YaHei", sans-serif',
+      fontSize: '14px',
+      primaryColor: '#EEEDFE',
+      primaryBorderColor: '#534AB7',
+      primaryTextColor: '#26215C',
+      lineColor: '#6b6880',
+      secondaryColor: '#E6F1FB',
+      tertiaryColor: '#F1EFE8',
+      noteBkgColor: '#FAEEDA',
+      noteTextColor: '#854F0B',
+      noteBorderColor: '#EF9F27'
+    },
+    flowchart: { curve: 'basis', padding: 12 },
+    sequence: { actorMargin: 60, boxMargin: 8 }
+  });
+
+  const slides = document.querySelectorAll('.slide');
+  let cur = 0;
+  function show(i) {
+    cur = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach((s, k) => s.classList.toggle('active', k === cur));
+    document.getElementById('pagenum').textContent = (cur + 1) + ' / ' + slides.length;
+    document.getElementById('progress').style.width = ((cur + 1) / slides.length * 100) + '%';
+  }
+  function go(d) { show(cur + d); }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') go(1);
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') go(-1);
+    if (e.key === 'Home') show(0);
+    if (e.key === 'End') show(slides.length - 1);
+  });
+  show(0);
+</script>
+</body>
+</html>
