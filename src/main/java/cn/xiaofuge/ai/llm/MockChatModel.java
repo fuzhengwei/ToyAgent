@@ -68,6 +68,9 @@ public final class MockChatModel implements ChatModel {
         if ("step13".equals(scenario) && tools != null && !tools.isEmpty()) {
             return mockSubagentToolCall(messages);
         }
+        if ("step14".equals(scenario) && tools != null && !tools.isEmpty()) {
+            return mockA2aToolCall(messages);
+        }
         if (("step04".equals(scenario) || registryScenario) && tools != null && !tools.isEmpty()) {
             Message last = messages.get(messages.size() - 1);
             if ("tool".equals(last.role())) {
@@ -563,27 +566,61 @@ public final class MockChatModel implements ChatModel {
 
     // ------------------------------------------------------------- step14 A2A 协作
 
-    /** A2A 剧本：先发现名片，再按任务类型路由到 translator / weather。 */
+    /**
+     * 主代理回合（标准 Function Calling）A2A 剧本：
+     * 发现 → 发起（message/send）→ 轮询（tasks/get）→ input-required 续写 → completed 汇总。
+     */
+    private ChatResponse mockA2aToolCall(List<Message> messages) {
+        Message last = messages.get(messages.size() - 1);
+        if ("tool".equals(last.role())) {
+            String content = last.content();
+            String taskId = findTaskId(content);
+            if (content.contains("input-required")) {
+                return new ChatResponse("", List.of(new ToolCall("mock-call-1", "a2a_send",
+                        Json.write(Map.of("taskId", taskId, "message", "上海")))));
+            }
+            if (content.startsWith("[") && content.contains("capabilities")) {
+                return new ChatResponse("已发现 2 个外部代理的名片：translator（中英互译，skills: translate）"
+                        + "· weather（天气预报，skills: forecast，支持 streaming）。"
+                        + "按名片 skills 派活即可，试试：「让翻译代理把……翻译成英文」。", List.of());
+            }
+            if (content.contains("completed")) {
+                return new ChatResponse("外部代理已通过 A2A 回执（生命周期 submitted → working → completed）："
+                        + extractArtifact(content)
+                        + " —— 对方有自己的模型与工具，我们只认 task_id 与 JSON-RPC 回执。", List.of());
+            }
+            if (taskId != null) {
+                return new ChatResponse("", List.of(new ToolCall("mock-call-1", "a2a_get",
+                        Json.write(Map.of("taskId", taskId)))));
+            }
+            return new ChatResponse("（Mock 模型）试试：「发现一下附近的代理」，"
+                    + "或「让翻译代理把……翻译成英文」「问问天气代理明天适合户外运动吗」。", List.of());
+        }
+        String lastUser = lastUserText(messages);
+        if (lastUser.contains("发现") || lastUser.contains("名片") || lastUser.contains("附近")) {
+            return new ChatResponse("", List.of(new ToolCall("mock-call-1", "a2a_discover", Json.write(Map.of()))));
+        }
+        if (lastUser.contains("翻译")) {
+            return new ChatResponse("", List.of(new ToolCall("mock-call-1", "a2a_send",
+                    Json.write(Map.of("agent", "translator", "task", "把「你好，智能体」翻译成英文")))));
+        }
+        if (lastUser.contains("天气") || lastUser.contains("户外")) {
+            return new ChatResponse("", List.of(new ToolCall("mock-call-1", "a2a_send",
+                    Json.write(Map.of("agent", "weather", "task", "明天适合户外运动吗？")))));
+        }
+        return new ChatResponse("我是主代理，可以经 A2A 协议与外部代理协作。试试：「发现一下附近的代理」，"
+                + "或直接「让翻译代理把……翻译成英文」「问问天气代理明天适合户外运动吗」。", List.of());
+    }
+
+    /** 远端代理回合（单轮应答）：对方有自己的模型 —— 翻译代理与天气代理各自按身份作答。 */
     private String mockA2a(String all, String last, String system) {
-        if (last.contains("执行结果")) {
-            String fact = extractAfter(last, "执行结果");
-            return "外部代理已通过 A2A 回执：" + (fact.isBlank() ? clip(last) : fact)
-                    + " —— 对方有自己的模型与工具，我们只认 task_id 与回执。";
+        if (system.contains("远端翻译代理")) {
+            return "Hello, Agent.";
         }
-        if (last.contains("发现") || last.contains("名片") || last.contains("附近")) {
-            return Json.write(Map.of("tool", "a2a_discover"));
+        if (system.contains("远端天气代理")) {
+            return "明日晴，22-28℃，东南风 3 级，适合户外运动。";
         }
-        if (last.contains("翻译")) {
-            return Json.write(Map.of("tool", "a2a_send", "agent", "translator",
-                    "task", "把「你好，智能体」翻译成英文"));
-        }
-        if (last.contains("天气") || last.contains("户外")) {
-            return Json.write(Map.of("tool", "a2a_send", "agent", "weather",
-                    "task", "明天适合户外运动吗？"));
-        }
-        return Json.write(Map.of("final",
-                "我是主代理，可以经 A2A 协议与外部代理协作。试试：「发现一下附近的代理」，"
-                        + "或直接「让翻译代理把……翻译成英文」「问问天气代理明天适合户外运动吗」。"));
+        return "（模拟远端响应）";
     }
 
     // ------------------------------------------------------------- step26 定时工具
@@ -619,6 +656,20 @@ public final class MockChatModel implements ChatModel {
         int idx = text.lastIndexOf(marker);
         if (idx < 0) return "";
         return text.substring(idx + marker.length()).replaceFirst("^[\\s:：]+", "").trim();
+    }
+
+    /** 从 A2A 回执 JSON 里取 taskId（形如 task-001-ab12）。 */
+    private String findTaskId(String text) {
+        Matcher m = Pattern.compile("task-\\d{3}-[a-z0-9]{4}").matcher(text);
+        return m.find() ? m.group() : null;
+    }
+
+    /** 从 completed 回执的 artifacts 里取结果文本（取最后一个 text —— 前面的是 status.message）。 */
+    private String extractArtifact(String text) {
+        Matcher m = Pattern.compile("\"text\": ?\"([^\"]+)\"").matcher(text);
+        String last = "";
+        while (m.find()) last = m.group(1);
+        return last;
     }
 
     private String clip(String s) {
