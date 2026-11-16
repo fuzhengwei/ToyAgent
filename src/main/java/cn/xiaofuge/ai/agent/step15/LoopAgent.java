@@ -1,14 +1,18 @@
 package cn.xiaofuge.ai.agent.step15;
 
 import cn.xiaofuge.ai.agent.Agent;
+import cn.xiaofuge.ai.agent.step03.ReActAgent.MockWeather;
 import cn.xiaofuge.ai.llm.ChatModel;
+import cn.xiaofuge.ai.llm.ChatResponse;
 import cn.xiaofuge.ai.llm.Json;
 import cn.xiaofuge.ai.llm.Message;
-import cn.xiaofuge.ai.agent.step03.ReActAgent.MockWeather;
+import cn.xiaofuge.ai.llm.ToolCall;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Step15 · Loop 运行时智能体 —— 生产级 Agent Loop 的骨架。
@@ -21,6 +25,9 @@ import java.util.Map;
  *   <li>输出守卫 —— 对最终回答做合规过滤；</li>
  *   <li>异常兜底 —— 工具失败不拖垮整个循环。</li>
  * </ul>
+ * <p>
+ * 工具调用走<b>标准 Function Calling 协议</b>（tools 字段 + 结构化 tool_calls +
+ * role=tool 回填），与 Step04/Step10 一致 —— 生产运行时不会从自由文本里"猜"JSON。
  * 模型负责聪明，运行时负责可靠。
  */
 public interface LoopAgent extends Agent {
@@ -36,12 +43,36 @@ public interface LoopAgent extends Agent {
         /** 敏感词黑名单（生产中应为规则引擎 + 分类模型）。 */
         private static final List<String> BLOCKED = List.of("密码", "攻击", "hack", "漏洞", "暴力", "炸药");
 
+        /** 提示词只负责人设 —— 工具清单交给协议的 tools 字段，不写进提示词。 */
         private static final String SYSTEM_PROMPT = """
-                你是运行在受控运行时里的智能体。每轮只输出 JSON：
-                {"thought": "思考", "action": "get_weather|calculator", "action_input": "参数"}
-                或 {"thought": "思考", "final": "最终答案"}
-                可用工具：get_weather(city)、calculator(expression)
+                你是运行在受控运行时里的智能体。需要实时数据或精确计算时调用工具，
+                拿到工具结果后再用自然语言回答用户。
                 """;
+
+        /** 按 OpenAI tools 协议构造一个工具的 JSON Schema。 */
+        private static Map<String, Object> tool(String name, String desc, Map<String, Object> params) {
+            Map<String, Object> fn = Json.obj();
+            fn.put("name", name);
+            fn.put("description", desc);
+            fn.put("parameters", params);
+            Map<String, Object> schema = Json.obj();
+            schema.put("type", "function");
+            schema.put("function", fn);
+            return schema;
+        }
+
+        /** 工具清单：随每次请求发给模型 —— 模型能调用什么，完全由这份清单决定。 */
+        private static final List<Map<String, Object>> TOOLS = List.of(
+                tool("get_weather", "查询指定城市的实时天气",
+                        Map.of("type", "object",
+                                "properties", Map.of(
+                                        "city", Map.of("type", "string", "description", "城市名，如：北京")),
+                                "required", List.of("city"))),
+                tool("calculator", "计算四则运算表达式",
+                        Map.of("type", "object",
+                                "properties", Map.of(
+                                        "expression", Map.of("type", "string", "description", "四则运算表达式，如 12*8")),
+                                "required", List.of("expression"))));
 
         public Impl(ChatModel model) {
             this.model = model;
@@ -69,67 +100,67 @@ public interface LoopAgent extends Agent {
             }
             lastTrace.add(Map.of("type", "guard", "label", "🛡️ 输入守卫通过", "detail", "长度 " + input.length() + " 字符，未命中敏感词"));
 
-            // ---------- Agent Loop ----------
+            // ---------- Agent Loop（标准 Function Calling） ----------
             List<Message> messages = new ArrayList<>();
             messages.add(Message.system(SYSTEM_PROMPT));
             messages.add(Message.user(input));
 
             for (int step = 1; step <= MAX_STEPS; step++) {
-                String raw;
+                ChatResponse reply;
                 try {
-                    raw = model.chat(messages).trim();
+                    reply = model.chat(messages, TOOLS);
                 } catch (Exception e) {
                     lastTrace.add(Map.of("type", "warn", "label", "⚠️ 异常兜底", "detail", "模型调用失败: " + e.getMessage()));
                     return "运行时异常已兜底，请稍后重试。";
                 }
-                Object parsed = tryParse(raw);
-                String thought = Json.str(parsed, "thought");
-                if (thought != null) {
-                    lastTrace.add(Map.of("type", "thought", "label", "Thought " + step, "detail", thought));
+
+                // 模型给出最终回答 → 输出守卫 → 放行
+                if (!reply.hasToolCalls()) {
+                    return outputGuard(reply.content(), step);
                 }
 
-                String fin = Json.str(parsed, "final");
-                if (fin != null) {
-                    // ---------- 输出守卫 ----------
-                    for (String word : BLOCKED) {
-                        if (fin.toLowerCase().contains(word)) {
-                            lastTrace.add(Map.of("type", "guard", "label", "⛔ 输出守卫拦截", "detail", "回答命中敏感词，已替换为安全话术"));
-                            return "回答未通过输出合规检查，已按安全策略处理。";
-                        }
+                // 结构化 tool_calls：assistant 消息原样回传，结果按 tool_call_id 对号入座
+                messages.add(Message.assistantToolCalls(reply.toolCalls()));
+                for (ToolCall call : reply.toolCalls()) {
+                    lastTrace.add(Map.of("type", "tool", "label", "tool_calls " + step, "detail", call.name() + " " + call.argumentsJson()));
+
+                    // 工具异常不拖垮循环：降级为错误说明回填给模型
+                    String observation;
+                    try {
+                        observation = execute(call.name(), call.argumentsJson());
+                    } catch (Exception e) {
+                        observation = "工具执行异常: " + e.getMessage();
+                        lastTrace.add(Map.of("type", "warn", "label", "⚠️ 工具异常", "detail", observation));
                     }
-                    lastTrace.add(Map.of("type", "final", "label", "✅ 输出守卫通过 · Final", "detail", "循环共执行 " + step + " 步"));
-                    return fin;
+                    lastTrace.add(Map.of("type", "observation", "label", "Observation " + step, "detail", observation));
+                    messages.add(Message.tool(call.id(), observation));
                 }
-
-                String action = Json.str(parsed, "action");
-                String actionInput = Json.str(parsed, "action_input");
-                lastTrace.add(Map.of("type", "action", "label", "Action " + step, "detail", action + "(" + actionInput + ")"));
-
-                // 工具异常不拖垮循环
-                String observation;
-                try {
-                    observation = execute(action, actionInput);
-                } catch (Exception e) {
-                    observation = "工具执行异常: " + e.getMessage();
-                    lastTrace.add(Map.of("type", "warn", "label", "⚠️ 工具异常", "detail", observation));
-                }
-                lastTrace.add(Map.of("type", "observation", "label", "Observation " + step, "detail", observation));
-
-                messages.add(Message.assistant(raw));
-                messages.add(Message.user("Observation: " + observation));
             }
 
+            // ---------- 保险丝熔断 ----------
             lastTrace.add(Map.of("type", "guard", "label", "🔥 保险丝熔断", "detail", "达到最大步数 " + MAX_STEPS + "，强制终止循环"));
             return "已达到最大执行步数（" + MAX_STEPS + "），为控制成本与风险强制终止。";
         }
 
-        private String execute(String action, String input) {
-            return switch (action == null ? "" : action) {
-                case "get_weather" -> MockWeather.query(input);
+        /** 输出守卫：合规检查通过才放行最终回答。 */
+        private String outputGuard(String fin, int step) {
+            for (String word : BLOCKED) {
+                if (fin != null && fin.toLowerCase().contains(word)) {
+                    lastTrace.add(Map.of("type", "guard", "label", "⛔ 输出守卫拦截", "detail", "回答命中敏感词，已替换为安全话术"));
+                    return "回答未通过输出合规检查，已按安全策略处理。";
+                }
+            }
+            lastTrace.add(Map.of("type", "final", "label", "✅ 输出守卫通过 · Final", "detail", "循环共执行 " + step + " 步"));
+            return fin;
+        }
+
+        private String execute(String tool, String argsJson) {
+            Object args = Json.parse(argsJson == null ? "{}" : argsJson);
+            return switch (tool) {
+                case "get_weather" -> MockWeather.query(Json.str(args, "city"));
                 case "calculator" -> {
-                    java.util.regex.Matcher m = java.util.regex.Pattern
-                            .compile("(\\d+(?:\\.\\d+)?)\\s*([+\\-*/])\\s*(\\d+(?:\\.\\d+)?)")
-                            .matcher(input == null ? "" : input);
+                    Matcher m = Pattern.compile("\\s*(\\d+(?:\\.\\d+)?)\\s*([+\\-*/])\\s*(\\d+(?:\\.\\d+)?)\\s*")
+                            .matcher(String.valueOf(Json.str(args, "expression")));
                     if (!m.matches()) yield "无法解析表达式";
                     double a = Double.parseDouble(m.group(1));
                     double b = Double.parseDouble(m.group(3));
@@ -141,16 +172,8 @@ public interface LoopAgent extends Agent {
                         default -> "不支持的运算符";
                     };
                 }
-                default -> "未知工具: " + action;
+                default -> "未知工具: " + tool;
             };
-        }
-
-        private Object tryParse(String raw) {
-            try {
-                return Json.parse(raw.replaceFirst("^```\\w*\\s*", "").replaceFirst("```\\s*$", "").trim());
-            } catch (Exception e) {
-                return Json.obj();
-            }
         }
 
         @Override
@@ -163,7 +186,7 @@ public interface LoopAgent extends Agent {
     public static void main(String[] args) {
         cn.xiaofuge.ai.llm.ChatModel model = cn.xiaofuge.ai.llm.Models.openAiOrNull();
         if (model == null) model = cn.xiaofuge.ai.llm.Models.mock("demo");
-        String input = args.length > 0 ? String.join(" ", args) : "循环迭代优化：写一段关于春天的短文";
+        String input = args.length > 0 ? String.join(" ", args) : "查一下杭州天气，顺便算一下 12*8 等于多少";
         System.out.println("[输入] " + input);
         System.out.println("[输出] " + new Impl(model).chat(input));
     }

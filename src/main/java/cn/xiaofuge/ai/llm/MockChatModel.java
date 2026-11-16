@@ -39,7 +39,6 @@ public final class MockChatModel implements ChatModel {
             case "step10" -> mockSkill(all, last);
             case "step07" -> mockRag(all, last);
             case "step12" -> mockMulti(all, system);
-            case "step15" -> mockLoop(last, all);
             case "step16" -> mockWorkflow(all, last);
             case "step18" -> mockFull(all, last);
             case "step17" -> mockRuntime(all, last);
@@ -60,7 +59,7 @@ public final class MockChatModel implements ChatModel {
     /**
      * 带 tools 的标准 Function Calling（Mock 侧同协议应答）：
      * 最后一轮消息是 role=tool 时给出最终回答，否则按语义发起结构化 tool_calls。
-     * step04（手写清单）与 step11（注册表生成清单）共用同一协议链路。
+     * step04（手写清单）、step11（注册表生成清单）与 step15（运行时外壳）共用同一协议链路。
      */
     @Override
     public ChatResponse chat(List<Message> messages, List<Map<String, Object>> tools) {
@@ -71,12 +70,15 @@ public final class MockChatModel implements ChatModel {
         if ("step14".equals(scenario) && tools != null && !tools.isEmpty()) {
             return mockA2aToolCall(messages);
         }
-        if (("step04".equals(scenario) || registryScenario) && tools != null && !tools.isEmpty()) {
+        if (("step04".equals(scenario) || "step15".equals(scenario) || registryScenario)
+                && tools != null && !tools.isEmpty()) {
             Message last = messages.get(messages.size() - 1);
             if ("tool".equals(last.role())) {
-                String tail = registryScenario
-                        ? " —— 执行器全程只查注册表，不认识任何具体工具。"
-                        : " —— 工具调用链闭环完成。";
+                String tail = switch (scenario) {
+                    case "step11" -> " —— 执行器全程只查注册表，不认识任何具体工具。";
+                    case "step15" -> " —— 守卫放行、协议闭环、保险丝未触发，运行时全程护航。";
+                    default -> " —— 工具调用链闭环完成。";
+                };
                 return new ChatResponse(
                         "根据工具返回的结果：" + clip(last.content()) + "，这就是你要的答案" + tail, List.of());
             }
@@ -309,21 +311,6 @@ public final class MockChatModel implements ChatModel {
             return "短文：智能体并不神秘 —— 它是一个让大模型「边想边做」的循环程序：模型负责决策，工具负责执行，记忆负责延续，工程负责兜底。（由写手智能体基于研究笔记产出）";
         }
         return "（Mock 模型）已收到任务。";
-    }
-
-    // ------------------------------------------------------------- step15 Loop + 守卫
-
-    private String mockLoop(String last, String all) {
-        if (all.contains("Observation:")) {
-            String obs = extractAfter(all, "Observation:");
-            return Json.write(Map.of(
-                    "thought", "信息足够，输出最终答案",
-                    "final", "循环结束，最终回答：" + clip(obs)));
-        }
-        return Json.write(Map.of(
-                "thought", "进入运行时循环，先获取所需信息",
-                "action", "get_weather",
-                "action_input", findCity(last)));
     }
 
     // ------------------------------------------------------------- step16 工作流
