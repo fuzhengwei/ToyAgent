@@ -1,10 +1,12 @@
 package cn.xiaofuge.ai.agent.step16;
 
 import cn.xiaofuge.ai.agent.Agent;
+import cn.xiaofuge.ai.agent.step03.ReActAgent.MockWeather;
 import cn.xiaofuge.ai.llm.ChatModel;
+import cn.xiaofuge.ai.llm.ChatResponse;
 import cn.xiaofuge.ai.llm.Json;
 import cn.xiaofuge.ai.llm.Message;
-import cn.xiaofuge.ai.agent.step03.ReActAgent.MockWeather;
+import cn.xiaofuge.ai.llm.ToolCall;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -21,6 +23,15 @@ import java.util.regex.Pattern;
  * 每个节点是一段能力（分类/工具/问答/润色），条件边决定流转，
  * 状态（State）在节点间传递 —— 这就是 LangGraph 的核心思想，
  * 也是生产系统中"可控性"与"灵活性"的平衡点。
+ * <p>
+ * 节点与模型的对接全部走标准 Function Calling 协议：
+ * <ul>
+ *   <li>classify 路由节点 —— 注册 {@code choose_route} 结构化选择工具
+ *       （与 Step10 的 choose_skill 同构），不再让模型输出自由文本 JSON；</li>
+ *   <li>tool 工具节点 —— get_weather / calculator 以 JSON Schema 进 tools 字段，
+ *       模型经 tool_calls 决定调哪个、参数怎么填。节点只执行<b>一轮</b>、不循环 ——
+ *       这是工作流与 ReAct 的本质区别：节点内不允许自由转圈，转不转由流程说了算。</li>
+ * </ul>
  */
 public interface WorkflowAgent extends Agent {
 
@@ -28,6 +39,42 @@ public interface WorkflowAgent extends Agent {
 
         private final ChatModel model;
         private final List<Map<String, Object>> lastTrace = new ArrayList<>();
+
+        /** 按 OpenAI tools 协议构造一个工具的 JSON Schema。 */
+        private static Map<String, Object> tool(String name, String desc, Map<String, Object> params) {
+            Map<String, Object> fn = Json.obj();
+            fn.put("name", name);
+            fn.put("description", desc);
+            fn.put("parameters", params);
+            Map<String, Object> schema = Json.obj();
+            schema.put("type", "function");
+            schema.put("function", fn);
+            return schema;
+        }
+
+        /** 路由节点的结构化选择工具：让模型选分支，而不是猜它输出的 JSON 文本。 */
+        private static final List<Map<String, Object>> ROUTER_TOOLS = List.of(
+                tool("choose_route", "根据用户输入从工作流分支中选择下一跳",
+                        Map.of("type", "object",
+                                "properties", Map.of(
+                                        "next", Map.of("type", "string",
+                                                "description", "下一跳节点",
+                                                "enum", List.of("faq", "tool")),
+                                        "reason", Map.of("type", "string", "description", "一句话理由")),
+                                "required", List.of("next"))));
+
+        /** 工具节点的工具清单：随请求发给模型，模型能调什么由这份清单决定。 */
+        private static final List<Map<String, Object>> TOOLS = List.of(
+                tool("get_weather", "查询指定城市的实时天气",
+                        Map.of("type", "object",
+                                "properties", Map.of(
+                                        "city", Map.of("type", "string", "description", "城市名，如：北京")),
+                                "required", List.of("city"))),
+                tool("calculator", "计算四则运算表达式",
+                        Map.of("type", "object",
+                                "properties", Map.of(
+                                        "expression", Map.of("type", "string", "description", "四则运算表达式，如 12*8")),
+                                "required", List.of("expression"))));
 
         public Impl(ChatModel model) {
             this.model = model;
@@ -74,41 +121,48 @@ public interface WorkflowAgent extends Agent {
             String nodePrompt = "[节点:" + node + "] ";
             switch (node) {
                 case "classify" -> {
-                    // 意图分类节点：模型输出路由决策
-                    String raw = model.chat(List.of(
-                            Message.system(nodePrompt + """
-                                    你是意图分类器，只输出 JSON：{"next": "faq|tool", "reason": "一句话"}
-                                    涉及天气或四则运算 → tool，其他 → faq
-                                    """),
-                            Message.user(input))).trim();
-                    Object parsed = tryParse(raw);
-                    String next = Json.str(parsed, "next");
-                    state.put("next", next == null ? "faq" : next);
-                    lastTrace.add(Map.of("type", "node", "label", "🔹 节点 classify", "detail", "路由决策 → " + state.get("next")));
+                    // 路由节点：choose_route 结构化选择 —— 服务端保证结构，不猜自由文本 JSON
+                    ChatResponse routed = model.chat(List.of(
+                            Message.system(nodePrompt + "你是意图分类器。调用 choose_route 选择下一个节点。"),
+                            Message.user(input)), ROUTER_TOOLS);
+                    String next = "faq";
+                    String reason = "模型未发起路由调用，回退 faq";
+                    if (routed.hasToolCalls()) {
+                        for (ToolCall call : routed.toolCalls()) {
+                            if ("choose_route".equals(call.name())) {
+                                Object args = Json.parse(call.argumentsJson() == null ? "{}" : call.argumentsJson());
+                                String want = Json.str(args, "next");
+                                if ("tool".equals(want) || "faq".equals(want)) next = want;
+                                reason = String.valueOf(Json.str(args, "reason"));
+                            }
+                        }
+                    }
+                    state.put("next", next);
+                    state.put("route_reason", reason);
+                    lastTrace.add(Map.of("type", "node", "label", "🔹 节点 classify", "detail", "路由决策 → " + next + "（" + reason + "）"));
                 }
                 case "tool" -> {
-                    Matcher m = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*([+\\-*/])\\s*(\\d+(?:\\.\\d+)?)").matcher(input);
+                    // 工具节点：单轮 Function Calling —— 模型决定调哪个工具、填什么参数；
+                    // 节点只执行一轮、不循环，转不转由流程说了算（与 ReAct 的本质区别）。
+                    ChatResponse reply = model.chat(List.of(
+                            Message.system(nodePrompt + "你是工具节点。根据用户输入调用合适的工具（get_weather 或 calculator）。"),
+                            Message.user(input)), TOOLS);
                     String observation;
-                    if (m.find()) {
-                        double a = Double.parseDouble(m.group(1));
-                        double b = Double.parseDouble(m.group(3));
-                        double r = switch (m.group(2)) {
-                            case "+" -> a + b;
-                            case "-" -> a - b;
-                            case "*" -> a * b;
-                            case "/" -> b == 0 ? Double.NaN : a / b;
-                            default -> Double.NaN;
-                        };
-                        observation = "计算结果 " + (Double.isNaN(r) ? "失败" : r == Math.floor(r) ? String.valueOf((long) r) : String.valueOf(r));
+                    if (reply.hasToolCalls()) {
+                        StringBuilder sb = new StringBuilder();
+                        for (ToolCall call : reply.toolCalls()) {
+                            lastTrace.add(Map.of("type", "tool", "label", "发起 tool_calls", "detail", call.name() + " " + call.argumentsJson()));
+                            sb.append(executeTool(call.name(), call.argumentsJson())).append("；");
+                        }
+                        observation = sb.toString();
                     } else {
-                        String city = input.contains("上海") ? "上海" : input.contains("杭州") ? "杭州"
-                                : input.contains("成都") ? "成都" : "北京";
-                        observation = "「" + city + "」" + MockWeather.query(city);
+                        observation = reply.content();   // 模型判断无需工具，直接给说明
                     }
                     state.put("observation", observation);
                     lastTrace.add(Map.of("type", "node", "label", "🔹 节点 tool", "detail", observation));
                 }
                 case "faq" -> {
+                    // 纯生成节点：不需要工具，不传 tools 字段
                     String answer = model.chat(List.of(
                             Message.system(nodePrompt + "你是 FAQ 问答节点，直接简洁回答常见问题。"),
                             Message.user(input)));
@@ -134,11 +188,30 @@ public interface WorkflowAgent extends Agent {
             }
         }
 
-        private Object tryParse(String raw) {
+        /** 工具注册表：本场景 2 个本地工具，执行器就是一个 switch。 */
+        private String executeTool(String tool, String argsJson) {
             try {
-                return Json.parse(raw.replaceFirst("^```\\w*\\s*", "").replaceFirst("```\\s*$", "").trim());
+                Object args = Json.parse(argsJson == null ? "{}" : argsJson);
+                return switch (tool) {
+                    case "get_weather" -> MockWeather.query(Json.str(args, "city"));
+                    case "calculator" -> {
+                        Matcher m = Pattern.compile("\\s*(\\d+(?:\\.\\d+)?)\\s*([+\\-*/])\\s*(\\d+(?:\\.\\d+)?)\\s*")
+                                .matcher(String.valueOf(Json.str(args, "expression")));
+                        if (!m.matches()) yield "无法解析表达式";
+                        double a = Double.parseDouble(m.group(1));
+                        double b = Double.parseDouble(m.group(3));
+                        yield switch (m.group(2)) {
+                            case "+" -> String.valueOf(a + b);
+                            case "-" -> String.valueOf(a - b);
+                            case "*" -> String.valueOf(a * b);
+                            case "/" -> b == 0 ? "除数不能为 0" : String.valueOf(a / b);
+                            default -> "不支持的运算符";
+                        };
+                    }
+                    default -> "未知工具: " + tool;
+                };
             } catch (Exception e) {
-                return Json.obj();
+                return "工具执行失败: " + e.getMessage();
             }
         }
 
@@ -157,7 +230,7 @@ public interface WorkflowAgent extends Agent {
     public static void main(String[] args) {
         cn.xiaofuge.ai.llm.ChatModel model = cn.xiaofuge.ai.llm.Models.openAiOrNull();
         if (model == null) model = cn.xiaofuge.ai.llm.Models.mock("demo");
-        String input = args.length > 0 ? String.join(" ", args) : "按工作流执行：输入 Hello 输出处理结果";
+        String input = args.length > 0 ? String.join(" ", args) : "查一下杭州天气，再算一下 12*8";
         System.out.println("[输入] " + input);
         System.out.println("[输出] " + new Impl(model).chat(input));
     }

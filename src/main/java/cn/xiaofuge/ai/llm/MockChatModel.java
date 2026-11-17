@@ -59,18 +59,27 @@ public final class MockChatModel implements ChatModel {
     /**
      * 带 tools 的标准 Function Calling（Mock 侧同协议应答）：
      * 最后一轮消息是 role=tool 时给出最终回答，否则按语义发起结构化 tool_calls。
-     * step04（手写清单）、step11（注册表生成清单）与 step15（运行时外壳）共用同一协议链路。
+     * step04（手写清单）、step11（注册表生成清单）、step15（运行时外壳）
+     * 与 step16（工作流工具节点）共用同一协议链路。
      */
     @Override
     public ChatResponse chat(List<Message> messages, List<Map<String, Object>> tools) {
         boolean registryScenario = "step11".equals(scenario);
+        // 工作流路由（step16）：choose_route 结构化选择分支，与 step10 的 choose_skill 同构
+        if (toolListHas(tools, "choose_route")) {
+            String lastUser = lastUserText(messages);
+            boolean needsTool = lastUser.contains("天气") || lastUser.contains("weather")
+                    || lastUser.matches(".*\\d+\\s*[+\\-*/]\\s*\\d+.*");
+            return new ChatResponse("", List.of(new ToolCall("mock-call-1", "choose_route",
+                    Json.write(Map.of("next", needsTool ? "tool" : "faq", "reason", "依据输入语义选择分支")))));
+        }
         if ("step13".equals(scenario) && tools != null && !tools.isEmpty()) {
             return mockSubagentToolCall(messages);
         }
         if ("step14".equals(scenario) && tools != null && !tools.isEmpty()) {
             return mockA2aToolCall(messages);
         }
-        if (("step04".equals(scenario) || "step15".equals(scenario) || registryScenario)
+        if (("step04".equals(scenario) || "step15".equals(scenario) || "step16".equals(scenario) || registryScenario)
                 && tools != null && !tools.isEmpty()) {
             Message last = messages.get(messages.size() - 1);
             if ("tool".equals(last.role())) {
@@ -107,6 +116,15 @@ public final class MockChatModel implements ChatModel {
             if (messages.get(i).role().equals("user")) return messages.get(i).content();
         }
         return "";
+    }
+
+    /** 判断 tools 清单里是否声明了某个工具名（按 OpenAI tools 协议的 function.name）。 */
+    private static boolean toolListHas(List<Map<String, Object>> tools, String name) {
+        if (tools == null) return false;
+        for (Map<String, Object> t : tools) {
+            if (t.get("function") instanceof Map<?, ?> fn && name.equals(fn.get("name"))) return true;
+        }
+        return false;
     }
 
     // ------------------------------------------------------------- step01 对话
@@ -315,21 +333,8 @@ public final class MockChatModel implements ChatModel {
 
     // ------------------------------------------------------------- step16 工作流
 
+    /** 工作流的纯生成节点（faq / polish）走无 tools 的普通对话，按节点身份作答。 */
     private String mockWorkflow(String all, String last) {
-        if (all.contains("[节点:classify]")) {
-            String next = last.contains("天气") || last.matches(".*\\d+\\s*[+\\-*/].*") ? "tool" : "faq";
-            return Json.write(Map.of("next", next, "reason", "意图分类节点给出路由"));
-        }
-        if (all.contains("[节点:tool]")) {
-            if (last.matches(".*\\d+\\s*[+\\-*/]\\s*\\d+.*")) {
-                Matcher m = Pattern.compile("(\\d+\\s*[+\\-*/]\\s*\\d+)").matcher(last);
-                return Json.write(Map.of("tool", "calculator", "arguments", Map.of("expression", m.find() ? m.group(1) : "1+1")));
-            }
-            return Json.write(Map.of("tool", "get_weather", "arguments", Map.of("city", findCity(last))));
-        }
-        if (all.contains("Observation:")) {
-            return "综合以上节点结果，这里是最终回答：" + clip(extractAfter(all, "Observation:")) + "（由 polish 节点整理输出）。";
-        }
         if (all.contains("[节点:polish]")) {
             String base = extractAfter(all, "前序产出: ").lines().findFirst().orElse("");
             return base.isBlank() ? "润色完成：「" + clip(last) + "」。" : "润色完成：" + clip(base);
