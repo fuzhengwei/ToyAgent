@@ -41,7 +41,6 @@ public final class MockChatModel implements ChatModel {
             case "step12" -> mockMulti(all, system);
             case "step16" -> mockWorkflow(all, last);
             case "step18" -> mockFull(all, last);
-            case "step17" -> mockRuntime(all, last);
             case "step19" -> mockAsk(all, last);
             case "step20" -> mockApproval(last);
             case "step21" -> mockSandbox(last);
@@ -59,8 +58,8 @@ public final class MockChatModel implements ChatModel {
     /**
      * 带 tools 的标准 Function Calling（Mock 侧同协议应答）：
      * 最后一轮消息是 role=tool 时给出最终回答，否则按语义发起结构化 tool_calls。
-     * step04（手写清单）、step11（注册表生成清单）、step15（运行时外壳）
-     * 与 step16（工作流工具节点）共用同一协议链路。
+     * step04（手写清单）、step11（注册表生成清单）、step15（运行时外壳）、
+     * step16（工作流工具节点）与 step17（ReAct 运行时）共用同一协议链路。
      */
     @Override
     public ChatResponse chat(List<Message> messages, List<Map<String, Object>> tools) {
@@ -79,19 +78,32 @@ public final class MockChatModel implements ChatModel {
         if ("step14".equals(scenario) && tools != null && !tools.isEmpty()) {
             return mockA2aToolCall(messages);
         }
-        if (("step04".equals(scenario) || "step15".equals(scenario) || "step16".equals(scenario) || registryScenario)
+        if (("step04".equals(scenario) || "step15".equals(scenario) || "step16".equals(scenario)
+                || "step17".equals(scenario) || registryScenario)
                 && tools != null && !tools.isEmpty()) {
             Message last = messages.get(messages.size() - 1);
+            // step17 死循环剧本优先：echo 的结果喂回后模型"仍不满足"，继续发起 echo —— 直到保险丝起跳
+            if ("step17".equals(scenario) && "tool".equals(last.role())
+                    && last.content().startsWith("echo:")) {
+                return new ChatResponse("", List.of(new ToolCall("mock-call-" + last.toolCallId(), "echo",
+                        Json.write(Map.of("text", "tick")))));
+            }
             if ("tool".equals(last.role())) {
                 String tail = switch (scenario) {
                     case "step11" -> " —— 执行器全程只查注册表，不认识任何具体工具。";
                     case "step15" -> " —— 守卫放行、协议闭环、保险丝未触发，运行时全程护航。";
+                    case "step17" -> " —— 观察结果按 tool_call_id 回填后，turn 内继续续步直到模型给出最终答案。";
                     default -> " —— 工具调用链闭环完成。";
                 };
                 return new ChatResponse(
                         "根据工具返回的结果：" + clip(last.content()) + "，这就是你要的答案" + tail, List.of());
             }
+            // step17 专属剧本：「死循环测试」发起 echo（Mock 模拟失控场景）
             String lastUser = lastUserText(messages);
+            if ("step17".equals(scenario) && (lastUser.contains("死循环") || lastUser.contains("循环测试"))) {
+                return new ChatResponse("", List.of(new ToolCall("mock-call-1", "echo",
+                        Json.write(Map.of("text", "tick")))));
+            }
             if (lastUser.contains("天气") || lastUser.contains("weather")) {
                 return new ChatResponse("", List.of(new ToolCall("mock-call-1", "get_weather",
                         Json.write(Map.of("city", findCity(lastUser))))));
@@ -105,8 +117,14 @@ public final class MockChatModel implements ChatModel {
                 return new ChatResponse("", List.of(new ToolCall("mock-call-1", "get_time",
                         Json.write(Map.of()))));
             }
-            return new ChatResponse(
-                    "这个问题不需要调用工具，我直接回答：「" + clip(lastUser) + "」—— 工具调用的关键在于：模型自己判断「要不要用工具、用哪个、参数是什么」。", List.of());
+            String direct = "这个问题不需要调用工具，我直接回答：「" + clip(lastUser) + "」—— 工具调用的关键在于：模型自己判断「要不要用工具、用哪个、参数是什么」。";
+            if ("step17".equals(scenario)) {
+                long turns = messages.stream().filter(msg -> "user".equals(msg.role())).count();
+                direct = "（Mock 模型）本轮带着 " + (messages.size() - 1)
+                        + " 条已按预算裁剪的会话历史调用模型，无需工具直接作答。多聊几轮，可在轨迹里看到「上下文裁剪」事件"
+                        + (turns > 1 ? "（这是本会话第 " + turns + " 个 turn）。" : "。");
+            }
+            return new ChatResponse(direct, List.of());
         }
         return new ChatResponse(chat(messages), List.of());
     }
@@ -340,47 +358,6 @@ public final class MockChatModel implements ChatModel {
             return base.isBlank() ? "润色完成：「" + clip(last) + "」。" : "润色完成：" + clip(base);
         }
         return "这是 FAQ 节点的直接回答。「" + clip(last) + "」属于常见问题，无需工具，命中预设答案后进入 polish 润色。";
-    }
-
-    // ------------------------------------------------------------- step17 ReAct 运行时
-
-    /** ReAct 协议；「死循环测试」会永远发起 echo 工具调用，触发 MAX_STEPS 保险丝。 */
-    private String mockRuntime(String all, String last) {
-        // echo 的观察结果继续发起 echo —— 模拟失控场景，直到保险丝起跳
-        if (last.startsWith("Observation: echo:")) {
-            return Json.write(Map.of(
-                    "thought", "任务还没完成，继续调用 echo（模拟失控）",
-                    "action", "echo",
-                    "action_input", "tick"));
-        }
-        if (last.contains("死循环") || last.contains("循环测试")) {
-            return Json.write(Map.of(
-                    "thought", "这个任务永远做不完（模拟失控场景）",
-                    "action", "echo",
-                    "action_input", "tick"));
-        }
-        if (all.contains("Observation:")) {
-            String obs = extractAfter(all, "Observation:");
-            return Json.write(Map.of(
-                    "thought", "已拿到观察结果，信息足够，结束本回合",
-                    "final", "根据工具查询结果：" + clip(obs) + "（turn 以 TurnEndReason.Completed 收场）"));
-        }
-        Matcher m = Pattern.compile("(\\d+\\s*[+\\-*/]\\s*\\d+)").matcher(last);
-        if (m.find()) {
-            return Json.write(Map.of(
-                    "thought", "有算式，调用计算器，不能心算",
-                    "action", "calculator",
-                    "action_input", m.group(1)));
-        }
-        if (last.contains("天气") || last.contains("weather")) {
-            return Json.write(Map.of(
-                    "thought", "需要实时数据，先调天气工具",
-                    "action", "get_weather",
-                    "action_input", findCity(last)));
-        }
-        return Json.write(Map.of(
-                "thought", "普通对话无需工具，直接作答",
-                "final", "（Mock 模型）本轮 " + countHistory(all) + " 条历史的上下文已按预算裁剪后发给模型。多聊几轮，可在轨迹里看到「上下文裁剪」事件。"));
     }
 
     // ------------------------------------------------------------- step19 人工介入
