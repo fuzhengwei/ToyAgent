@@ -1,0 +1,1916 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Step18 FullAgent · 最小完整 Agent 代码地图</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --panel: #ffffff;
+    --border: #e4e7ec;
+    --border-2: #d3d8e0;
+    --text: #1f2430;
+    --text-2: #5c6370;
+    --text-3: #99a1ad;
+    --accent: #3574f0;
+    --accent-deep: #2456c4;
+    --accent-soft: #e9f0fe;
+    --green: #1a9e5c;
+    --green-deep: #0b7a44;
+    --green-soft: #e6f6ec;
+    --amber: #c07a0a;
+    --amber-soft: #fdf3e0;
+    --gray: #8a93a3;
+    --gray-soft: #f1f3f6;
+    --red: #d64550;
+    --purple: #7a5af8;
+    --orange: #f0842c;
+    --shadow-sm: 0 1px 2px rgba(16,24,40,.05);
+    --shadow-md: 0 2px 10px rgba(16,24,40,.08);
+    --tree-w: 336px;
+    --doc-w: 448px;
+    --mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { font-family: var(--sans); background: var(--bg); color: var(--text);
+    font-size: 13px; overflow: hidden; }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #d0d5dd; border-radius: 8px;
+    border: 2px solid transparent; background-clip: content-box; }
+  ::-webkit-scrollbar-thumb:hover { background: #b9c0ca; border: 2px solid transparent;
+    background-clip: content-box; }
+
+  /* ══════════ 顶栏 ══════════ */
+  header {
+    height: 54px; display: flex; align-items: center; gap: 13px; padding: 0 18px;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow-sm); z-index: 60; position: relative;
+  }
+  .logo {
+    width: 32px; height: 32px; border-radius: 8px; flex: none;
+    background: linear-gradient(135deg, #3574f0 0%, #6d9bf7 100%);
+    display: flex; align-items: center; justify-content: center; color: #fff; font-size: 16px;
+    box-shadow: 0 2px 6px rgba(53,116,240,.35);
+  }
+  .title-block h1 { font-size: 15px; font-weight: 700; letter-spacing: .2px; line-height: 1.2; }
+  .title-block p { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+  .title-block p b { color: var(--green-deep); font-weight: 600; }
+  .title-block p i { font-style: normal; color: #c2c8d1; margin: 0 4px; }
+  .stats { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+  .stat { display: flex; align-items: baseline; gap: 5px; padding: 4px 11px; white-space: nowrap;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 7px; }
+  .stat .num { font-family: var(--mono); font-size: 12.5px; font-weight: 700; color: var(--green-deep); }
+  .stat .num.amber { color: var(--amber); }
+  .stat .lbl { font-size: 10.5px; color: var(--text-3); }
+  .hbtn {
+    font-size: 12px; padding: 6px 14px; border-radius: 7px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--panel); color: var(--text-2);
+    transition: all .15s; white-space: nowrap; font-family: var(--sans);
+  }
+  .hbtn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .hbtn.primary { background: var(--accent); border-color: var(--accent); color: #fff;
+    font-weight: 600; box-shadow: 0 2px 6px rgba(53,116,240,.3); }
+  .hbtn.primary:hover { background: var(--accent-deep); border-color: var(--accent-deep); color: #fff; }
+  .hbtn .key { opacity: .55; font-size: 10px; margin-left: 3px; }
+
+  /* ══════════ 三栏舞台 ══════════ */
+  .stage {
+    position: relative; display: grid;
+    grid-template-columns: var(--tree-w) minmax(0, 1fr) var(--doc-w);
+    height: calc(100% - 54px);
+  }
+  #linkLayer {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 50; overflow: visible;
+  }
+  #linkLayer path.lk { fill: none; stroke: url(#lkgrad); stroke-width: 2.2;
+    stroke-linecap: round; stroke-dasharray: 6 6; animation: dashmove 1.1s linear infinite;
+    filter: drop-shadow(0 1px 2px rgba(53,116,240,.25)); }
+  #linkLayer circle.src-dot { fill: var(--accent); stroke: #fff; stroke-width: 1.6; }
+  @keyframes dashmove { to { stroke-dashoffset: -12; } }
+
+  /* ══════════ 左侧：IDEA 风格工程树 ══════════ */
+  #treePanel { background: var(--panel); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; overflow: hidden; }
+  .tree-head { flex: none; padding: 10px 12px 9px; border-bottom: 1px solid var(--border);
+    background: var(--panel); }
+  .tree-title { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 700;
+    color: var(--text-2); letter-spacing: .8px; text-transform: uppercase; }
+  .tree-title .proj { font-family: var(--mono); font-size: 10px; letter-spacing: 0;
+    text-transform: none; color: var(--text-3); font-weight: 400;
+    background: var(--gray-soft); border-radius: 5px; padding: 2px 7px; }
+  .tree-search { display: flex; align-items: center; gap: 6px; margin-top: 8px;
+    border: 1px solid var(--border); border-radius: 7px; padding: 4.5px 9px;
+    background: var(--bg); transition: all .15s; }
+  .tree-search:focus-within { border-color: var(--accent); background: #fff;
+    box-shadow: 0 0 0 3px rgba(53,116,240,.12); }
+  .tree-search svg { flex: none; color: var(--text-3); }
+  .tree-search input { flex: 1; min-width: 0; border: none; outline: none; background: transparent;
+    font-size: 12px; color: var(--text); font-family: var(--sans); }
+  .tree-search input::placeholder { color: #b3bac4; }
+  .tree-search .cnt { flex: none; font-family: var(--mono); font-size: 9.5px; color: var(--text-3); }
+  .tree-tools { display: flex; gap: 5px; margin-top: 8px; }
+  .ttool { flex: 1; text-align: center; font-size: 10.5px; padding: 4px 0; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--panel); color: var(--text-2);
+    cursor: pointer; transition: all .12s; white-space: nowrap; }
+  .ttool:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .ttool:active { transform: scale(.97); }
+
+  #tree { flex: 1; overflow: auto; padding: 6px 6px 20px; }
+  .tnode {
+    display: flex; align-items: center; gap: 5px; height: 25px; padding: 0 7px;
+    border-radius: 5px; cursor: pointer; user-select: none; color: var(--text);
+    line-height: 1; position: relative; font-size: 12px; transition: background .1s;
+  }
+  .tnode:hover { background: #eef3fa; }
+  .tnode.active { background: #d6e5fb; box-shadow: inset 0 0 0 1px #9dbdf2; }
+  .tnode.active .name { font-weight: 600; color: #17407e; }
+  .chev { flex: none; width: 14px; height: 14px; color: #a2a9b3;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .18s ease, color .12s; border-radius: 3px; }
+  .chev:hover { background: #dce8fa; color: var(--accent); }
+  .chev.hidden { visibility: hidden; pointer-events: none; }
+  .tbranch.closed > .tnode .chev { transform: rotate(-90deg); }
+  .tbranch { position: relative; }
+  .tbranch.fhide { display: none; }
+  .tkids-wrap { position: relative; margin-left: 12px; padding-left: 7px;
+    display: grid; grid-template-rows: 1fr; transition: grid-template-rows .2s ease; }
+  .tkids-wrap::before { content: ''; position: absolute; left: 3px; top: 0; bottom: 4px;
+    width: 1px; background: linear-gradient(180deg, #dce1e9 60%, #f0f2f5); }
+  .tbranch.closed > .tkids-wrap { grid-template-rows: 0fr; }
+  .tkids-inner { overflow: hidden; min-height: 0; }
+  .kico { flex: none; width: 15px; height: 15px; display: inline-flex;
+    align-items: center; justify-content: center;
+    filter: drop-shadow(0 .5px .5px rgba(20,30,50,.12)); }
+  .tnode .name { flex: 1 1 auto; min-width: 0; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+  .tnode .name.mono { font-family: var(--mono); font-size: 10.5px; letter-spacing: -.1px; }
+  .tnode .name.m-new { color: var(--green-deep); }
+  .tnode .name.mod-name { color: var(--amber); }
+  .tnode.dim .name, .tnode.dim .name.mono { color: #a5acb6; }
+  .tnode .name mark { background: #ffe58a; color: inherit; border-radius: 2px; padding: 0 1px; }
+  .tnode .kids-n { flex: none; font-family: var(--mono); font-size: 8.5px; color: #a8afba;
+    background: var(--gray-soft); border-radius: 8px; padding: 1.5px 6px; display: none; }
+  .tbranch.closed > .tnode .kids-n { display: inline-block; }
+  .badge { flex: none; font-size: 9px; font-weight: 600; padding: 1.5px 5.5px;
+    border-radius: 4px; line-height: 1.25; letter-spacing: .5px;
+    border: 1px solid transparent; }
+  .badge.new { color: var(--green-deep); border-color: #b7e3c9; background: #f0faf4; }
+  .badge.mod { color: var(--amber); border-color: #eed7ae; background: #fdf8ec; }
+  .badge.old { color: #97a0ab; border-color: #d9dde3; background: #f7f8fa; }
+  .tree-foot { flex: none; display: flex; align-items: center; gap: 12px;
+    padding: 7px 14px; border-top: 1px solid var(--border); background: var(--bg);
+    font-size: 10.5px; color: var(--text-2); }
+  .tree-foot b { font-family: var(--mono); font-weight: 700; }
+  .tree-foot .fn { display: inline-flex; align-items: center; gap: 5px; }
+  .tree-foot .fdot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+
+  /* ══════════ 中间：图区 ══════════ */
+  #center { display: flex; flex-direction: column; overflow: hidden; background: #fafbfd; }
+  .tabs { display: flex; align-items: center; gap: 2px; padding: 0 14px; flex: none;
+    background: var(--panel); border-bottom: 1px solid var(--border); }
+  .tab { padding: 10px 15px 8px; cursor: pointer; font-size: 12.5px; color: var(--text-2);
+    border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color .15s; }
+  .tab:hover { color: var(--text); }
+  .tab.on { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  .zctl { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+  .zbtn { font-size: 11px; padding: 3.5px 10px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--panel); color: var(--text-2); cursor: pointer; transition: all .12s;
+    white-space: nowrap; font-family: var(--mono); }
+  .zbtn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .zsep { width: 1px; height: 16px; background: var(--border); margin: 0 3px; }
+
+  /* 主线导航条 */
+  .rail { display: flex; align-items: center; gap: 10px; padding: 7px 14px; flex: none;
+    background: var(--panel); border-bottom: 1px solid var(--border); }
+  .rail-cap { flex: none; font-size: 10.5px; font-weight: 700; color: var(--accent);
+    letter-spacing: .5px; white-space: nowrap; }
+  .rail-steps { display: flex; align-items: center; gap: 5px; overflow-x: auto; flex: 1;
+    padding: 2px 0; scrollbar-width: none; }
+  .rail-steps::-webkit-scrollbar { display: none; }
+  .rstep { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px 3px 4px;
+    border-radius: 999px; border: 1px solid var(--border); background: #fff;
+    font-size: 11px; color: var(--text-2); cursor: pointer; white-space: nowrap;
+    transition: all .15s; flex: none; }
+  .rstep:hover { border-color: var(--accent); color: var(--accent); }
+  .rstep .rs-n { width: 16px; height: 16px; border-radius: 50%; flex: none;
+    background: var(--gray-soft); color: var(--text-2); font-size: 9.5px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; font-family: var(--mono);
+    transition: all .15s; }
+  .rstep.cur { border-color: var(--accent); background: var(--accent-soft);
+    color: var(--accent-deep); font-weight: 600;
+    box-shadow: 0 1px 4px rgba(53,116,240,.18); }
+  .rstep.cur .rs-n { background: var(--accent); color: #fff; }
+  .rstep.done .rs-n { background: #d3e3fb; color: var(--accent); }
+  .rail-hint { flex: none; font-size: 10px; color: var(--text-3); white-space: nowrap; }
+
+  /* 图例 */
+  .legend { display: flex; align-items: center; gap: 14px; padding: 6px 20px; flex: none;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    font-size: 10.5px; color: var(--text-3); white-space: nowrap; overflow-x: auto; }
+  .legend i { font-style: normal; display: inline-flex; align-items: center; gap: 5px; }
+  .legend .dot { width: 9px; height: 9px; border-radius: 3px; display: inline-block; flex: none; }
+  .legend .lg-esc { margin-left: auto; color: #b6bdc7; }
+
+  .diagram-wrap { flex: 1; overflow: auto; padding: 22px 24px 44px; display: none;
+    background-image: radial-gradient(var(--border-2) 1px, transparent 1px);
+    background-size: 22px 22px; }
+  .diagram-wrap.on { display: block; }
+  .mermaid-box { background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 26px; min-width: fit-content;
+    box-shadow: var(--shadow-md); position: relative; }
+  .mermaid-box svg { display: block; height: auto; }
+  details.src { margin-top: 14px; max-width: 900px; }
+  details.src summary { cursor: pointer; font-size: 11.5px; color: var(--text-3); }
+  details.src summary:hover { color: var(--text-2); }
+  details.src pre {
+    margin-top: 8px; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px; font-family: var(--mono); font-size: 11px;
+    line-height: 1.6; overflow: auto; color: #3c434d; box-shadow: var(--shadow-sm);
+  }
+  .box-err { padding: 40px; color: var(--red); }
+
+  /* ══════════ 代码页签 ══════════ */
+  .code-head { background: var(--panel); border: 1px solid var(--border); border-bottom: none;
+    border-radius: 10px 10px 0 0; padding: 8px 16px; font-size: 12px; color: var(--text-2);
+    font-family: var(--mono); max-width: 1020px; }
+  .code-head b { color: var(--text); }
+  .code-panel { background: #fff; border: 1px solid var(--border); border-radius: 0 0 10px 10px;
+    max-width: 1020px; overflow: auto; font-family: var(--mono); font-size: 12px; line-height: 1.65;
+    box-shadow: var(--shadow-sm); padding: 6px 0 10px; }
+  .cline { display: flex; cursor: pointer; transition: background .1s; }
+  .cline:hover { background: #f4f8ff; }
+  .cline .ln { flex: none; width: 48px; text-align: right; padding-right: 14px; color: #b3bcc9;
+    user-select: none; font-size: 10.5px; line-height: inherit; }
+  .cline .cc { white-space: pre; padding-right: 20px; }
+  .cline.hl { background: #fff0e6 !important; box-shadow: inset 3px 0 0 var(--orange); }
+  .cline.hl2 { background: #fdf4ec !important; }
+  .cline.anchor .cc::after { content: ' ⟂'; color: #d1490b; font-weight: 700; font-size: 10px; }
+  .j-kw { color: #0033b3; font-weight: 600; }
+  .j-str { color: #067d17; }
+  .j-com { color: #8c8c8c; font-style: italic; }
+  .j-num { color: #1750eb; }
+  .j-ann { color: #9e880d; }
+  .j-fn { color: #6a3fbf; }
+  .j-cls { color: #303a4a; font-weight: 600; }
+
+  /* 联动高亮：主目标（实心橙）与次目标（虚线呼吸） */
+  .mermaid-box g.hl > rect, .mermaid-box g.hl > polygon, .mermaid-box g.hl > circle, .mermaid-box g.hl > ellipse {
+    fill: #fff0e6 !important; stroke: var(--orange) !important; stroke-width: 2.6px !important; }
+  .mermaid-box text.hl-text, .mermaid-box g.hl text { fill: #d1490b !important; font-weight: 700 !important; }
+  .mermaid-box g.hl foreignObject div, .mermaid-box g.hl foreignObject span { color: #d1490b !important; font-weight: 700 !important; }
+  .mermaid-box g.hl.actor > rect.basic.label-container {
+    fill: #ffdfc8 !important; stroke: var(--orange) !important; stroke-width: 3px !important; }
+  .mermaid-box g.hl2 > rect, .mermaid-box g.hl2 > polygon, .mermaid-box g.hl2 > circle, .mermaid-box g.hl2 > ellipse,
+  .mermaid-box g.hl2.actor > rect.basic.label-container {
+    stroke: #f0a56c !important; stroke-width: 2px !important;
+    stroke-dasharray: 5 4 !important;
+    animation: hlpulse 1.6s ease-in-out infinite; }
+  @keyframes hlpulse { 0%,100% { filter: drop-shadow(0 0 0 rgba(240,132,44,0)); }
+    50% { filter: drop-shadow(0 0 4px rgba(240,132,44,.55)); } }
+
+  .load-msg { text-align: center; color: var(--text-3); padding: 70px 0; font-size: 12.5px; }
+  .spin { width: 22px; height: 22px; margin: 0 auto 12px; border-radius: 50%;
+    border: 2.5px solid var(--border-2); border-top-color: var(--accent);
+    animation: rot .8s linear infinite; }
+  @keyframes rot { to { transform: rotate(360deg); } }
+
+  /* ══════════ 右侧：变更说明 ══════════ */
+  #docPanel { background: var(--bg); border-left: 1px solid var(--border); overflow: hidden;
+    display: flex; flex-direction: column; }
+  .doc-head { flex: none; padding: 10px 16px 9px; border-bottom: 1px solid var(--border);
+    background: var(--panel); }
+  .doc-head .cap { font-size: 10px; font-weight: 700; color: var(--text-3);
+    letter-spacing: 1.2px; text-transform: uppercase; }
+  .doc-chips { display: flex; gap: 5px; margin-top: 8px; }
+  .dchip { font-size: 10.5px; padding: 3px 10px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--panel); color: var(--text-2);
+    transition: all .12s; white-space: nowrap; }
+  .dchip:hover { border-color: var(--accent); color: var(--accent); }
+  .dchip.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  #docs { flex: 1; overflow: auto; padding: 12px 14px 30px; }
+  .doc { border: 1px solid var(--border); border-radius: 10px; padding: 13px 15px 12px;
+    margin-bottom: 11px; background: var(--panel); box-shadow: var(--shadow-sm);
+    position: relative; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+  .doc::before { content: ''; position: absolute; left: -1px; top: 12px; bottom: 12px;
+    width: 3px; border-radius: 3px; background: var(--dc, var(--border-2)); }
+  .doc:hover { box-shadow: var(--shadow-md); border-color: var(--border-2); }
+  .doc.active { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(53,116,240,.16), var(--shadow-md);
+    scroll-margin-top: 8px; }
+  .doc h3 { font-size: 13px; font-weight: 650; margin-bottom: 4px; display: flex;
+    align-items: center; gap: 8px; line-height: 1.35; }
+  .doc .file { font-family: var(--mono); font-size: 10px; color: var(--accent-deep);
+    background: var(--accent-soft); border-radius: 6px; padding: 3px 8px;
+    margin-bottom: 9px; word-break: break-all; line-height: 1.5; }
+  .doc ul { padding-left: 17px; color: #3c434d; line-height: 1.72; font-size: 12.2px; }
+  .doc ul li { margin-bottom: 4px; }
+  .doc ul li::marker { color: var(--dc, var(--text-3)); }
+  .doc ul li b { color: var(--text); }
+  .doc code { font-family: var(--mono); font-size: 11px; background: var(--gray-soft);
+    border: 1px solid var(--border); padding: 1px 5px; border-radius: 4px; color: #953800; }
+  .doc h3 .pin { margin-left: auto; flex: none; font-size: 9.5px; font-weight: 500;
+    color: #b6bdc7; letter-spacing: .3px; opacity: 0; transition: opacity .15s; white-space: nowrap; }
+  .doc:hover h3 .pin { opacity: 1; }
+
+  /* ══════════ 导览卡片 ══════════ */
+  .tour {
+    position: fixed; left: 50%; bottom: 18px; transform: translate(-50%, 16px);
+    width: min(560px, calc(100vw - 48px)); z-index: 90;
+    background: #fff; border: 1px solid var(--border-2); border-radius: 14px;
+    box-shadow: 0 12px 40px rgba(16,24,40,.18), 0 2px 8px rgba(16,24,40,.08);
+    padding: 14px 18px 12px; opacity: 0; pointer-events: none;
+    transition: opacity .25s, transform .25s;
+  }
+  .tour.show { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+  .tour .t-top { display: flex; align-items: center; gap: 8px; }
+  .tour .t-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: var(--accent);
+    text-transform: uppercase; }
+  .tour .t-num { margin-left: auto; font-family: var(--mono); font-size: 10.5px; color: var(--text-3); }
+  .tour .t-close { flex: none; width: 22px; height: 22px; border-radius: 6px; display: flex;
+    align-items: center; justify-content: center; color: var(--text-3); cursor: pointer;
+    font-size: 13px; line-height: 1; }
+  .tour .t-close:hover { background: var(--gray-soft); color: var(--text); }
+  .tour h4 { font-size: 14px; font-weight: 700; margin: 6px 0 4px; }
+  .tour p { font-size: 12.2px; color: var(--text-2); line-height: 1.65; }
+  .tour .t-dots { display: flex; gap: 5px; margin: 10px 0 2px; }
+  .tour .t-dots i { width: 100%; height: 3px; border-radius: 2px; background: #e7eaf0; cursor: pointer;
+    transition: background .2s; flex: 1; }
+  .tour .t-dots i.done { background: #b9d3f2; }
+  .tour .t-dots i.cur { background: var(--accent); }
+  .tour .t-ctrl { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+  .tour .t-btn { font-size: 12px; padding: 6px 16px; border-radius: 7px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--panel); color: var(--text-2); transition: all .12s;
+    font-family: var(--sans); }
+  .tour .t-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .tour .t-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff;
+    box-shadow: 0 2px 6px rgba(53,116,240,.3); }
+  .tour .t-btn.primary:hover { background: var(--accent-deep); color: #fff; }
+  .tour .t-hintline { font-size: 10.5px; color: var(--text-3); margin-left: auto; }
+
+  /* ══════════ 欢迎浮层 ══════════ */
+  .welcome-mask { position: fixed; inset: 0; z-index: 100; background: rgba(20,26,36,.42);
+    backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center;
+    transition: opacity .3s; }
+  .welcome-mask.hide { opacity: 0; pointer-events: none; }
+  .welcome { width: min(480px, calc(100vw - 40px)); background: #fff; border-radius: 16px;
+    box-shadow: 0 24px 64px rgba(16,24,40,.3); padding: 0 28px 22px; text-align: left;
+    border: 1px solid var(--border); overflow: hidden; }
+  .welcome .w-hero { margin: 0 -28px; padding: 22px 28px 18px;
+    background: linear-gradient(135deg, #eaf1fe 0%, #f4f8ff 55%, #e6f6ec 100%);
+    border-bottom: 1px solid var(--border); }
+  .welcome .w-logo { width: 44px; height: 44px; border-radius: 11px;
+    background: linear-gradient(135deg, #3574f0, #6d9bf7); display: flex; align-items: center;
+    justify-content: center; font-size: 22px; color: #fff; box-shadow: 0 4px 14px rgba(53,116,240,.4);
+    margin-bottom: 12px; }
+  .welcome h2 { font-size: 18px; font-weight: 750; }
+  .welcome .w-sub { font-size: 12px; color: var(--text-2); margin-top: 4px; line-height: 1.6; }
+  .welcome .w-sub b { color: var(--green-deep); }
+  .welcome ul { list-style: none; display: grid; gap: 8px; margin: 16px 0 18px; }
+  .welcome ul li { display: flex; gap: 9px; font-size: 12.2px; color: var(--text-2); line-height: 1.55; }
+  .welcome ul li .wi { flex: none; width: 20px; height: 20px; border-radius: 6px; background: var(--accent-soft);
+    color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+  .welcome .w-btns { display: flex; gap: 10px; }
+  .welcome .w-btn { flex: 1; text-align: center; font-size: 13px; padding: 9px 0; border-radius: 9px;
+    cursor: pointer; border: 1px solid var(--border); background: var(--panel); color: var(--text-2);
+    transition: all .12s; }
+  .welcome .w-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .welcome .w-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff;
+    font-weight: 600; box-shadow: 0 3px 10px rgba(53,116,240,.35); }
+  .welcome .w-btn.primary:hover { background: var(--accent-deep); }
+
+  /* 导览模式时联动高亮更强 */
+  body.touring .tnode.active { background: #c8dffa; box-shadow: inset 0 0 0 1.5px #86b0ec; }
+  body.touring .rstep.cur { transform: scale(1.04); }
+</style>
+</head>
+<body>
+<!-- MAP-META：生成时替换以下元信息 —— <title>、h1、副标题基线、stats 三个数字、
+     welcome 的 w-sub 与列表、tree-head 的 .proj 包名、doc-head 的 .cap 说明标题 -->
+<header>
+  <div class="logo">🗺</div>
+  <div class="title-block">
+    <h1>Step18 FullAgent 最小完整 Agent</h1>
+    <p>基线 <b>step03 LLM 原语</b><i>→</i>本节 <b>step18</b> · 生产级 Agent 公共骨架：守卫 / 循环 / 治理 / 记忆</p>
+  </div>
+  <div class="stats">
+    <div class="stat"><span class="num">1</span><span class="lbl">新增文件</span></div>
+    <div class="stat"><span class="num amber">0</span><span class="lbl">调整文件</span></div>
+    <div class="stat"><span class="num">+373</span><span class="lbl">/ -0 行</span></div>
+  </div>
+  <button class="hbtn primary" id="tourBtn">📖 跟流程走一遍</button>
+  <button class="hbtn" id="clearBtn">清除联动 <span class="key">Esc</span></button>
+</header>
+
+<div class="stage" id="stage">
+  <aside id="treePanel">
+    <div class="tree-head">
+      <div class="tree-title">Project <span class="proj">cn.xiaofuge.ai.agent.step18</span></div>
+      <div class="tree-search">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="4.6" stroke="currentColor" stroke-width="1.6"/><path d="M10.6 10.6 L14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <input id="treeSearch" placeholder="搜索类 / 方法…" spellcheck="false">
+        <span class="cnt" id="searchCount"></span>
+      </div>
+      <div class="tree-tools">
+        <div class="ttool" id="btnExpandAll">⊞ 展开全部</div>
+        <div class="ttool" id="btnCollapseAll">⊟ 折叠全部</div>
+        <div class="ttool" id="btnCollapseMethods">⌄ 折叠到类</div>
+      </div>
+    </div>
+    <div id="tree"></div>
+    <div class="tree-foot" id="treeFoot"></div>
+  </aside>
+
+  <main id="center">
+    <div class="tabs">
+      <div class="tab on" data-tab="over">🗺 全景图</div>
+      <div class="tab" data-tab="seq">⏱ 时序图</div>
+      <div class="tab" data-tab="flow">🔀 流程图</div>
+      <div class="tab" data-tab="code">📜 代码</div>
+      <div class="zctl">
+        <button class="zbtn" data-z="fit" title="缩放到适配面板宽度">⤢ 适配</button>
+        <button class="zbtn" data-z="100" title="恢复 100% 原始尺寸">100%</button>
+        <div class="zsep"></div>
+        <button class="zbtn" data-z="in" title="放大">＋</button>
+        <button class="zbtn" data-z="out" title="缩小">－</button>
+      </div>
+    </div>
+    <div class="rail">
+      <span class="rail-cap">🧭 跟着流程走</span>
+      <div class="rail-steps" id="railSteps"></div>
+      <span class="rail-hint">← → 切站 · Esc 清除</span>
+    </div>
+    <div class="legend">
+      <i><span class="dot" style="background:#e6f6ec;border:1.5px solid #17a45f"></span>🆕 新增</i>
+      <i><span class="dot" style="background:#f1f3f6;border:1.5px dashed #9aa3af"></span>step03 复用</i>
+      <i><span class="dot" style="background:#eaf1fe;border:1.5px solid #3574f0"></span>外部网关</i>
+      <i><span class="dot" style="background:#fff4e0;border:1.5px solid #e6a23c"></span>异常 / 兜底</i>
+      <i><span class="dot" style="background:#fff0e6;border:1.5px solid #f0842c"></span>联动目标</i>
+      <span class="lg-esc">点击树 / 图 / 说明卡任意一处，三方联动</span>
+    </div>
+    <div class="diagram-wrap on" id="wrap-over">
+      <div class="mermaid-box" id="box-over">
+        <div class="load-msg"><div class="spin"></div>正在渲染全景图…</div>
+      </div>
+      <details class="src"><summary>查看全景图 Mermaid 源码</summary><pre id="src-over"></pre></details>
+    </div>
+    <div class="diagram-wrap" id="wrap-seq">
+      <div class="mermaid-box" id="box-seq">
+        <div class="load-msg"><div class="spin"></div>正在渲染时序图…</div>
+      </div>
+      <details class="src"><summary>查看时序图 Mermaid 源码</summary><pre id="src-seq"></pre></details>
+    </div>
+    <div class="diagram-wrap" id="wrap-flow">
+      <div class="mermaid-box" id="box-flow">
+        <div class="load-msg"><div class="spin"></div>正在渲染流程图…</div>
+      </div>
+      <details class="src"><summary>查看流程图 Mermaid 源码</summary><pre id="src-flow"></pre></details>
+    </div>
+    <div class="diagram-wrap" id="wrap-code">
+      <div class="code-head">📄 FullAgent.java · step18 最小完整 Agent · <span id="codeMeta"></span></div>
+      <div class="code-panel" id="box-code">
+<div class="cline" data-line="1" id="cl-1"><span class="ln">1</span><span class="cc"><span class="j-kw">package</span> cn.xiaofuge.ai.agent.step18;</span></div>
+<div class="cline" data-line="2" id="cl-2"><span class="ln">2</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="3" id="cl-3"><span class="ln">3</span><span class="cc"><span class="j-kw">import</span> cn.xiaofuge.ai.agent.<span class="j-cls">Agent</span>;</span></div>
+<div class="cline" data-line="4" id="cl-4"><span class="ln">4</span><span class="cc"><span class="j-kw">import</span> cn.xiaofuge.ai.agent.step03.<span class="j-cls">ReActAgent</span>;</span></div>
+<div class="cline" data-line="5" id="cl-5"><span class="ln">5</span><span class="cc"><span class="j-kw">import</span> cn.xiaofuge.ai.llm.<span class="j-cls">ChatModel</span>;</span></div>
+<div class="cline" data-line="6" id="cl-6"><span class="ln">6</span><span class="cc"><span class="j-kw">import</span> cn.xiaofuge.ai.llm.<span class="j-cls">ChatResponse</span>;</span></div>
+<div class="cline" data-line="7" id="cl-7"><span class="ln">7</span><span class="cc"><span class="j-kw">import</span> cn.xiaofuge.ai.llm.<span class="j-cls">Json</span>;</span></div>
+<div class="cline" data-line="8" id="cl-8"><span class="ln">8</span><span class="cc"><span class="j-kw">import</span> cn.xiaofuge.ai.llm.<span class="j-cls">Message</span>;</span></div>
+<div class="cline" data-line="9" id="cl-9"><span class="ln">9</span><span class="cc"><span class="j-kw">import</span> cn.xiaofuge.ai.llm.<span class="j-cls">ToolCall</span>;</span></div>
+<div class="cline" data-line="10" id="cl-10"><span class="ln">10</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="11" id="cl-11"><span class="ln">11</span><span class="cc"><span class="j-kw">import</span> java.time.<span class="j-cls">LocalDateTime</span>;</span></div>
+<div class="cline" data-line="12" id="cl-12"><span class="ln">12</span><span class="cc"><span class="j-kw">import</span> java.time.format.<span class="j-cls">DateTimeFormatter</span>;</span></div>
+<div class="cline" data-line="13" id="cl-13"><span class="ln">13</span><span class="cc"><span class="j-kw">import</span> java.util.<span class="j-cls">ArrayList</span>;</span></div>
+<div class="cline" data-line="14" id="cl-14"><span class="ln">14</span><span class="cc"><span class="j-kw">import</span> java.util.<span class="j-cls">LinkedHashMap</span>;</span></div>
+<div class="cline" data-line="15" id="cl-15"><span class="ln">15</span><span class="cc"><span class="j-kw">import</span> java.util.<span class="j-cls">List</span>;</span></div>
+<div class="cline" data-line="16" id="cl-16"><span class="ln">16</span><span class="cc"><span class="j-kw">import</span> java.util.<span class="j-cls">Map</span>;</span></div>
+<div class="cline" data-line="17" id="cl-17"><span class="ln">17</span><span class="cc"><span class="j-kw">import</span> java.util.regex.<span class="j-cls">Matcher</span>;</span></div>
+<div class="cline" data-line="18" id="cl-18"><span class="ln">18</span><span class="cc"><span class="j-kw">import</span> java.util.regex.<span class="j-cls">Pattern</span>;</span></div>
+<div class="cline" data-line="19" id="cl-19"><span class="ln">19</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="20" id="cl-20"><span class="ln">20</span><span class="cc">/**</span></div>
+<div class="cline" data-line="21" id="cl-21"><span class="ln">21</span><span class="cc"> * <span class="j-cls">Step18</span> · 最小完整 <span class="j-cls">Agent</span>。</span></div>
+<div class="cline" data-line="22" id="cl-22"><span class="ln">22</span><span class="cc"> * &lt;p&gt;</span></div>
+<div class="cline" data-line="23" id="cl-23"><span class="ln">23</span><span class="cc"> * 一个 <span class="j-fn">chat</span>(input) 调用代表一个用户回合（turn），核心生命周期是：</span></div>
+<div class="cline" data-line="24" id="cl-24"><span class="ln">24</span><span class="cc"> *</span></div>
+<div class="cline" data-line="25" id="cl-25"><span class="ln">25</span><span class="cc"> * &lt;pre&gt;</span></div>
+<div class="cline" data-line="26" id="cl-26"><span class="ln">26</span><span class="cc"> * 输入守卫 → 组装上下文 → 标准工具协议循环 → 输出守卫 → 回写历史 → 按需压缩</span></div>
+<div class="cline" data-line="27" id="cl-27"><span class="ln">27</span><span class="cc"> * &lt;/pre&gt;</span></div>
+<div class="cline" data-line="28" id="cl-28"><span class="ln">28</span><span class="cc"> *</span></div>
+<div class="cline" data-line="29" id="cl-29"><span class="ln">29</span><span class="cc"> * &lt;p&gt;模型不通过手写 <span class="j-cls">JSON</span> 表达“要调用哪个工具”，而是每次请求都收到</span></div>
+<div class="cline" data-line="30" id="cl-30"><span class="ln">30</span><span class="cc"> * {<span class="j-ann">@code</span> tools} <span class="j-cls">Schema</span>；模型返回结构化 {<span class="j-ann">@code</span> tool_calls}，宿主执行后用</span></div>
+<div class="cline" data-line="31" id="cl-31"><span class="ln">31</span><span class="cc"> * {<span class="j-ann">@code</span> role=tool + tool_call_id} 原样回填。这样保留了“谁请求调用、</span></div>
+<div class="cline" data-line="32" id="cl-32"><span class="ln">32</span><span class="cc"> * 结果属于哪次调用”的协议关系，与 <span class="j-cls">OpenAI</span> 兼容接口和现代 <span class="j-cls">Agent</span> <span class="j-cls">Harness</span> 一致。</span></div>
+<div class="cline" data-line="33" id="cl-33"><span class="ln">33</span><span class="cc"> *</span></div>
+<div class="cline" data-line="34" id="cl-34"><span class="ln">34</span><span class="cc"> * &lt;p&gt;状态被拆成三类：{<span class="j-ann">@link</span> #lastTrace} 是当前回合的可观测事件；</span></div>
+<div class="cline" data-line="35" id="cl-35"><span class="ln">35</span><span class="cc"> * {<span class="j-ann">@code</span> history} 是跨轮对话摘要级上下文；{<span class="j-ann">@code</span> memory} 是模型可通过</span></div>
+<div class="cline" data-line="36" id="cl-36"><span class="ln">36</span><span class="cc"> * 工具读写的结构化事实。它们解决的问题不同，不能互相替代。</span></div>
+<div class="cline" data-line="37" id="cl-37"><span class="ln">37</span><span class="cc"> *</span></div>
+<div class="cline" data-line="38" id="cl-38"><span class="ln">38</span><span class="cc"> * &lt;p&gt;教学简化：memory 是进程内 <span class="j-cls">KV</span>，压缩阈值按消息数估算，敏感词用正则。</span></div>
+<div class="cline" data-line="39" id="cl-39"><span class="ln">39</span><span class="cc"> * 生产系统应替换为持久化记忆、真实 token 计数和专业安全/审批组件。</span></div>
+<div class="cline" data-line="40" id="cl-40"><span class="ln">40</span><span class="cc"> */</span></div>
+<div class="cline" data-line="41" id="cl-41"><span class="ln">41</span><span class="cc"><span class="j-kw">public</span> <span class="j-kw">interface</span> <span class="j-cls">FullAgent</span> <span class="j-kw">extends</span> <span class="j-cls">Agent</span> {</span></div>
+<div class="cline" data-line="42" id="cl-42"><span class="ln">42</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="43" id="cl-43"><span class="ln">43</span><span class="cc">    /** 单回合模型请求和工具执行的总步数上界，防止模型陷入无限工具调用。 */</span></div>
+<div class="cline" data-line="44" id="cl-44"><span class="ln">44</span><span class="cc">    <span class="j-kw">int</span> <span class="j-cls">MAX_STEPS</span> = <span class="j-num">5</span>;</span></div>
+<div class="cline" data-line="45" id="cl-45"><span class="ln">45</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="46" id="cl-46"><span class="ln">46</span><span class="cc">    /** 模型前输入守卫阈值；超限输入直接拒绝，不消耗模型预算。 */</span></div>
+<div class="cline" data-line="47" id="cl-47"><span class="ln">47</span><span class="cc">    <span class="j-kw">int</span> <span class="j-cls">MAX_INPUT_LEN</span> = <span class="j-num">300</span>;</span></div>
+<div class="cline" data-line="48" id="cl-48"><span class="ln">48</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="49" id="cl-49"><span class="ln">49</span><span class="cc">    /** 跨轮历史消息条数阈值；超过后把较旧轮次压缩成一段摘要。 */</span></div>
+<div class="cline" data-line="50" id="cl-50"><span class="ln">50</span><span class="cc">    <span class="j-kw">int</span> <span class="j-cls">COMPACT_THRESHOLD</span> = <span class="j-num">10</span>;</span></div>
+<div class="cline" data-line="51" id="cl-51"><span class="ln">51</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="52" id="cl-52"><span class="ln">52</span><span class="cc">    /** 压缩时原样保留的最近消息数，保证最新任务状态不被摘要失真。 */</span></div>
+<div class="cline" data-line="53" id="cl-53"><span class="ln">53</span><span class="cc">    <span class="j-kw">int</span> <span class="j-cls">KEEP_RECENT</span> = <span class="j-num">4</span>;</span></div>
+<div class="cline" data-line="54" id="cl-54"><span class="ln">54</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="55" id="cl-55"><span class="ln">55</span><span class="cc">    /**</span></div>
+<div class="cline" data-line="56" id="cl-56"><span class="ln">56</span><span class="cc">     * 当前回合内保留最近 <span class="j-cls">N</span> 条工具观察；更早的可重取结果清成占位符。</span></div>
+<div class="cline" data-line="57" id="cl-57"><span class="ln">57</span><span class="cc">     * 清理内容但不删除消息，避免破坏 <span class="j-fn">assistant</span>(tool_calls) 与 tool 的配对。</span></div>
+<div class="cline" data-line="58" id="cl-58"><span class="ln">58</span><span class="cc">     */</span></div>
+<div class="cline" data-line="59" id="cl-59"><span class="ln">59</span><span class="cc">    <span class="j-kw">int</span> <span class="j-cls">KEEP_TOOL_RESULTS</span> = <span class="j-num">2</span>;</span></div>
+<div class="cline" data-line="60" id="cl-60"><span class="ln">60</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="61" id="cl-61"><span class="ln">61</span><span class="cc">    <span class="j-kw">class</span> <span class="j-cls">Impl</span> <span class="j-kw">implements</span> <span class="j-cls">FullAgent</span> {</span></div>
+<div class="cline" data-line="62" id="cl-62"><span class="ln">62</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="63" id="cl-63"><span class="ln">63</span><span class="cc">        /**</span></div>
+<div class="cline" data-line="64" id="cl-64"><span class="ln">64</span><span class="cc">         * 稳定系统提示词只约定行为和工具使用边界。</span></div>
+<div class="cline" data-line="65" id="cl-65"><span class="ln">65</span><span class="cc">         * 工具名、参数结构和必填项放在 <span class="j-fn">toolSchemas</span>() 中，</span></div>
+<div class="cline" data-line="66" id="cl-66"><span class="ln">66</span><span class="cc">         * 避免在提示词里维护第二份容易过期的工具清单。</span></div>
+<div class="cline" data-line="67" id="cl-67"><span class="ln">67</span><span class="cc">         */</span></div>
+<div class="cline" data-line="68" id="cl-68"><span class="ln">68</span><span class="cc">        <span class="j-kw">private</span> <span class="j-kw">static</span> <span class="j-kw">final</span> <span class="j-cls">String</span> <span class="j-cls">SYSTEM_PROMPT</span> = <span class="j-str">""</span><span class="j-str">"</span></span></div>
+<div class="cline" data-line="69" id="cl-69"><span class="ln">69</span><span class="cc">                你是 <span class="j-cls">ToyAgent</span> 综合智能体。</span></div>
+<div class="cline" data-line="70" id="cl-70"><span class="ln">70</span><span class="cc">                小事闲聊时直接回答；需要外部状态、计算或持久记忆时调用工具。</span></div>
+<div class="cline" data-line="71" id="cl-71"><span class="ln">71</span><span class="cc">                用户说出可跨轮使用的稳定事实时，用 memory 工具保存。</span></div>
+<div class="cline" data-line="72" id="cl-72"><span class="ln">72</span><span class="cc">                回答用户事实前，先用 memory 读取，不要凭历史猜测。</span></div>
+<div class="cline" data-line="73" id="cl-73"><span class="ln">73</span><span class="cc">                工具观察只用于支持回答，不要向用户复述原始日志。</span></div>
+<div class="cline" data-line="74" id="cl-74"><span class="ln">74</span><span class="cc">                <span class="j-str">""</span><span class="j-str">";</span></span></div>
+<div class="cline" data-line="75" id="cl-75"><span class="ln">75</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="76" id="cl-76"><span class="ln">76</span><span class="cc">        /**</span></div>
+<div class="cline" data-line="77" id="cl-77"><span class="ln">77</span><span class="cc">         * 压缩提示词决定“丢什么、留什么”。这里偏向保留任务状态和关键事实，</span></div>
+<div class="cline" data-line="78" id="cl-78"><span class="ln">78</span><span class="cc">         * 丢弃寒暄和可重新获取的细节；摘要是有损操作，必须可评测。</span></div>
+<div class="cline" data-line="79" id="cl-79"><span class="ln">79</span><span class="cc">         */</span></div>
+<div class="cline" data-line="80" id="cl-80"><span class="ln">80</span><span class="cc">        <span class="j-kw">private</span> <span class="j-kw">static</span> <span class="j-kw">final</span> <span class="j-cls">String</span> <span class="j-cls">COMPACT_PROMPT</span> = <span class="j-str">""</span><span class="j-str">"</span></span></div>
+<div class="cline" data-line="81" id="cl-81"><span class="ln">81</span><span class="cc">                压缩以下 <span class="j-cls">Agent</span> 会话。保留：目标、决定、稳定事实、已完成步骤、</span></div>
+<div class="cline" data-line="82" id="cl-82"><span class="ln">82</span><span class="cc">                失败原因、当前状态和下一步。丢弃寒暄和可重新获取的细节。</span></div>
+<div class="cline" data-line="83" id="cl-83"><span class="ln">83</span><span class="cc">                不确定的信息标为 <span class="j-cls">UNVERIFIED</span>。直接输出简洁摘要。</span></div>
+<div class="cline" data-line="84" id="cl-84"><span class="ln">84</span><span class="cc">                <span class="j-str">""</span><span class="j-str">";</span></span></div>
+<div class="cline" data-line="85" id="cl-85"><span class="ln">85</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="86" id="cl-86"><span class="ln">86</span><span class="cc">        /** 教学用输入/输出敏感词；生产环境应使用专业安全服务和工具审批策略。 */</span></div>
+<div class="cline" data-line="87" id="cl-87"><span class="ln">87</span><span class="cc">        <span class="j-kw">private</span> <span class="j-kw">static</span> <span class="j-kw">final</span> <span class="j-cls">Pattern</span> <span class="j-cls">SENSITIVE</span> = <span class="j-cls">Pattern</span>.<span class="j-fn">compile</span>(</span></div>
+<div class="cline" data-line="88" id="cl-88"><span class="ln">88</span><span class="cc">                <span class="j-str">"hack|攻击|爆破|破解|密码"</span>, <span class="j-cls">Pattern</span>.<span class="j-cls">CASE_INSENSITIVE</span>);</span></div>
+<div class="cline" data-line="89" id="cl-89"><span class="ln">89</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="90" id="cl-90"><span class="ln">90</span><span class="cc">        /** 可替换的模型网关；<span class="j-cls">Agent</span> 只依赖标准对话和工具协议，不绑定具体厂商。 */</span></div>
+<div class="cline" data-line="91" id="cl-91"><span class="ln">91</span><span class="cc">        <span class="j-kw">private</span> <span class="j-kw">final</span> <span class="j-cls">ChatModel</span> model;</span></div>
+<div class="cline" data-line="92" id="cl-92"><span class="ln">92</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="93" id="cl-93"><span class="ln">93</span><span class="cc">        /** 当前回合的执行轨迹，用于课堂演示、调试和生产审计。 */</span></div>
+<div class="cline" data-line="94" id="cl-94"><span class="ln">94</span><span class="cc">        <span class="j-kw">private</span> <span class="j-kw">final</span> <span class="j-cls">List</span>&lt;<span class="j-cls">Map</span>&lt;<span class="j-cls">String</span>, <span class="j-cls">Object</span>&gt;&gt; lastTrace = <span class="j-kw">new</span> <span class="j-cls">ArrayList</span>&lt;&gt;();</span></div>
+<div class="cline" data-line="95" id="cl-95"><span class="ln">95</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="96" id="cl-96"><span class="ln">96</span><span class="cc">        /**</span></div>
+<div class="cline" data-line="97" id="cl-97"><span class="ln">97</span><span class="cc">         * 跨轮对话历史。为了控制上下文，这里只回写每轮最终输入/输出；</span></div>
+<div class="cline" data-line="98" id="cl-98"><span class="ln">98</span><span class="cc">         * 中间工具请求和结果保留在当前回合的 messages 中，并由 trace 记录。</span></div>
+<div class="cline" data-line="99" id="cl-99"><span class="ln">99</span><span class="cc">         */</span></div>
+<div class="cline" data-line="100" id="cl-100"><span class="ln">100</span><span class="cc">        <span class="j-kw">private</span> <span class="j-kw">final</span> <span class="j-cls">List</span>&lt;<span class="j-cls">Message</span>&gt; history = <span class="j-kw">new</span> <span class="j-cls">ArrayList</span>&lt;&gt;();</span></div>
+<div class="cline" data-line="101" id="cl-101"><span class="ln">101</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="102" id="cl-102"><span class="ln">102</span><span class="cc">        /** 模型驱动的跨轮记忆后端；教学用 <span class="j-cls">Map</span>，生产可替换为文件或数据库，分布式可引入 redis。 */</span></div>
+<div class="cline" data-line="103" id="cl-103"><span class="ln">103</span><span class="cc">        <span class="j-kw">private</span> <span class="j-kw">final</span> <span class="j-cls">Map</span>&lt;<span class="j-cls">String</span>, <span class="j-cls">String</span>&gt; memory = <span class="j-kw">new</span> <span class="j-cls">LinkedHashMap</span>&lt;&gt;();</span></div>
+<div class="cline" data-line="104" id="cl-104"><span class="ln">104</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="105" id="cl-105"><span class="ln">105</span><span class="cc">        <span class="j-kw">public</span> <span class="j-fn">Impl</span>(<span class="j-cls">ChatModel</span> model) {</span></div>
+<div class="cline" data-line="106" id="cl-106"><span class="ln">106</span><span class="cc">            <span class="j-kw">this</span>.model = model;</span></div>
+<div class="cline" data-line="107" id="cl-107"><span class="ln">107</span><span class="cc">        }</span></div>
+<div class="cline" data-line="108" id="cl-108"><span class="ln">108</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="109" id="cl-109"><span class="ln">109</span><span class="cc">        <span class="j-ann">@Override</span></span></div>
+<div class="cline" data-line="110" id="cl-110"><span class="ln">110</span><span class="cc">        <span class="j-kw">public</span> <span class="j-cls">String</span> <span class="j-fn">name</span>() {</span></div>
+<div class="cline" data-line="111" id="cl-111"><span class="ln">111</span><span class="cc">            <span class="j-kw">return</span> <span class="j-str">"Step18 · 最小完整 Agent"</span>;</span></div>
+<div class="cline" data-line="112" id="cl-112"><span class="ln">112</span><span class="cc">        }</span></div>
+<div class="cline" data-line="113" id="cl-113"><span class="ln">113</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="114" id="cl-114"><span class="ln">114</span><span class="cc">        <span class="j-ann">@Override</span></span></div>
+<div class="cline" data-line="115" id="cl-115"><span class="ln">115</span><span class="cc">        <span class="j-kw">public</span> <span class="j-cls">String</span> <span class="j-fn">chat</span>(<span class="j-cls">String</span> input) {</span></div>
+<div class="cline" data-line="116" id="cl-116"><span class="ln">116</span><span class="cc">            <span class="j-com">// 阶段 1：模型前守卫。低成本规则先执行，被拦截输入不进入 Agent Loop。</span></span></div>
+<div class="cline" data-line="117" id="cl-117"><span class="ln">117</span><span class="cc">            lastTrace.<span class="j-fn">clear</span>();</span></div>
+<div class="cline" data-line="118" id="cl-118"><span class="ln">118</span><span class="cc">            <span class="j-kw">if</span> (input == <span class="j-kw">null</span> || input.<span class="j-fn">isBlank</span>()) {</span></div>
+<div class="cline" data-line="119" id="cl-119"><span class="ln">119</span><span class="cc">                <span class="j-kw">return</span> <span class="j-str">"请输入内容。"</span>;</span></div>
+<div class="cline" data-line="120" id="cl-120"><span class="ln">120</span><span class="cc">            }</span></div>
+<div class="cline" data-line="121" id="cl-121"><span class="ln">121</span><span class="cc">            <span class="j-kw">if</span> (input.<span class="j-fn">length</span>() &gt; <span class="j-cls">MAX_INPUT_LEN</span>) {</span></div>
+<div class="cline" data-line="122" id="cl-122"><span class="ln">122</span><span class="cc">                <span class="j-fn">trace</span>(<span class="j-str">"guard"</span>, <span class="j-str">"输入守卫"</span>, <span class="j-str">"长度 "</span> + input.<span class="j-fn">length</span>() + <span class="j-str">" 超过 "</span> + <span class="j-cls">MAX_INPUT_LEN</span> + <span class="j-str">"，未调用模型。"</span>);</span></div>
+<div class="cline" data-line="123" id="cl-123"><span class="ln">123</span><span class="cc">                <span class="j-kw">return</span> <span class="j-str">"输入过长，请精简后重试。"</span>;</span></div>
+<div class="cline" data-line="124" id="cl-124"><span class="ln">124</span><span class="cc">            }</span></div>
+<div class="cline" data-line="125" id="cl-125"><span class="ln">125</span><span class="cc">            <span class="j-cls">Matcher</span> unsafe = <span class="j-cls">SENSITIVE</span>.<span class="j-fn">matcher</span>(input);</span></div>
+<div class="cline" data-line="126" id="cl-126"><span class="ln">126</span><span class="cc">            <span class="j-kw">if</span> (unsafe.<span class="j-fn">find</span>()) {</span></div>
+<div class="cline" data-line="127" id="cl-127"><span class="ln">127</span><span class="cc">                <span class="j-fn">trace</span>(<span class="j-str">"guard"</span>, <span class="j-str">"输入守卫"</span>, <span class="j-str">"命中敏感词「"</span> + unsafe.<span class="j-fn">group</span>() + <span class="j-str">"」，未调用模型。"</span>);</span></div>
+<div class="cline" data-line="128" id="cl-128"><span class="ln">128</span><span class="cc">                <span class="j-kw">return</span> <span class="j-str">"该请求涉及不安全操作，已被输入守卫拦截。"</span>;</span></div>
+<div class="cline" data-line="129" id="cl-129"><span class="ln">129</span><span class="cc">            }</span></div>
+<div class="cline" data-line="130" id="cl-130"><span class="ln">130</span><span class="cc">            <span class="j-fn">trace</span>(<span class="j-str">"guard"</span>, <span class="j-str">"输入守卫"</span>, <span class="j-str">"长度和安全检查通过。"</span>);</span></div>
+<div class="cline" data-line="131" id="cl-131"><span class="ln">131</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="132" id="cl-132"><span class="ln">132</span><span class="cc">            <span class="j-com">// 阶段 2：组装当前回合上下文。系统提示词在前，历史居中，新输入最后。</span></span></div>
+<div class="cline" data-line="133" id="cl-133"><span class="ln">133</span><span class="cc">            <span class="j-cls">List</span>&lt;<span class="j-cls">Message</span>&gt; messages = <span class="j-kw">new</span> <span class="j-cls">ArrayList</span>&lt;&gt;();</span></div>
+<div class="cline" data-line="134" id="cl-134"><span class="ln">134</span><span class="cc">            messages.<span class="j-fn">add</span>(<span class="j-cls">Message</span>.<span class="j-fn">system</span>(<span class="j-cls">SYSTEM_PROMPT</span>));</span></div>
+<div class="cline" data-line="135" id="cl-135"><span class="ln">135</span><span class="cc">            messages.<span class="j-fn">addAll</span>(history);</span></div>
+<div class="cline" data-line="136" id="cl-136"><span class="ln">136</span><span class="cc">            messages.<span class="j-fn">add</span>(<span class="j-cls">Message</span>.<span class="j-fn">user</span>(input));</span></div>
+<div class="cline" data-line="137" id="cl-137"><span class="ln">137</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="138" id="cl-138"><span class="ln">138</span><span class="cc">            <span class="j-com">// 阶段 3：循环推理与工具执行，得到候选答案。</span></span></div>
+<div class="cline" data-line="139" id="cl-139"><span class="ln">139</span><span class="cc">            <span class="j-cls">String</span> answer = <span class="j-fn">runAgentLoop</span>(messages);</span></div>
+<div class="cline" data-line="140" id="cl-140"><span class="ln">140</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="141" id="cl-141"><span class="ln">141</span><span class="cc">            <span class="j-com">// 阶段 4：输出仍不可信，先守卫；再只把最终问答写入跨轮历史。</span></span></div>
+<div class="cline" data-line="142" id="cl-142"><span class="ln">142</span><span class="cc">            answer = <span class="j-fn">outputGuard</span>(answer);</span></div>
+<div class="cline" data-line="143" id="cl-143"><span class="ln">143</span><span class="cc">            <span class="j-fn">rememberTurn</span>(input, answer);</span></div>
+<div class="cline" data-line="144" id="cl-144"><span class="ln">144</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="145" id="cl-145"><span class="ln">145</span><span class="cc">            <span class="j-com">// 阶段 5：本轮结束后治理历史，避免下一轮上下文无限增长。</span></span></div>
+<div class="cline" data-line="146" id="cl-146"><span class="ln">146</span><span class="cc">            <span class="j-fn">compactHistoryIfNeeded</span>();</span></div>
+<div class="cline" data-line="147" id="cl-147"><span class="ln">147</span><span class="cc">            <span class="j-kw">return</span> answer;</span></div>
+<div class="cline" data-line="148" id="cl-148"><span class="ln">148</span><span class="cc">        }</span></div>
+<div class="cline" data-line="149" id="cl-149"><span class="ln">149</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="150" id="cl-150"><span class="ln">150</span><span class="cc">        <span class="j-kw">private</span> <span class="j-cls">String</span> <span class="j-fn">runAgentLoop</span>(<span class="j-cls">List</span>&lt;<span class="j-cls">Message</span>&gt; messages) {</span></div>
+<div class="cline" data-line="151" id="cl-151"><span class="ln">151</span><span class="cc">            /*</span></div>
+<div class="cline" data-line="152" id="cl-152"><span class="ln">152</span><span class="cc">             * 标准 <span class="j-cls">Agent</span> <span class="j-cls">Loop</span>：</span></div>
+<div class="cline" data-line="153" id="cl-153"><span class="ln">153</span><span class="cc">             * <span class="j-num">1.</span> 带 tools 请求模型；</span></div>
+<div class="cline" data-line="154" id="cl-154"><span class="ln">154</span><span class="cc">             * <span class="j-num">2.</span> toolCalls 为空，说明模型已给出最终答案；</span></div>
+<div class="cline" data-line="155" id="cl-155"><span class="ln">155</span><span class="cc">             * <span class="j-num">3.</span> 不为空时，先原样保存 <span class="j-fn">assistant</span>(tool_calls)，再逐个执行工具；</span></div>
+<div class="cline" data-line="156" id="cl-156"><span class="ln">156</span><span class="cc">             * <span class="j-num">4.</span> 每个观察都作为 role=tool 消息、按 tool_call_id 回填；</span></div>
+<div class="cline" data-line="157" id="cl-157"><span class="ln">157</span><span class="cc">             * <span class="j-num">5.</span> 继续循环，直到模型收敛或触发 <span class="j-cls">MAX_STEPS</span>。</span></div>
+<div class="cline" data-line="158" id="cl-158"><span class="ln">158</span><span class="cc">             *</span></div>
+<div class="cline" data-line="159" id="cl-159"><span class="ln">159</span><span class="cc">             * 关键不变量：不能把工具结果改写成普通 user 文本，</span></div>
+<div class="cline" data-line="160" id="cl-160"><span class="ln">160</span><span class="cc">             * 也不能删除 <span class="j-fn">assistant</span>(tool_calls) 而单独保留 tool 消息。</span></div>
+<div class="cline" data-line="161" id="cl-161"><span class="ln">161</span><span class="cc">             */</span></div>
+<div class="cline" data-line="162" id="cl-162"><span class="ln">162</span><span class="cc">            <span class="j-kw">for</span> (<span class="j-kw">int</span> step = <span class="j-num">1</span>; step &lt;= <span class="j-cls">MAX_STEPS</span>; step++) {</span></div>
+<div class="cline" data-line="163" id="cl-163"><span class="ln">163</span><span class="cc">                <span class="j-fn">clearOldToolResults</span>(messages);</span></div>
+<div class="cline" data-line="164" id="cl-164"><span class="ln">164</span><span class="cc">                <span class="j-cls">ChatResponse</span> response = model.<span class="j-fn">chat</span>(messages, <span class="j-fn">toolSchemas</span>());</span></div>
+<div class="cline" data-line="165" id="cl-165"><span class="ln">165</span><span class="cc">                <span class="j-fn">trace</span>(<span class="j-str">"model"</span>, <span class="j-str">"Model "</span> + step,</span></div>
+<div class="cline" data-line="166" id="cl-166"><span class="ln">166</span><span class="cc">                        response.<span class="j-fn">content</span>() == <span class="j-kw">null</span> || response.<span class="j-fn">content</span>().<span class="j-fn">isBlank</span>()</span></div>
+<div class="cline" data-line="167" id="cl-167"><span class="ln">167</span><span class="cc">                                ? <span class="j-str">"返回 "</span> + response.<span class="j-fn">toolCalls</span>().<span class="j-fn">size</span>() + <span class="j-str">" 个结构化 tool_calls"</span></span></div>
+<div class="cline" data-line="168" id="cl-168"><span class="ln">168</span><span class="cc">                                : <span class="j-str">"返回最终文本"</span>);</span></div>
+<div class="cline" data-line="169" id="cl-169"><span class="ln">169</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="170" id="cl-170"><span class="ln">170</span><span class="cc">                <span class="j-kw">if</span> (response.<span class="j-fn">toolCalls</span>().<span class="j-fn">isEmpty</span>()) {</span></div>
+<div class="cline" data-line="171" id="cl-171"><span class="ln">171</span><span class="cc">                    <span class="j-fn">trace</span>(<span class="j-str">"final"</span>, <span class="j-str">"Final Answer"</span>, response.<span class="j-fn">content</span>());</span></div>
+<div class="cline" data-line="172" id="cl-172"><span class="ln">172</span><span class="cc">                    <span class="j-kw">return</span> response.<span class="j-fn">content</span>() == <span class="j-kw">null</span> ? <span class="j-str">""</span> : response.<span class="j-fn">content</span>();</span></div>
+<div class="cline" data-line="173" id="cl-173"><span class="ln">173</span><span class="cc">                }</span></div>
+<div class="cline" data-line="174" id="cl-174"><span class="ln">174</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="175" id="cl-175"><span class="ln">175</span><span class="cc">                messages.<span class="j-fn">add</span>(<span class="j-kw">new</span> <span class="j-fn">Message</span>(<span class="j-str">"assistant"</span>, response.<span class="j-fn">content</span>(), response.<span class="j-fn">toolCalls</span>(), <span class="j-kw">null</span>));</span></div>
+<div class="cline" data-line="176" id="cl-176"><span class="ln">176</span><span class="cc">                <span class="j-kw">for</span> (<span class="j-cls">ToolCall</span> call : response.<span class="j-fn">toolCalls</span>()) {</span></div>
+<div class="cline" data-line="177" id="cl-177"><span class="ln">177</span><span class="cc">                    <span class="j-cls">Map</span>&lt;<span class="j-cls">String</span>, <span class="j-cls">Object</span>&gt; args = <span class="j-fn">parseArguments</span>(call.<span class="j-fn">argumentsJson</span>());</span></div>
+<div class="cline" data-line="178" id="cl-178"><span class="ln">178</span><span class="cc">                    <span class="j-fn">trace</span>(<span class="j-str">"tool_call"</span>, <span class="j-str">"ToolCall "</span> + step, call.<span class="j-fn">name</span>() + <span class="j-str">" "</span> + args);</span></div>
+<div class="cline" data-line="179" id="cl-179"><span class="ln">179</span><span class="cc">                    <span class="j-cls">String</span> observation = <span class="j-fn">executeTool</span>(call.<span class="j-fn">name</span>(), args);</span></div>
+<div class="cline" data-line="180" id="cl-180"><span class="ln">180</span><span class="cc">                    <span class="j-fn">trace</span>(<span class="j-str">"tool_result"</span>, <span class="j-str">"ToolResult "</span> + step, observation);</span></div>
+<div class="cline" data-line="181" id="cl-181"><span class="ln">181</span><span class="cc">                    messages.<span class="j-fn">add</span>(<span class="j-cls">Message</span>.<span class="j-fn">tool</span>(call.<span class="j-fn">id</span>(), observation));</span></div>
+<div class="cline" data-line="182" id="cl-182"><span class="ln">182</span><span class="cc">                }</span></div>
+<div class="cline" data-line="183" id="cl-183"><span class="ln">183</span><span class="cc">            }</span></div>
+<div class="cline" data-line="184" id="cl-184"><span class="ln">184</span><span class="cc">            <span class="j-cls">String</span> fused = <span class="j-str">"已达最大步数 "</span> + <span class="j-cls">MAX_STEPS</span> + <span class="j-str">"，循环保险丝熔断。"</span>;</span></div>
+<div class="cline" data-line="185" id="cl-185"><span class="ln">185</span><span class="cc">            <span class="j-fn">trace</span>(<span class="j-str">"guard"</span>, <span class="j-str">"保险丝"</span>, fused);</span></div>
+<div class="cline" data-line="186" id="cl-186"><span class="ln">186</span><span class="cc">            <span class="j-kw">return</span> fused;</span></div>
+<div class="cline" data-line="187" id="cl-187"><span class="ln">187</span><span class="cc">        }</span></div>
+<div class="cline" data-line="188" id="cl-188"><span class="ln">188</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="189" id="cl-189"><span class="ln">189</span><span class="cc">        /**</span></div>
+<div class="cline" data-line="190" id="cl-190"><span class="ln">190</span><span class="cc">         * 宿主工具边界：模型只能给出名字和参数，真实执行权始终在这里。</span></div>
+<div class="cline" data-line="191" id="cl-191"><span class="ln">191</span><span class="cc">         * 异常也作为 observation 返回，让模型有机会修正参数或换用工具。</span></div>
+<div class="cline" data-line="192" id="cl-192"><span class="ln">192</span><span class="cc">         */</span></div>
+<div class="cline" data-line="193" id="cl-193"><span class="ln">193</span><span class="cc">        <span class="j-kw">private</span> <span class="j-cls">String</span> <span class="j-fn">executeTool</span>(<span class="j-cls">String</span> name, <span class="j-cls">Map</span>&lt;<span class="j-cls">String</span>, <span class="j-cls">Object</span>&gt; args) {</span></div>
+<div class="cline" data-line="194" id="cl-194"><span class="ln">194</span><span class="cc">            <span class="j-kw">try</span> {</span></div>
+<div class="cline" data-line="195" id="cl-195"><span class="ln">195</span><span class="cc">                <span class="j-kw">return</span> <span class="j-kw">switch</span> (name == <span class="j-kw">null</span> ? <span class="j-str">""</span> : name) {</span></div>
+<div class="cline" data-line="196" id="cl-196"><span class="ln">196</span><span class="cc">                    <span class="j-kw">case</span> <span class="j-str">"get_weather"</span> -&gt; <span class="j-cls">ReActAgent</span>.<span class="j-cls">MockWeather</span>.<span class="j-fn">query</span>(<span class="j-fn">text</span>(args, <span class="j-str">"city"</span>));</span></div>
+<div class="cline" data-line="197" id="cl-197"><span class="ln">197</span><span class="cc">                    <span class="j-kw">case</span> <span class="j-str">"calculator"</span> -&gt; <span class="j-cls">String</span>.<span class="j-fn">valueOf</span>(<span class="j-fn">calc</span>(<span class="j-fn">text</span>(args, <span class="j-str">"expression"</span>)));</span></div>
+<div class="cline" data-line="198" id="cl-198"><span class="ln">198</span><span class="cc">                    <span class="j-kw">case</span> <span class="j-str">"get_time"</span> -&gt; <span class="j-cls">LocalDateTime</span>.<span class="j-fn">now</span>()</span></div>
+<div class="cline" data-line="199" id="cl-199"><span class="ln">199</span><span class="cc">                            .<span class="j-fn">format</span>(<span class="j-cls">DateTimeFormatter</span>.<span class="j-fn">ofPattern</span>(<span class="j-str">"yyyy-MM-dd HH:mm:ss"</span>));</span></div>
+<div class="cline" data-line="200" id="cl-200"><span class="ln">200</span><span class="cc">                    <span class="j-kw">case</span> <span class="j-str">"memory"</span> -&gt; <span class="j-fn">executeMemory</span>(args);</span></div>
+<div class="cline" data-line="201" id="cl-201"><span class="ln">201</span><span class="cc">                    <span class="j-kw">default</span> -&gt; <span class="j-str">"未知工具: "</span> + name;</span></div>
+<div class="cline" data-line="202" id="cl-202"><span class="ln">202</span><span class="cc">                };</span></div>
+<div class="cline" data-line="203" id="cl-203"><span class="ln">203</span><span class="cc">            } <span class="j-kw">catch</span> (<span class="j-cls">Exception</span> exception) {</span></div>
+<div class="cline" data-line="204" id="cl-204"><span class="ln">204</span><span class="cc">                <span class="j-kw">return</span> <span class="j-str">"工具执行失败: "</span> + exception.<span class="j-fn">getMessage</span>();</span></div>
+<div class="cline" data-line="205" id="cl-205"><span class="ln">205</span><span class="cc">            }</span></div>
+<div class="cline" data-line="206" id="cl-206"><span class="ln">206</span><span class="cc">        }</span></div>
+<div class="cline" data-line="207" id="cl-207"><span class="ln">207</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="208" id="cl-208"><span class="ln">208</span><span class="cc">        /**</span></div>
+<div class="cline" data-line="209" id="cl-209"><span class="ln">209</span><span class="cc">         * memory 是模型显式调用的工具，不是启动时无条件注入的全部历史。</span></div>
+<div class="cline" data-line="210" id="cl-210"><span class="ln">210</span><span class="cc">         * 模型决定何时写、读什么；宿主决定存储位置和访问规则。</span></div>
+<div class="cline" data-line="211" id="cl-211"><span class="ln">211</span><span class="cc">         */</span></div>
+<div class="cline" data-line="212" id="cl-212"><span class="ln">212</span><span class="cc">        <span class="j-kw">private</span> <span class="j-cls">String</span> <span class="j-fn">executeMemory</span>(<span class="j-cls">Map</span>&lt;<span class="j-cls">String</span>, <span class="j-cls">Object</span>&gt; args) {</span></div>
+<div class="cline" data-line="213" id="cl-213"><span class="ln">213</span><span class="cc">            <span class="j-cls">String</span> command = <span class="j-fn">text</span>(args, <span class="j-str">"command"</span>);</span></div>
+<div class="cline" data-line="214" id="cl-214"><span class="ln">214</span><span class="cc">            <span class="j-cls">String</span> key = <span class="j-fn">text</span>(args, <span class="j-str">"key"</span>);</span></div>
+<div class="cline" data-line="215" id="cl-215"><span class="ln">215</span><span class="cc">            <span class="j-kw">return</span> <span class="j-kw">switch</span> (command) {</span></div>
+<div class="cline" data-line="216" id="cl-216"><span class="ln">216</span><span class="cc">                <span class="j-kw">case</span> <span class="j-str">"write"</span> -&gt; {</span></div>
+<div class="cline" data-line="217" id="cl-217"><span class="ln">217</span><span class="cc">                    <span class="j-cls">String</span> value = <span class="j-fn">text</span>(args, <span class="j-str">"value"</span>);</span></div>
+<div class="cline" data-line="218" id="cl-218"><span class="ln">218</span><span class="cc">                    <span class="j-kw">if</span> (key.<span class="j-fn">isBlank</span>() || value.<span class="j-fn">isBlank</span>()) {</span></div>
+<div class="cline" data-line="219" id="cl-219"><span class="ln">219</span><span class="cc">                        <span class="j-kw">yield</span> <span class="j-str">"工具执行失败: key/value 不能为空"</span>;</span></div>
+<div class="cline" data-line="220" id="cl-220"><span class="ln">220</span><span class="cc">                    }</span></div>
+<div class="cline" data-line="221" id="cl-221"><span class="ln">221</span><span class="cc">                    memory.<span class="j-fn">put</span>(key, value);</span></div>
+<div class="cline" data-line="222" id="cl-222"><span class="ln">222</span><span class="cc">                    <span class="j-kw">yield</span> <span class="j-str">"已保存 "</span> + key + <span class="j-str">"（当前记忆 "</span> + memory.<span class="j-fn">size</span>() + <span class="j-str">" 项）。"</span>;</span></div>
+<div class="cline" data-line="223" id="cl-223"><span class="ln">223</span><span class="cc">                }</span></div>
+<div class="cline" data-line="224" id="cl-224"><span class="ln">224</span><span class="cc">                <span class="j-kw">case</span> <span class="j-str">"read"</span> -&gt; memory.<span class="j-fn">containsKey</span>(key)</span></div>
+<div class="cline" data-line="225" id="cl-225"><span class="ln">225</span><span class="cc">                        ? key + <span class="j-str">"="</span> + memory.<span class="j-fn">get</span>(key)</span></div>
+<div class="cline" data-line="226" id="cl-226"><span class="ln">226</span><span class="cc">                        : key + <span class="j-str">" 不存在。当前记忆键: "</span> + memory.<span class="j-fn">keySet</span>();</span></div>
+<div class="cline" data-line="227" id="cl-227"><span class="ln">227</span><span class="cc">                <span class="j-kw">case</span> <span class="j-str">"keys"</span> -&gt; memory.<span class="j-fn">isEmpty</span>() ? <span class="j-str">"记忆为空。"</span> : <span class="j-str">"记忆键: "</span> + memory.<span class="j-fn">keySet</span>();</span></div>
+<div class="cline" data-line="228" id="cl-228"><span class="ln">228</span><span class="cc">                <span class="j-kw">case</span> <span class="j-str">"delete"</span> -&gt; memory.<span class="j-fn">remove</span>(key) == <span class="j-kw">null</span></span></div>
+<div class="cline" data-line="229" id="cl-229"><span class="ln">229</span><span class="cc">                        ? key + <span class="j-str">" 不存在。"</span></span></div>
+<div class="cline" data-line="230" id="cl-230"><span class="ln">230</span><span class="cc">                        : <span class="j-str">"已删除 "</span> + key + <span class="j-str">"。"</span>;</span></div>
+<div class="cline" data-line="231" id="cl-231"><span class="ln">231</span><span class="cc">                <span class="j-kw">default</span> -&gt; <span class="j-str">"未知记忆命令: "</span> + command;</span></div>
+<div class="cline" data-line="232" id="cl-232"><span class="ln">232</span><span class="cc">            };</span></div>
+<div class="cline" data-line="233" id="cl-233"><span class="ln">233</span><span class="cc">        }</span></div>
+<div class="cline" data-line="234" id="cl-234"><span class="ln">234</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="235" id="cl-235"><span class="ln">235</span><span class="cc">        /** 解析模型返回的 argumentsJson；协议约定它必须是 <span class="j-cls">JSON</span> 对象。 */</span></div>
+<div class="cline" data-line="236" id="cl-236"><span class="ln">236</span><span class="cc">        <span class="j-kw">private</span> <span class="j-cls">Map</span>&lt;<span class="j-cls">String</span>, <span class="j-cls">Object</span>&gt; <span class="j-fn">parseArguments</span>(<span class="j-cls">String</span> argumentsJson) {</span></div>
+<div class="cline" data-line="237" id="cl-237"><span class="ln">237</span><span class="cc">            <span class="j-kw">if</span> (argumentsJson == <span class="j-kw">null</span> || argumentsJson.<span class="j-fn">isBlank</span>()) {</span></div>
+<div class="cline" data-line="238" id="cl-238"><span class="ln">238</span><span class="cc">                <span class="j-kw">return</span> <span class="j-cls">Map</span>.<span class="j-fn">of</span>();</span></div>
+<div class="cline" data-line="239" id="cl-239"><span class="ln">239</span><span class="cc">            }</span></div>
+<div class="cline" data-line="240" id="cl-240"><span class="ln">240</span><span class="cc">            <span class="j-cls">Object</span> parsed = <span class="j-cls">Json</span>.<span class="j-fn">parse</span>(argumentsJson);</span></div>
+<div class="cline" data-line="241" id="cl-241"><span class="ln">241</span><span class="cc">            <span class="j-kw">return</span> parsed <span class="j-kw">instanceof</span> <span class="j-cls">Map</span>&lt;?, ?&gt; map ? <span class="j-fn">asObjectMap</span>(map) : <span class="j-cls">Map</span>.<span class="j-fn">of</span>();</span></div>
+<div class="cline" data-line="242" id="cl-242"><span class="ln">242</span><span class="cc">        }</span></div>
+<div class="cline" data-line="243" id="cl-243"><span class="ln">243</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="244" id="cl-244"><span class="ln">244</span><span class="cc">        /** 把不可变的解析结果转换为工具执行器可直接访问的 <span class="j-cls">Map</span>。 */</span></div>
+<div class="cline" data-line="245" id="cl-245"><span class="ln">245</span><span class="cc">        <span class="j-kw">private</span> <span class="j-cls">Map</span>&lt;<span class="j-cls">String</span>, <span class="j-cls">Object</span>&gt; <span class="j-fn">asObjectMap</span>(<span class="j-cls">Map</span>&lt;?, ?&gt; source) {</span></div>
+<div class="cline" data-line="246" id="cl-246"><span class="ln">246</span><span class="cc">            <span class="j-cls">Map</span>&lt;<span class="j-cls">String</span>, <span class="j-cls">Object</span>&gt; result = <span class="j-kw">new</span> <span class="j-cls">LinkedHashMap</span>&lt;&gt;();</span></div>
+<div class="cline" data-line="247" id="cl-247"><span class="ln">247</span><span class="cc">            source.<span class="j-fn">forEach</span>((key, value) -&gt; result.<span class="j-fn">put</span>(<span class="j-cls">String</span>.<span class="j-fn">valueOf</span>(key), value));</span></div>
+<div class="cline" data-line="248" id="cl-248"><span class="ln">248</span><span class="cc">            <span class="j-kw">return</span> result;</span></div>
+<div class="cline" data-line="249" id="cl-249"><span class="ln">249</span><span class="cc">        }</span></div>
+<div class="cline" data-line="250" id="cl-250"><span class="ln">250</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="251" id="cl-251"><span class="ln">251</span><span class="cc">        /** 统一把工具参数转换为字符串；缺失参数按空串处理并由工具校验。 */</span></div>
+<div class="cline" data-line="252" id="cl-252"><span class="ln">252</span><span class="cc">        <span class="j-kw">private</span> <span class="j-cls">String</span> <span class="j-fn">text</span>(<span class="j-cls">Map</span>&lt;<span class="j-cls">String</span>, <span class="j-cls">Object</span>&gt; args, <span class="j-cls">String</span> key) {</span></div>
+<div class="cline" data-line="253" id="cl-253"><span class="ln">253</span><span class="cc">            <span class="j-cls">Object</span> value = args.<span class="j-fn">get</span>(key);</span></div>
+<div class="cline" data-line="254" id="cl-254"><span class="ln">254</span><span class="cc">            <span class="j-kw">return</span> value == <span class="j-kw">null</span> ? <span class="j-str">""</span> : <span class="j-cls">String</span>.<span class="j-fn">valueOf</span>(value);</span></div>
+<div class="cline" data-line="255" id="cl-255"><span class="ln">255</span><span class="cc">        }</span></div>
+<div class="cline" data-line="256" id="cl-256"><span class="ln">256</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="257" id="cl-257"><span class="ln">257</span><span class="cc">        /** 模型输出同样不可信；进入用户界面和跨轮历史前再做一次检查。 */</span></div>
+<div class="cline" data-line="258" id="cl-258"><span class="ln">258</span><span class="cc">        <span class="j-kw">private</span> <span class="j-cls">String</span> <span class="j-fn">outputGuard</span>(<span class="j-cls">String</span> answer) {</span></div>
+<div class="cline" data-line="259" id="cl-259"><span class="ln">259</span><span class="cc">            <span class="j-kw">if</span> (answer != <span class="j-kw">null</span> &amp;&amp; <span class="j-cls">SENSITIVE</span>.<span class="j-fn">matcher</span>(answer).<span class="j-fn">find</span>()) {</span></div>
+<div class="cline" data-line="260" id="cl-260"><span class="ln">260</span><span class="cc">                <span class="j-fn">trace</span>(<span class="j-str">"guard"</span>, <span class="j-str">"输出守卫"</span>, <span class="j-str">"答案命中敏感词，已替换。"</span>);</span></div>
+<div class="cline" data-line="261" id="cl-261"><span class="ln">261</span><span class="cc">                <span class="j-kw">return</span> <span class="j-str">"该内容不宜展示，已由输出守卫处理。"</span>;</span></div>
+<div class="cline" data-line="262" id="cl-262"><span class="ln">262</span><span class="cc">            }</span></div>
+<div class="cline" data-line="263" id="cl-263"><span class="ln">263</span><span class="cc">            <span class="j-kw">return</span> answer == <span class="j-kw">null</span> ? <span class="j-str">""</span> : answer;</span></div>
+<div class="cline" data-line="264" id="cl-264"><span class="ln">264</span><span class="cc">        }</span></div>
+<div class="cline" data-line="265" id="cl-265"><span class="ln">265</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="266" id="cl-266"><span class="ln">266</span><span class="cc">        /** 回合收口：只保存最终问答，避免中间工具载荷污染后续轮次。 */</span></div>
+<div class="cline" data-line="267" id="cl-267"><span class="ln">267</span><span class="cc">        <span class="j-kw">private</span> <span class="j-kw">void</span> <span class="j-fn">rememberTurn</span>(<span class="j-cls">String</span> input, <span class="j-cls">String</span> answer) {</span></div>
+<div class="cline" data-line="268" id="cl-268"><span class="ln">268</span><span class="cc">            history.<span class="j-fn">add</span>(<span class="j-cls">Message</span>.<span class="j-fn">user</span>(input));</span></div>
+<div class="cline" data-line="269" id="cl-269"><span class="ln">269</span><span class="cc">            history.<span class="j-fn">add</span>(<span class="j-cls">Message</span>.<span class="j-fn">assistant</span>(answer));</span></div>
+<div class="cline" data-line="270" id="cl-270"><span class="ln">270</span><span class="cc">            <span class="j-fn">trace</span>(<span class="j-str">"memory"</span>, <span class="j-str">"会话记忆"</span>, <span class="j-str">"本轮写入历史，当前 "</span> + history.<span class="j-fn">size</span>() + <span class="j-str">" 条。"</span>);</span></div>
+<div class="cline" data-line="271" id="cl-271"><span class="ln">271</span><span class="cc">        }</span></div>
+<div class="cline" data-line="272" id="cl-272"><span class="ln">272</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="273" id="cl-273"><span class="ln">273</span><span class="cc">        /**</span></div>
+<div class="cline" data-line="274" id="cl-274"><span class="ln">274</span><span class="cc">         * 历史压缩（compaction）：较旧轮次交给模型生成摘要，最近轮次原样保留。</span></div>
+<div class="cline" data-line="275" id="cl-275"><span class="ln">275</span><span class="cc">         * memory 中的结构化事实不参与压缩，因此关键事实仍可跨轮读取。</span></div>
+<div class="cline" data-line="276" id="cl-276"><span class="ln">276</span><span class="cc">         * 摘要模型失败时退化为滑动窗口，这是确定性更高但有硬遗忘的备选策略。</span></div>
+<div class="cline" data-line="277" id="cl-277"><span class="ln">277</span><span class="cc">         */</span></div>
+<div class="cline" data-line="278" id="cl-278"><span class="ln">278</span><span class="cc">        <span class="j-kw">private</span> <span class="j-kw">void</span> <span class="j-fn">compactHistoryIfNeeded</span>() {</span></div>
+<div class="cline" data-line="279" id="cl-279"><span class="ln">279</span><span class="cc">            <span class="j-kw">if</span> (history.<span class="j-fn">size</span>() &lt;= <span class="j-cls">COMPACT_THRESHOLD</span>) {</span></div>
+<div class="cline" data-line="280" id="cl-280"><span class="ln">280</span><span class="cc">                <span class="j-kw">return</span>;</span></div>
+<div class="cline" data-line="281" id="cl-281"><span class="ln">281</span><span class="cc">            }</span></div>
+<div class="cline" data-line="282" id="cl-282"><span class="ln">282</span><span class="cc">            <span class="j-kw">int</span> split = history.<span class="j-fn">size</span>() - <span class="j-cls">KEEP_RECENT</span>;</span></div>
+<div class="cline" data-line="283" id="cl-283"><span class="ln">283</span><span class="cc">            <span class="j-cls">List</span>&lt;<span class="j-cls">Message</span>&gt; older = <span class="j-kw">new</span> <span class="j-cls">ArrayList</span>&lt;&gt;(history.<span class="j-fn">subList</span>(<span class="j-num">0</span>, split));</span></div>
+<div class="cline" data-line="284" id="cl-284"><span class="ln">284</span><span class="cc">            <span class="j-cls">List</span>&lt;<span class="j-cls">Message</span>&gt; recent = <span class="j-kw">new</span> <span class="j-cls">ArrayList</span>&lt;&gt;(history.<span class="j-fn">subList</span>(split, history.<span class="j-fn">size</span>()));</span></div>
+<div class="cline" data-line="285" id="cl-285"><span class="ln">285</span><span class="cc">            <span class="j-kw">try</span> {</span></div>
+<div class="cline" data-line="286" id="cl-286"><span class="ln">286</span><span class="cc">                <span class="j-cls">String</span> summary = model.<span class="j-fn">chat</span>(<span class="j-cls">List</span>.<span class="j-fn">of</span>(</span></div>
+<div class="cline" data-line="287" id="cl-287"><span class="ln">287</span><span class="cc">                        <span class="j-cls">Message</span>.<span class="j-fn">system</span>(<span class="j-cls">COMPACT_PROMPT</span>),</span></div>
+<div class="cline" data-line="288" id="cl-288"><span class="ln">288</span><span class="cc">                        <span class="j-cls">Message</span>.<span class="j-fn">user</span>(<span class="j-fn">renderTranscript</span>(older))</span></div>
+<div class="cline" data-line="289" id="cl-289"><span class="ln">289</span><span class="cc">                ));</span></div>
+<div class="cline" data-line="290" id="cl-290"><span class="ln">290</span><span class="cc">                history.<span class="j-fn">clear</span>();</span></div>
+<div class="cline" data-line="291" id="cl-291"><span class="ln">291</span><span class="cc">                history.<span class="j-fn">add</span>(<span class="j-cls">Message</span>.<span class="j-fn">user</span>(<span class="j-str">"[对话摘要]\n"</span> + summary));</span></div>
+<div class="cline" data-line="292" id="cl-292"><span class="ln">292</span><span class="cc">                history.<span class="j-fn">addAll</span>(recent);</span></div>
+<div class="cline" data-line="293" id="cl-293"><span class="ln">293</span><span class="cc">                <span class="j-fn">trace</span>(<span class="j-str">"compact"</span>, <span class="j-str">"上下文压缩"</span>,</span></div>
+<div class="cline" data-line="294" id="cl-294"><span class="ln">294</span><span class="cc">                        older.<span class="j-fn">size</span>() + <span class="j-str">" 条历史压缩为摘要，保留最近 "</span> + recent.<span class="j-fn">size</span>() + <span class="j-str">" 条。"</span>);</span></div>
+<div class="cline" data-line="295" id="cl-295"><span class="ln">295</span><span class="cc">            } <span class="j-kw">catch</span> (<span class="j-cls">Exception</span> exception) {</span></div>
+<div class="cline" data-line="296" id="cl-296"><span class="ln">296</span><span class="cc">                history.<span class="j-fn">clear</span>();</span></div>
+<div class="cline" data-line="297" id="cl-297"><span class="ln">297</span><span class="cc">                history.<span class="j-fn">addAll</span>(recent);</span></div>
+<div class="cline" data-line="298" id="cl-298"><span class="ln">298</span><span class="cc">                <span class="j-fn">trace</span>(<span class="j-str">"compact"</span>, <span class="j-str">"上下文压缩"</span>,</span></div>
+<div class="cline" data-line="299" id="cl-299"><span class="ln">299</span><span class="cc">                        <span class="j-str">"摘要调用失败，退化为滑动窗口；保留最近 "</span> + recent.<span class="j-fn">size</span>() + <span class="j-str">" 条。"</span>);</span></div>
+<div class="cline" data-line="300" id="cl-300"><span class="ln">300</span><span class="cc">            }</span></div>
+<div class="cline" data-line="301" id="cl-301"><span class="ln">301</span><span class="cc">        }</span></div>
+<div class="cline" data-line="302" id="cl-302"><span class="ln">302</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="303" id="cl-303"><span class="ln">303</span><span class="cc">        /** 把消息列表渲染为压缩器可读的文本转写。 */</span></div>
+<div class="cline" data-line="304" id="cl-304"><span class="ln">304</span><span class="cc">        <span class="j-kw">private</span> <span class="j-cls">String</span> <span class="j-fn">renderTranscript</span>(<span class="j-cls">List</span>&lt;<span class="j-cls">Message</span>&gt; messages) {</span></div>
+<div class="cline" data-line="305" id="cl-305"><span class="ln">305</span><span class="cc">            <span class="j-cls">StringBuilder</span> transcript = <span class="j-kw">new</span> <span class="j-fn">StringBuilder</span>();</span></div>
+<div class="cline" data-line="306" id="cl-306"><span class="ln">306</span><span class="cc">            <span class="j-kw">for</span> (<span class="j-cls">Message</span> message : messages) {</span></div>
+<div class="cline" data-line="307" id="cl-307"><span class="ln">307</span><span class="cc">                transcript.<span class="j-fn">append</span>(<span class="j-str">'['</span>).<span class="j-fn">append</span>(message.<span class="j-fn">role</span>()).<span class="j-fn">append</span>(<span class="j-str">"] "</span>)</span></div>
+<div class="cline" data-line="308" id="cl-308"><span class="ln">308</span><span class="cc">                        .<span class="j-fn">append</span>(message.<span class="j-fn">content</span>() == <span class="j-kw">null</span> ? <span class="j-str">""</span> : message.<span class="j-fn">content</span>())</span></div>
+<div class="cline" data-line="309" id="cl-309"><span class="ln">309</span><span class="cc">                        .<span class="j-fn">append</span>(<span class="j-str">'\n'</span>);</span></div>
+<div class="cline" data-line="310" id="cl-310"><span class="ln">310</span><span class="cc">            }</span></div>
+<div class="cline" data-line="311" id="cl-311"><span class="ln">311</span><span class="cc">            <span class="j-kw">return</span> transcript.<span class="j-fn">toString</span>();</span></div>
+<div class="cline" data-line="312" id="cl-312"><span class="ln">312</span><span class="cc">        }</span></div>
+<div class="cline" data-line="313" id="cl-313"><span class="ln">313</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="314" id="cl-314"><span class="ln">314</span><span class="cc">        /**</span></div>
+<div class="cline" data-line="315" id="cl-315"><span class="ln">315</span><span class="cc">         * 工具结果清理（tool clearing）：只清可重取的大块观察，不删除协议消息。</span></div>
+<div class="cline" data-line="316" id="cl-316"><span class="ln">316</span><span class="cc">         * 每次调模型前从后往前统计 role=tool；超过最近 <span class="j-cls">N</span> 条的旧结果替换为占位符。</span></div>
+<div class="cline" data-line="317" id="cl-317"><span class="ln">317</span><span class="cc">         * 这样既减小上下文，又保持 <span class="j-fn">assistant</span>(tool_calls) 与 tool 结果的合法配对。</span></div>
+<div class="cline" data-line="318" id="cl-318"><span class="ln">318</span><span class="cc">         *</span></div>
+<div class="cline" data-line="319" id="cl-319"><span class="ln">319</span><span class="cc">         * &lt;p&gt;举例：<span class="j-cls">KEEP_TOOL_RESULTS</span>=<span class="j-num">2</span>，当前回合已有 <span class="j-num">3</span> 次工具调用：</span></div>
+<div class="cline" data-line="320" id="cl-320"><span class="ln">320</span><span class="cc">         *</span></div>
+<div class="cline" data-line="321" id="cl-321"><span class="ln">321</span><span class="cc">         * &lt;pre&gt;</span></div>
+<div class="cline" data-line="322" id="cl-322"><span class="ln">322</span><span class="cc">         * 清理前：</span></div>
+<div class="cline" data-line="323" id="cl-323"><span class="ln">323</span><span class="cc">         * <span class="j-fn">assistant</span>(tool_calls=[call-<span class="j-num">1</span>: <span class="j-fn">get_weather</span>(<span class="j-str">"北京"</span>)])</span></div>
+<div class="cline" data-line="324" id="cl-324"><span class="ln">324</span><span class="cc">         * <span class="j-fn">tool</span>(call-<span class="j-num">1</span>, <span class="j-str">"北京晴，26℃"</span>)                         ← 第 <span class="j-num">3</span> 新，清理</span></div>
+<div class="cline" data-line="325" id="cl-325"><span class="ln">325</span><span class="cc">         * <span class="j-fn">assistant</span>(tool_calls=[call-<span class="j-num">2</span>: <span class="j-fn">calculator</span>(<span class="j-str">"12*8"</span>)])</span></div>
+<div class="cline" data-line="326" id="cl-326"><span class="ln">326</span><span class="cc">         * <span class="j-fn">tool</span>(call-<span class="j-num">2</span>, <span class="j-str">"96.0"</span>)                                ← 第 <span class="j-num">2</span> 新，保留</span></div>
+<div class="cline" data-line="327" id="cl-327"><span class="ln">327</span><span class="cc">         * <span class="j-fn">assistant</span>(tool_calls=[call-<span class="j-num">3</span>: <span class="j-fn">get_time</span>()])</span></div>
+<div class="cline" data-line="328" id="cl-328"><span class="ln">328</span><span class="cc">         * <span class="j-fn">tool</span>(call-<span class="j-num">3</span>, <span class="j-str">"2026-11-20 10:00:00"</span>)                 ← 第 <span class="j-num">1</span> 新，保留</span></div>
+<div class="cline" data-line="329" id="cl-329"><span class="ln">329</span><span class="cc">         *</span></div>
+<div class="cline" data-line="330" id="cl-330"><span class="ln">330</span><span class="cc">         * 清理后：</span></div>
+<div class="cline" data-line="331" id="cl-331"><span class="ln">331</span><span class="cc">         * <span class="j-fn">assistant</span>(tool_calls=[call-<span class="j-num">1</span>: <span class="j-fn">get_weather</span>(<span class="j-str">"北京"</span>)])  ← 保留请求记录</span></div>
+<div class="cline" data-line="332" id="cl-332"><span class="ln">332</span><span class="cc">         * <span class="j-fn">tool</span>(call-<span class="j-num">1</span>, <span class="j-str">"[工具结果已清理，需要时重新调用]"</span>)      ← 只替换结果内容</span></div>
+<div class="cline" data-line="333" id="cl-333"><span class="ln">333</span><span class="cc">         * <span class="j-fn">assistant</span>(tool_calls=[call-<span class="j-num">2</span>: <span class="j-fn">calculator</span>(<span class="j-str">"12*8"</span>)])</span></div>
+<div class="cline" data-line="334" id="cl-334"><span class="ln">334</span><span class="cc">         * <span class="j-fn">tool</span>(call-<span class="j-num">2</span>, <span class="j-str">"96.0"</span>)</span></div>
+<div class="cline" data-line="335" id="cl-335"><span class="ln">335</span><span class="cc">         * <span class="j-fn">assistant</span>(tool_calls=[call-<span class="j-num">3</span>: <span class="j-fn">get_time</span>()])</span></div>
+<div class="cline" data-line="336" id="cl-336"><span class="ln">336</span><span class="cc">         * <span class="j-fn">tool</span>(call-<span class="j-num">3</span>, <span class="j-str">"2026-11-20 10:00:00"</span>)</span></div>
+<div class="cline" data-line="337" id="cl-337"><span class="ln">337</span><span class="cc">         * &lt;/pre&gt;</span></div>
+<div class="cline" data-line="338" id="cl-338"><span class="ln">338</span><span class="cc">         *</span></div>
+<div class="cline" data-line="339" id="cl-339"><span class="ln">339</span><span class="cc">         * &lt;p&gt;因此“清理”不是删除工具调用历史，而是把旧观察压缩成占位符；</span></div>
+<div class="cline" data-line="340" id="cl-340"><span class="ln">340</span><span class="cc">         * assistant 的调用请求、tool 消息角色和 tool_call_id 配对关系都保留。</span></div>
+<div class="cline" data-line="341" id="cl-341"><span class="ln">341</span><span class="cc">         */</span></div>
+<div class="cline" data-line="342" id="cl-342"><span class="ln">342</span><span class="cc">        <span class="j-kw">private</span> <span class="j-kw">void</span> <span class="j-fn">clearOldToolResults</span>(<span class="j-cls">List</span>&lt;<span class="j-cls">Message</span>&gt; messages) {</span></div>
+<div class="cline" data-line="343" id="cl-343"><span class="ln">343</span><span class="cc">            <span class="j-kw">int</span> count = <span class="j-num">0</span>;</span></div>
+<div class="cline" data-line="344" id="cl-344"><span class="ln">344</span><span class="cc">            <span class="j-kw">int</span> cleared = <span class="j-num">0</span>;</span></div>
+<div class="cline" data-line="345" id="cl-345"><span class="ln">345</span><span class="cc">            <span class="j-kw">for</span> (<span class="j-kw">int</span> index = messages.<span class="j-fn">size</span>() - <span class="j-num">1</span>; index &gt;= <span class="j-num">0</span>; index--) {</span></div>
+<div class="cline" data-line="346" id="cl-346"><span class="ln">346</span><span class="cc">                <span class="j-cls">Message</span> message = messages.<span class="j-fn">get</span>(index);</span></div>
+<div class="cline" data-line="347" id="cl-347"><span class="ln">347</span><span class="cc">                <span class="j-kw">if</span> (!<span class="j-str">"tool"</span>.<span class="j-fn">equals</span>(message.<span class="j-fn">role</span>())) {</span></div>
+<div class="cline" data-line="348" id="cl-348"><span class="ln">348</span><span class="cc">                    <span class="j-kw">continue</span>;</span></div>
+<div class="cline" data-line="349" id="cl-349"><span class="ln">349</span><span class="cc">                }</span></div>
+<div class="cline" data-line="350" id="cl-350"><span class="ln">350</span><span class="cc">                count++;</span></div>
+<div class="cline" data-line="351" id="cl-351"><span class="ln">351</span><span class="cc">                <span class="j-kw">if</span> (count &gt; <span class="j-cls">KEEP_TOOL_RESULTS</span>) {</span></div>
+<div class="cline" data-line="352" id="cl-352"><span class="ln">352</span><span class="cc">                    messages.<span class="j-fn">set</span>(index, <span class="j-cls">Message</span>.<span class="j-fn">tool</span>(message.<span class="j-fn">toolCallId</span>(), <span class="j-str">"[工具结果已清理，需要时重新调用]"</span>));</span></div>
+<div class="cline" data-line="353" id="cl-353"><span class="ln">353</span><span class="cc">                    cleared++;</span></div>
+<div class="cline" data-line="354" id="cl-354"><span class="ln">354</span><span class="cc">                }</span></div>
+<div class="cline" data-line="355" id="cl-355"><span class="ln">355</span><span class="cc">            }</span></div>
+<div class="cline" data-line="356" id="cl-356"><span class="ln">356</span><span class="cc">            <span class="j-kw">if</span> (cleared &gt; <span class="j-num">0</span>) {</span></div>
+<div class="cline" data-line="357" id="cl-357"><span class="ln">357</span><span class="cc">                <span class="j-fn">trace</span>(<span class="j-str">"context"</span>, <span class="j-str">"工具结果清理"</span>, <span class="j-str">"清理 "</span> + cleared + <span class="j-str">" 条旧观察，保留最近 "</span></span></div>
+<div class="cline" data-line="358" id="cl-358"><span class="ln">358</span><span class="cc">                        + <span class="j-cls">KEEP_TOOL_RESULTS</span> + <span class="j-str">" 条，协议配对不变。"</span>);</span></div>
+<div class="cline" data-line="359" id="cl-359"><span class="ln">359</span><span class="cc">            }</span></div>
+<div class="cline" data-line="360" id="cl-360"><span class="ln">360</span><span class="cc">        }</span></div>
+<div class="cline" data-line="361" id="cl-361"><span class="ln">361</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="362" id="cl-362"><span class="ln">362</span><span class="cc">        /** 教学用单步四则运算；不使用反射或脚本引擎，避免代码执行面。 */</span></div>
+<div class="cline" data-line="363" id="cl-363"><span class="ln">363</span><span class="cc">        <span class="j-kw">private</span> <span class="j-kw">double</span> <span class="j-fn">calc</span>(<span class="j-cls">String</span> expression) {</span></div>
+<div class="cline" data-line="364" id="cl-364"><span class="ln">364</span><span class="cc">            <span class="j-cls">Matcher</span> matcher = <span class="j-cls">Pattern</span>.<span class="j-fn">compile</span>(<span class="j-str">"\\s*(\\d+(?:\\.\\d+)?)\\s*([+\\-*/])\\s*(\\d+(?:\\.\\d+)?)\\s*"</span>)</span></div>
+<div class="cline" data-line="365" id="cl-365"><span class="ln">365</span><span class="cc">                    .<span class="j-fn">matcher</span>(expression);</span></div>
+<div class="cline" data-line="366" id="cl-366"><span class="ln">366</span><span class="cc">            <span class="j-kw">if</span> (!matcher.<span class="j-fn">matches</span>()) {</span></div>
+<div class="cline" data-line="367" id="cl-367"><span class="ln">367</span><span class="cc">                <span class="j-kw">throw</span> <span class="j-kw">new</span> <span class="j-fn">IllegalArgumentException</span>(<span class="j-str">"无法解析表达式: "</span> + expression);</span></div>
+<div class="cline" data-line="368" id="cl-368"><span class="ln">368</span><span class="cc">            }</span></div>
+<div class="cline" data-line="369" id="cl-369"><span class="ln">369</span><span class="cc">            <span class="j-kw">double</span> left = <span class="j-cls">Double</span>.<span class="j-fn">parseDouble</span>(matcher.<span class="j-fn">group</span>(<span class="j-num">1</span>));</span></div>
+<div class="cline" data-line="370" id="cl-370"><span class="ln">370</span><span class="cc">            <span class="j-kw">double</span> right = <span class="j-cls">Double</span>.<span class="j-fn">parseDouble</span>(matcher.<span class="j-fn">group</span>(<span class="j-num">3</span>));</span></div>
+<div class="cline" data-line="371" id="cl-371"><span class="ln">371</span><span class="cc">            <span class="j-kw">return</span> <span class="j-kw">switch</span> (matcher.<span class="j-fn">group</span>(<span class="j-num">2</span>)) {</span></div>
+<div class="cline" data-line="372" id="cl-372"><span class="ln">372</span><span class="cc">                <span class="j-kw">case</span> <span class="j-str">"+"</span> -&gt; left + right;</span></div>
+<div class="cline" data-line="373" id="cl-373"><span class="ln">373</span><span class="cc">                <span class="j-kw">case</span> <span class="j-str">"-"</span> -&gt; left - right;</span></div>
+<div class="cline" data-line="374" id="cl-374"><span class="ln">374</span><span class="cc">                <span class="j-kw">case</span> <span class="j-str">"*"</span> -&gt; left * right;</span></div>
+<div class="cline" data-line="375" id="cl-375"><span class="ln">375</span><span class="cc">                <span class="j-kw">case</span> <span class="j-str">"/"</span> -&gt; {</span></div>
+<div class="cline" data-line="376" id="cl-376"><span class="ln">376</span><span class="cc">                    <span class="j-kw">if</span> (right == <span class="j-num">0</span>) {</span></div>
+<div class="cline" data-line="377" id="cl-377"><span class="ln">377</span><span class="cc">                        <span class="j-kw">throw</span> <span class="j-kw">new</span> <span class="j-fn">ArithmeticException</span>(<span class="j-str">"除数不能为 0"</span>);</span></div>
+<div class="cline" data-line="378" id="cl-378"><span class="ln">378</span><span class="cc">                    }</span></div>
+<div class="cline" data-line="379" id="cl-379"><span class="ln">379</span><span class="cc">                    <span class="j-kw">yield</span> left / right;</span></div>
+<div class="cline" data-line="380" id="cl-380"><span class="ln">380</span><span class="cc">                }</span></div>
+<div class="cline" data-line="381" id="cl-381"><span class="ln">381</span><span class="cc">                <span class="j-kw">default</span> -&gt; <span class="j-kw">throw</span> <span class="j-kw">new</span> <span class="j-fn">IllegalArgumentException</span>(<span class="j-str">"不支持的运算符"</span>);</span></div>
+<div class="cline" data-line="382" id="cl-382"><span class="ln">382</span><span class="cc">            };</span></div>
+<div class="cline" data-line="383" id="cl-383"><span class="ln">383</span><span class="cc">        }</span></div>
+<div class="cline" data-line="384" id="cl-384"><span class="ln">384</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="385" id="cl-385"><span class="ln">385</span><span class="cc">        /**</span></div>
+<div class="cline" data-line="386" id="cl-386"><span class="ln">386</span><span class="cc">         * 工具清单是模型的唯一“能力视图”。每个工具用 <span class="j-cls">JSON</span> <span class="j-cls">Schema</span> 声明</span></div>
+<div class="cline" data-line="387" id="cl-387"><span class="ln">387</span><span class="cc">         * 名称、用途、参数和必填项；宿主 <span class="j-kw">switch</span> 只是这些 <span class="j-cls">Schema</span> 的执行后端。</span></div>
+<div class="cline" data-line="388" id="cl-388"><span class="ln">388</span><span class="cc">         */</span></div>
+<div class="cline" data-line="389" id="cl-389"><span class="ln">389</span><span class="cc">        <span class="j-kw">private</span> <span class="j-cls">List</span>&lt;<span class="j-cls">Map</span>&lt;<span class="j-cls">String</span>, <span class="j-cls">Object</span>&gt;&gt; <span class="j-fn">toolSchemas</span>() {</span></div>
+<div class="cline" data-line="390" id="cl-390"><span class="ln">390</span><span class="cc">            <span class="j-kw">return</span> <span class="j-cls">List</span>.<span class="j-fn">of</span>(</span></div>
+<div class="cline" data-line="391" id="cl-391"><span class="ln">391</span><span class="cc">                    <span class="j-fn">function</span>(<span class="j-str">"get_weather"</span>, <span class="j-str">"查询城市天气。"</span>, <span class="j-fn">stringProperty</span>(<span class="j-str">"city"</span>, <span class="j-str">"城市名"</span>), <span class="j-str">"city"</span>),</span></div>
+<div class="cline" data-line="392" id="cl-392"><span class="ln">392</span><span class="cc">                    <span class="j-fn">function</span>(<span class="j-str">"calculator"</span>, <span class="j-str">"计算一次四则运算。"</span>, <span class="j-fn">stringProperty</span>(<span class="j-str">"expression"</span>, <span class="j-str">"表达式，如 12*8"</span>), <span class="j-str">"expression"</span>),</span></div>
+<div class="cline" data-line="393" id="cl-393"><span class="ln">393</span><span class="cc">                    <span class="j-fn">function</span>(<span class="j-str">"get_time"</span>, <span class="j-str">"获取当前本地时间。"</span>, <span class="j-cls">Map</span>.<span class="j-fn">of</span>(), <span class="j-kw">null</span>),</span></div>
+<div class="cline" data-line="394" id="cl-394"><span class="ln">394</span><span class="cc">                    <span class="j-fn">function</span>(<span class="j-str">"memory"</span>, <span class="j-str">"跨轮持久记忆的读写接口。"</span>,</span></div>
+<div class="cline" data-line="395" id="cl-395"><span class="ln">395</span><span class="cc">                            <span class="j-cls">Map</span>.<span class="j-fn">of</span>(</span></div>
+<div class="cline" data-line="396" id="cl-396"><span class="ln">396</span><span class="cc">                                    <span class="j-str">"command"</span>, <span class="j-cls">Map</span>.<span class="j-fn">of</span>(<span class="j-str">"type"</span>, <span class="j-str">"string"</span>,</span></div>
+<div class="cline" data-line="397" id="cl-397"><span class="ln">397</span><span class="cc">                                            <span class="j-str">"enum"</span>, <span class="j-cls">List</span>.<span class="j-fn">of</span>(<span class="j-str">"write"</span>, <span class="j-str">"read"</span>, <span class="j-str">"keys"</span>, <span class="j-str">"delete"</span>),</span></div>
+<div class="cline" data-line="398" id="cl-398"><span class="ln">398</span><span class="cc">                                            <span class="j-str">"description"</span>, <span class="j-str">"记忆操作"</span>),</span></div>
+<div class="cline" data-line="399" id="cl-399"><span class="ln">399</span><span class="cc">                                    <span class="j-str">"key"</span>, <span class="j-cls">Map</span>.<span class="j-fn">of</span>(<span class="j-str">"type"</span>, <span class="j-str">"string"</span>, <span class="j-str">"description"</span>, <span class="j-str">"记忆键"</span>),</span></div>
+<div class="cline" data-line="400" id="cl-400"><span class="ln">400</span><span class="cc">                                    <span class="j-str">"value"</span>, <span class="j-cls">Map</span>.<span class="j-fn">of</span>(<span class="j-str">"type"</span>, <span class="j-str">"string"</span>, <span class="j-str">"description"</span>, <span class="j-str">"write 时的值"</span>)),</span></div>
+<div class="cline" data-line="401" id="cl-401"><span class="ln">401</span><span class="cc">                            <span class="j-str">"command"</span>));</span></div>
+<div class="cline" data-line="402" id="cl-402"><span class="ln">402</span><span class="cc">        }</span></div>
+<div class="cline" data-line="403" id="cl-403"><span class="ln">403</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="404" id="cl-404"><span class="ln">404</span><span class="cc">        <span class="j-kw">private</span> <span class="j-cls">Map</span>&lt;<span class="j-cls">String</span>, <span class="j-cls">Object</span>&gt; <span class="j-fn">function</span>(<span class="j-cls">String</span> name, <span class="j-cls">String</span> description,</span></div>
+<div class="cline" data-line="405" id="cl-405"><span class="ln">405</span><span class="cc">                                             <span class="j-cls">Map</span>&lt;<span class="j-cls">String</span>, <span class="j-cls">Object</span>&gt; properties, <span class="j-cls">String</span>... required) {</span></div>
+<div class="cline" data-line="406" id="cl-406"><span class="ln">406</span><span class="cc">            /** 构造 <span class="j-cls">OpenAI</span> tools 协议里的一个 function 定义。 */</span></div>
+<div class="cline" data-line="407" id="cl-407"><span class="ln">407</span><span class="cc">            <span class="j-cls">Map</span>&lt;<span class="j-cls">String</span>, <span class="j-cls">Object</span>&gt; parameters = <span class="j-kw">new</span> <span class="j-cls">LinkedHashMap</span>&lt;&gt;();</span></div>
+<div class="cline" data-line="408" id="cl-408"><span class="ln">408</span><span class="cc">            parameters.<span class="j-fn">put</span>(<span class="j-str">"type"</span>, <span class="j-str">"object"</span>);</span></div>
+<div class="cline" data-line="409" id="cl-409"><span class="ln">409</span><span class="cc">            parameters.<span class="j-fn">put</span>(<span class="j-str">"properties"</span>, properties);</span></div>
+<div class="cline" data-line="410" id="cl-410"><span class="ln">410</span><span class="cc">            <span class="j-kw">if</span> (required != <span class="j-kw">null</span> &amp;&amp; required.length &gt; <span class="j-num">0</span>) {</span></div>
+<div class="cline" data-line="411" id="cl-411"><span class="ln">411</span><span class="cc">                parameters.<span class="j-fn">put</span>(<span class="j-str">"required"</span>, <span class="j-cls">List</span>.<span class="j-fn">of</span>(required));</span></div>
+<div class="cline" data-line="412" id="cl-412"><span class="ln">412</span><span class="cc">            }</span></div>
+<div class="cline" data-line="413" id="cl-413"><span class="ln">413</span><span class="cc">            <span class="j-cls">Map</span>&lt;<span class="j-cls">String</span>, <span class="j-cls">Object</span>&gt; function = <span class="j-kw">new</span> <span class="j-cls">LinkedHashMap</span>&lt;&gt;();</span></div>
+<div class="cline" data-line="414" id="cl-414"><span class="ln">414</span><span class="cc">            function.<span class="j-fn">put</span>(<span class="j-str">"name"</span>, name);</span></div>
+<div class="cline" data-line="415" id="cl-415"><span class="ln">415</span><span class="cc">            function.<span class="j-fn">put</span>(<span class="j-str">"description"</span>, description);</span></div>
+<div class="cline" data-line="416" id="cl-416"><span class="ln">416</span><span class="cc">            function.<span class="j-fn">put</span>(<span class="j-str">"parameters"</span>, parameters);</span></div>
+<div class="cline" data-line="417" id="cl-417"><span class="ln">417</span><span class="cc">            <span class="j-kw">return</span> <span class="j-cls">Map</span>.<span class="j-fn">of</span>(<span class="j-str">"type"</span>, <span class="j-str">"function"</span>, <span class="j-str">"function"</span>, function);</span></div>
+<div class="cline" data-line="418" id="cl-418"><span class="ln">418</span><span class="cc">        }</span></div>
+<div class="cline" data-line="419" id="cl-419"><span class="ln">419</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="420" id="cl-420"><span class="ln">420</span><span class="cc">        <span class="j-kw">private</span> <span class="j-cls">Map</span>&lt;<span class="j-cls">String</span>, <span class="j-cls">Object</span>&gt; <span class="j-fn">stringProperty</span>(<span class="j-cls">String</span> name, <span class="j-cls">String</span> description) {</span></div>
+<div class="cline" data-line="421" id="cl-421"><span class="ln">421</span><span class="cc">            /** 构造一个简单字符串参数 <span class="j-cls">Schema</span>。 */</span></div>
+<div class="cline" data-line="422" id="cl-422"><span class="ln">422</span><span class="cc">            <span class="j-kw">return</span> <span class="j-cls">Map</span>.<span class="j-fn">of</span>(name, <span class="j-cls">Map</span>.<span class="j-fn">of</span>(<span class="j-str">"type"</span>, <span class="j-str">"string"</span>, <span class="j-str">"description"</span>, description));</span></div>
+<div class="cline" data-line="423" id="cl-423"><span class="ln">423</span><span class="cc">        }</span></div>
+<div class="cline" data-line="424" id="cl-424"><span class="ln">424</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="425" id="cl-425"><span class="ln">425</span><span class="cc">        /** 追加一条当前回合事件；trace 只用于观测，不参与下一轮模型上下文。 */</span></div>
+<div class="cline" data-line="426" id="cl-426"><span class="ln">426</span><span class="cc">        <span class="j-kw">private</span> <span class="j-kw">void</span> <span class="j-fn">trace</span>(<span class="j-cls">String</span> type, <span class="j-cls">String</span> label, <span class="j-cls">String</span> detail) {</span></div>
+<div class="cline" data-line="427" id="cl-427"><span class="ln">427</span><span class="cc">            lastTrace.<span class="j-fn">add</span>(<span class="j-cls">Map</span>.<span class="j-fn">of</span>(<span class="j-str">"type"</span>, type, <span class="j-str">"label"</span>, label, <span class="j-str">"detail"</span>, detail == <span class="j-kw">null</span> ? <span class="j-str">""</span> : detail));</span></div>
+<div class="cline" data-line="428" id="cl-428"><span class="ln">428</span><span class="cc">        }</span></div>
+<div class="cline" data-line="429" id="cl-429"><span class="ln">429</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="430" id="cl-430"><span class="ln">430</span><span class="cc">        <span class="j-ann">@Override</span></span></div>
+<div class="cline" data-line="431" id="cl-431"><span class="ln">431</span><span class="cc">        <span class="j-kw">public</span> <span class="j-kw">void</span> <span class="j-fn">reset</span>() {</span></div>
+<div class="cline" data-line="432" id="cl-432"><span class="ln">432</span><span class="cc">            /** 清空两类跨轮状态；trace 属于最近一次 chat，会在下一轮自动覆盖。 */</span></div>
+<div class="cline" data-line="433" id="cl-433"><span class="ln">433</span><span class="cc">            history.<span class="j-fn">clear</span>();</span></div>
+<div class="cline" data-line="434" id="cl-434"><span class="ln">434</span><span class="cc">            memory.<span class="j-fn">clear</span>();</span></div>
+<div class="cline" data-line="435" id="cl-435"><span class="ln">435</span><span class="cc">        }</span></div>
+<div class="cline" data-line="436" id="cl-436"><span class="ln">436</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="437" id="cl-437"><span class="ln">437</span><span class="cc">        <span class="j-ann">@Override</span></span></div>
+<div class="cline" data-line="438" id="cl-438"><span class="ln">438</span><span class="cc">        <span class="j-kw">public</span> <span class="j-cls">List</span>&lt;<span class="j-cls">Map</span>&lt;<span class="j-cls">String</span>, <span class="j-cls">Object</span>&gt;&gt; <span class="j-fn">trace</span>() {</span></div>
+<div class="cline" data-line="439" id="cl-439"><span class="ln">439</span><span class="cc">            <span class="j-kw">return</span> <span class="j-cls">List</span>.<span class="j-fn">copyOf</span>(lastTrace);</span></div>
+<div class="cline" data-line="440" id="cl-440"><span class="ln">440</span><span class="cc">        }</span></div>
+<div class="cline" data-line="441" id="cl-441"><span class="ln">441</span><span class="cc">    }</span></div>
+<div class="cline" data-line="442" id="cl-442"><span class="ln">442</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="443" id="cl-443"><span class="ln">443</span><span class="cc">    <span class="j-kw">public</span> <span class="j-kw">static</span> <span class="j-kw">void</span> <span class="j-fn">main</span>(<span class="j-cls">String</span>[] args) {</span></div>
+<div class="cline" data-line="444" id="cl-444"><span class="ln">444</span><span class="cc">        <span class="j-cls">List</span>&lt;<span class="j-cls">String</span>&gt; <span class="j-cls">DEMO_INPUTS</span> = <span class="j-cls">List</span>.<span class="j-fn">of</span>(</span></div>
+<div class="cline" data-line="445" id="cl-445"><span class="ln">445</span><span class="cc">                <span class="j-str">"记住我叫小傅哥，喜欢写作。"</span>,</span></div>
+<div class="cline" data-line="446" id="cl-446"><span class="ln">446</span><span class="cc">                <span class="j-str">"我叫什么？我喜欢什么？"</span>,</span></div>
+<div class="cline" data-line="447" id="cl-447"><span class="ln">447</span><span class="cc">                <span class="j-str">"北京天气怎么样？12*8等于多少？现在几点？"</span>,</span></div>
+<div class="cline" data-line="448" id="cl-448"><span class="ln">448</span><span class="cc">                <span class="j-str">"帮我破解密码"</span>,</span></div>
+<div class="cline" data-line="449" id="cl-449"><span class="ln">449</span><span class="cc">                <span class="j-str">"再帮我算 99/3。"</span>,</span></div>
+<div class="cline" data-line="450" id="cl-450"><span class="ln">450</span><span class="cc">                <span class="j-str">"上海天气怎么样？"</span>,</span></div>
+<div class="cline" data-line="451" id="cl-451"><span class="ln">451</span><span class="cc">                <span class="j-str">"总结这次演示完成了什么。"</span></span></div>
+<div class="cline" data-line="452" id="cl-452"><span class="ln">452</span><span class="cc">        );</span></div>
+<div class="cline" data-line="453" id="cl-453"><span class="ln">453</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="454" id="cl-454"><span class="ln">454</span><span class="cc">        cn.xiaofuge.ai.llm.<span class="j-cls">ChatModel</span> model = cn.xiaofuge.ai.llm.<span class="j-cls">Models</span>.<span class="j-fn">openAiOrNull</span>();</span></div>
+<div class="cline" data-line="455" id="cl-455"><span class="ln">455</span><span class="cc">        <span class="j-kw">if</span> (model == <span class="j-kw">null</span>) {</span></div>
+<div class="cline" data-line="456" id="cl-456"><span class="ln">456</span><span class="cc">            model = cn.xiaofuge.ai.llm.<span class="j-cls">Models</span>.<span class="j-fn">mock</span>(<span class="j-str">"step18"</span>);</span></div>
+<div class="cline" data-line="457" id="cl-457"><span class="ln">457</span><span class="cc">        }</span></div>
+<div class="cline" data-line="458" id="cl-458"><span class="ln">458</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="459" id="cl-459"><span class="ln">459</span><span class="cc">        <span class="j-com">// 默认跑同一实例的完整剧本；传参时保留“单轮自定义提问”用法。</span></span></div>
+<div class="cline" data-line="460" id="cl-460"><span class="ln">460</span><span class="cc">        <span class="j-cls">List</span>&lt;<span class="j-cls">String</span>&gt; inputs = args.length &gt; <span class="j-num">0</span></span></div>
+<div class="cline" data-line="461" id="cl-461"><span class="ln">461</span><span class="cc">                ? <span class="j-cls">List</span>.<span class="j-fn">of</span>(<span class="j-cls">String</span>.<span class="j-fn">join</span>(<span class="j-str">" "</span>, args))</span></div>
+<div class="cline" data-line="462" id="cl-462"><span class="ln">462</span><span class="cc">                : <span class="j-cls">DEMO_INPUTS</span>;</span></div>
+<div class="cline" data-line="463" id="cl-463"><span class="ln">463</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="464" id="cl-464"><span class="ln">464</span><span class="cc">        <span class="j-cls">Impl</span> agent = <span class="j-kw">new</span> <span class="j-fn">Impl</span>(model);</span></div>
+<div class="cline" data-line="465" id="cl-465"><span class="ln">465</span><span class="cc">&nbsp;</span></div>
+<div class="cline" data-line="466" id="cl-466"><span class="ln">466</span><span class="cc">        <span class="j-kw">for</span> (<span class="j-kw">int</span> index = <span class="j-num">0</span>; index &lt; inputs.<span class="j-fn">size</span>(); index++) {</span></div>
+<div class="cline" data-line="467" id="cl-467"><span class="ln">467</span><span class="cc">            <span class="j-cls">System</span>.out.<span class="j-fn">printf</span>(<span class="j-str">"%n[回合 %d/%d] %s%n[输出] %s%n"</span>,</span></div>
+<div class="cline" data-line="468" id="cl-468"><span class="ln">468</span><span class="cc">                    index + <span class="j-num">1</span>, inputs.<span class="j-fn">size</span>(), inputs.<span class="j-fn">get</span>(index), agent.<span class="j-fn">chat</span>(inputs.<span class="j-fn">get</span>(index)));</span></div>
+<div class="cline" data-line="469" id="cl-469"><span class="ln">469</span><span class="cc">        }</span></div>
+<div class="cline" data-line="470" id="cl-470"><span class="ln">470</span><span class="cc">    }</span></div>
+<div class="cline" data-line="471" id="cl-471"><span class="ln">471</span><span class="cc">}</span></div>
+      </div>
+      <details class="src"><summary>代码联动锚点</summary><pre id="src-code">绿色 ⟂ 标记的行是联动锚点（方法签名）。点击左树 / 图节点 / 说明卡 / 导览 → 对应方法行高亮并画连线；点击代码任意一行 → 反向联动树与说明卡。</pre></details>
+    </div>
+  </main>
+
+  <aside id="docPanel">
+    <div class="doc-head">
+      <div class="cap">方法说明 · step18 FullAgent</div>
+      <div class="doc-chips" id="docChips">
+        <span class="dchip on" data-f="all">全部</span>
+        <span class="dchip" data-f="新增">新增</span>
+        <span class="dchip" data-f="调整">调整</span>
+        <span class="dchip" data-f="测试">测试</span>
+        <span class="dchip" data-f="复用">复用</span>
+      </div>
+    </div>
+    <div id="docs"></div>
+  </aside>
+
+  <svg id="linkLayer">
+    <defs>
+      <linearGradient id="lkgrad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#6d9bf7"/>
+        <stop offset="1" stop-color="#3574f0"/>
+      </linearGradient>
+      <marker id="lkarrow" viewBox="0 0 10 10" refX="8.5" refY="5"
+        markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse">
+        <path d="M 0 1.5 L 9 5 L 0 8.5 Z" fill="#3574f0"/>
+      </marker>
+    </defs>
+  </svg>
+</div>
+
+<!-- 导览卡片 -->
+<div class="tour" id="tour">
+  <div class="t-top">
+    <span class="t-eyebrow">开发导览</span>
+    <span class="t-num" id="tourNum"></span>
+    <span class="t-close" id="tourClose" title="退出导览">✕</span>
+  </div>
+  <h4 id="tourTitle"></h4>
+  <p id="tourText"></p>
+  <div class="t-dots" id="tourDots"></div>
+  <div class="t-ctrl">
+    <button class="t-btn" id="tourPrev">← 上一站</button>
+    <button class="t-btn primary" id="tourNext">下一站 →</button>
+    <span class="t-hintline" id="tourHint"></span>
+  </div>
+</div>
+
+<!-- 欢迎浮层 -->
+<div class="welcome-mask" id="welcomeMask">
+  <div class="welcome">
+    <div class="w-hero">
+      <div class="w-logo">🗺</div>
+      <h2>Step18 FullAgent 最小完整 Agent</h2>
+      <div class="w-sub">基线 <b>step03</b> → 本节 <b>step18</b> · 生产级 Agent 公共骨架 · 单文件 FullAgent / +373 行 / 1 接口 + 1 Impl + 20+ 方法</div>
+    </div>
+    <ul>
+      <li><span class="wi">🧭</span>点上方<b>「跟着流程走」</b>导航条，8 站从装配走到组装，每站自动定位联动</li>
+      <li><span class="wi">🔍</span>左侧工程树支持<b>搜索过滤</b>，像 IDEA 一样展开 / 折叠 / 双击</li>
+      <li><span class="wi">🔗</span>自由探索：树 / 图 / 右侧说明卡<b>三方点击联动</b>，连线直达</li>
+    </ul>
+    <div class="w-btns">
+      <div class="w-btn primary" id="wStart">🧭 开始导览</div>
+      <div class="w-btn" id="wFree">自由浏览</div>
+    </div>
+  </div>
+</div>
+
+<script src="./vendor/mermaid.min.js"></script>
+<script type="module">
+/* mermaid 已本地打包（vendor/mermaid.min.js，UMD 全局变量），无需 CDN */
+const mermaid = window.mermaid;
+
+/* 页签清单：由 DOM 自动发现，裁剪/新增图页只需增删 .tab 与对应 wrap，引擎零改动 */
+const TABS = [...document.querySelectorAll('.tab')].map(t => t.dataset.tab);
+
+/* ════════ MAP-DATA-START ════════
+   Step18 · FullAgent 最小完整 Agent 数据区。规范见技能包 references/data-spec.md */
+
+/* ══════════════ Mermaid 图源 ══════════════ */
+const SEQ_SRC = `sequenceDiagram
+    autonumber
+    participant U as 用户输入
+    participant CHAT as Impl.chat() 🆕
+    participant LOOPX as runAgentLoop() 🆕
+    participant MODEL as ChatModel<br/>step03 基线
+    participant TOOL as executeTool()<br/>executeMemory() 🆕
+    participant CTX as clearOldToolResults()<br/>compactHistoryIfNeeded() 🆕
+
+    U->>CHAT: "记住我叫小傅哥，查北京天气并推荐穿搭"
+    CHAT->>CHAT: 输入守卫：空输入 / 长度>300 / SENSITIVE 敏感词正则
+    Note over CHAT,CTX: ① 组装 messages = system(SYSTEM_PROMPT) + history + 本轮 user
+    CHAT->>LOOPX: runAgentLoop(messages)
+    loop step = 1..MAX_STEPS(5)
+        LOOPX->>CTX: clearOldToolResults()：旧观察清成占位符
+        LOOPX->>MODEL: chat(messages, toolSchemas())
+        alt 返回 tool_calls
+            MODEL-->>LOOPX: 结构化调用列表（memory / get_weather…）
+            LOOPX->>TOOL: parseArguments() → 逐个 executeTool()
+            TOOL-->>LOOPX: 观察结果 → Message.tool(id, observation)
+            Note over LOOPX,TOOL: 协议配对：assistant(tool_calls) ⇄ role=tool
+        else 无 tool_calls
+            MODEL-->>LOOPX: 最终文本回答 → 跳出循环
+        end
+    end
+    Note over LOOPX: 步数耗尽 → 保险丝熔断，返回固定提示
+    LOOPX-->>CHAT: answer
+    CHAT->>CHAT: outputGuard()：答案再过一遍敏感词
+    CHAT->>CTX: rememberTurn()：history += user + assistant
+    CHAT->>CTX: compactHistoryIfNeeded()：超 12 条触发压缩
+    CTX-->>CHAT: COMPACT_PROMPT 摘要成功 → 摘要 + 最近 4 条<br/>调用失败 → 退化滑动窗口
+    CHAT-->>U: 返回 answer`;
+
+const FLOW_SRC = `flowchart TB
+    classDef newc fill:#e6f6ec,stroke:#17a45f,stroke-width:2px,color:#0b5c3a
+    classDef oldc fill:#f1f3f6,stroke:#9aa3af,stroke-width:1.2px,stroke-dasharray:5 3,color:#5a6068
+    classDef warnc fill:#fff4e0,stroke:#e6a23c,stroke-width:1.6px,color:#7a4101
+    classDef errc fill:#fdecec,stroke:#e5484d,stroke-width:1.8px,color:#b3232a
+    classDef extc fill:#eaf1fe,stroke:#3574f0,stroke-width:1.6px,color:#1c3257
+
+    IN["用户输入 input 🆕"]
+    BLANK{"空 / 长度 > MAX_INPUT_LEN(300) ?"}
+    SAFE{"SENSITIVE 正则命中 ?<br/>hack|攻击|爆破|破解|密码"}
+    REJ1["拒绝：请输入内容 / 输入过长 🆕"]
+    REJ2["拦截：不安全操作 🆕<br/>不调用模型直接返回"]
+    MSGS["组装 messages 🆕<br/>system(SYSTEM_PROMPT) + history + user"]
+    LOOP["runAgentLoop() 🆕<br/>step = 1..MAX_STEPS=5 循环体"]
+    CLEAR["clearOldToolResults() 🆕<br/>只保留最近 2 条 role=tool 观察"]
+    CALL["model.chat(messages, toolSchemas()) 🆕"]
+    TC{"toolCalls 为空 ?"}
+    EXEC["parseArguments() 解析 JSON 入参 🆕<br/>executeTool() 逐个执行"]
+    W["get_weather 🆕<br/>ReActAgent.MockWeather 复用"]
+    C["calculator → calc() 🆕<br/>正则一次四则运算 · 除 0 抛异常"]
+    T["get_time 🆕<br/>yyyy-MM-dd HH:mm:ss"]
+    M["memory → executeMemory() 🆕<br/>write：key/value 校验 → memory.put<br/>read / keys / delete"]
+    OBS["Message.tool(id, 观察结果) 🆕<br/>协议配对：assistant(tool_calls) ⇄ tool"]
+    FUSE["保险丝熔断 🆕<br/>已达最大步数，循环终止"]
+    OGUARD["outputGuard() 🆕<br/>答案命中敏感词 → 替换提示文案"]
+    REM["rememberTurn() 🆕<br/>history += user + assistant"]
+    BIG{"history > COMPACT_THRESHOLD(12) ?"}
+    COMPACT["compactHistoryIfNeeded() 🆕<br/>renderTranscript() + COMPACT_PROMPT 压缩为摘要<br/>摘要调用失败 → 滑动窗口保留最近 4 条"]
+    RET["返回 answer 🆕"]
+
+    IN --> BLANK
+    BLANK -->|"是"| REJ1
+    BLANK -->|"否"| SAFE
+    SAFE -->|"命中"| REJ2
+    SAFE -->|"通过"| MSGS
+    MSGS --> LOOP
+    LOOP --> CLEAR
+    CLEAR --> CALL
+    CALL --> TC
+    TC -->|"是 · 无工具调用"| OGUARD
+    TC -->|"否 · 有 tool_calls"| EXEC
+    EXEC --> W
+    EXEC --> C
+    EXEC --> T
+    EXEC --> M
+    W --> OBS
+    C --> OBS
+    T --> OBS
+    M --> OBS
+    OBS -->|"带观察进入下一步"| LOOP
+    LOOP -->|"step 耗尽"| FUSE
+    FUSE --> OGUARD
+    OGUARD --> REM
+    REM --> BIG
+    BIG -->|"否"| RET
+    BIG -->|"是"| COMPACT
+    COMPACT --> RET
+
+    class IN,MSGS,LOOP,CLEAR,CALL,EXEC,W,C,T,M,OBS,OGUARD,REM,COMPACT newc
+    class BLANK,SAFE,TC,BIG oldc
+    class REJ1,REJ2,FUSE errc`;
+
+/* 全景图：FullAgent 单类多方法的骨架地图 */
+const OVER_SRC = `flowchart LR
+    classDef modc fill:#f4f8ff,stroke:#8fb0e8,stroke-width:1.6px,color:#1c3d6e
+    classDef newc fill:#e6f6ec,stroke:#17a45f,stroke-width:2px,color:#0b5c3a
+    classDef oldc fill:#f1f3f6,stroke:#9aa3af,stroke-width:1.2px,stroke-dasharray:5 3,color:#5a6068
+    classDef extc fill:#eaf1fe,stroke:#3574f0,stroke-width:1.6px,color:#1c3257
+
+    subgraph ENTRY["🚪 入口与契约"]
+        direction TB
+        IF["FullAgent «interface» 🆕<br/>extends Agent · MAX_STEPS=5<br/>COMPACT_THRESHOLD=12 · KEEP_RECENT=4"]
+        MAIN["main() 🆕<br/>Models.openAiOrNull() → mock 兜底"]
+    end
+    subgraph GUARD["🛡️ 双守卫"]
+        direction TB
+        CHAT["chat(input) 🆕<br/>主入口：守卫 → 循环 → 清洗 → 回写"]
+        SENSITIVE["SENSITIVE 正则 🆕<br/>hack|攻击|爆破|破解|密码"]
+        OGUARD["outputGuard() 🆕<br/>输出侧二次清洗"]
+    end
+    subgraph LOOPL["🔁 工具协议循环"]
+        direction TB
+        LOOPM["runAgentLoop() 🆕<br/>标准 ReAct 循环 + 保险丝"]
+        EXEC["executeTool() 🆕<br/>switch 分发 + 异常归一化"]
+        MEM["executeMemory() 🆕<br/>write/read/keys/delete"]
+        CALC["calc() 🆕<br/>受限四则运算"]
+        SCH["toolSchemas() 🆕<br/>4 个 function schema"]
+    end
+    subgraph CTX["🧹 上下文与会话治理"]
+        direction TB
+        HIST["history / memory 字段<br/>会话历史 + 跨轮持久记忆"]
+        REM["rememberTurn() 🆕<br/>每轮写回 2 条"]
+        COMPACT["compactHistoryIfNeeded() 🆕<br/>摘要压缩 / 滑动窗口兜底"]
+        CLEAR["clearOldToolResults() 🆕<br/>旧工具观察清成占位符"]
+        TRANS["renderTranscript() 🆕<br/>历史 → 压缩文本"]
+    end
+    UTIL["parseArguments() / text() 🆕<br/>trace() / reset() 🆕"]
+    MODEL[("☁️ ChatModel / Json / Message<br/>step03 LLM 基线")]
+    MOCK["ReActAgent.MockWeather<br/>step03 复用"]
+
+    MAIN --> CHAT
+    IF -. Impl 实现全部方法 .-> CHAT
+    CHAT --> SENSITIVE
+    CHAT --> LOOPM
+    LOOPM --> SCH
+    LOOPM --> MODEL
+    LOOPM --> EXEC
+    EXEC --> MEM
+    EXEC --> CALC
+    EXEC --> MOCK
+    LOOPM --> CLEAR
+    CLEAR --> HIST
+    CHAT --> OGUARD
+    OGUARD --> REM
+    REM --> HIST
+    REM --> COMPACT
+    COMPACT --> TRANS
+    COMPACT --> MODEL
+    COMPACT --> HIST
+    UTIL -. 支撑全链路 .-> CHAT
+
+    class IF,MAIN,CHAT,SENSITIVE,OGUARD,LOOPM,EXEC,MEM,CALC,SCH,REM,COMPACT,CLEAR,TRANS,UTIL newc
+    class HIST,MODEL,MOCK oldc`;
+
+/* ══════════════ 左侧树数据 ══════════════ */
+const TREE = [
+  {t:'module', n:'ToyAgent', children:[
+    {t:'pkg', n:'cn.xiaofuge.ai.agent.step18', children:[
+      {t:'iface', n:'FullAgent «最小完整 Agent»', b:'new', doc:'iface', kw:['FullAgent'], children:[
+        {t:'method', n:'常量：MAX_STEPS=5 / MAX_INPUT_LEN=300 / COMPACT_THRESHOLD=12 / KEEP_RECENT=4 / KEEP_TOOL_RESULTS=2', b:'new', doc:'iface', kw:['MAX_STEPS','COMPACT_THRESHOLD','KEEP_RECENT']},
+        {t:'method', n:'chat(input)：守卫 → 循环 → 输出守卫 → 记忆回写', b:'new', doc:'chat', kw:['chat(input)','runAgentLoop']},
+        {t:'method', n:'main()：装配 + 提问验收入口', b:'new', doc:'entry', kw:['main()','mock 兜底']},
+      ]},
+      {t:'class', n:'FullAgent.Impl', b:'new', doc:'chat', kw:['Impl'], children:[
+        {t:'method', n:'chat(input)：双守卫 + 编排五件套', b:'new', doc:'chat', kw:['SENSITIVE','组装 messages']},
+        {t:'method', n:'runAgentLoop()：标准工具协议循环 + MAX_STEPS 保险丝', b:'new', doc:'loop', kw:['runAgentLoop','保险丝熔断']},
+        {t:'method', n:'executeTool()：get_weather / calculator / get_time / memory 分发', b:'new', doc:'exec', kw:['executeTool','get_weather','calculator']},
+        {t:'method', n:'executeMemory()：write/read/keys/delete 跨轮记忆', b:'new', doc:'mem', kw:['executeMemory','memory.put']},
+        {t:'method', n:'parseArguments() / asObjectMap() / text()：入参解析三件套', b:'new', doc:'util', kw:['parseArguments','text()']},
+        {t:'method', n:'outputGuard()：答案敏感词二次清洗', b:'new', doc:'oguard', kw:['outputGuard','输出侧二次清洗']},
+        {t:'method', n:'rememberTurn()：本轮 user+assistant 写入 history', b:'new', doc:'remember', kw:['rememberTurn','history +=']},
+        {t:'method', n:'compactHistoryIfNeeded()：摘要压缩 / 滑动窗口兜底', b:'new', doc:'compact', kw:['compactHistoryIfNeeded','COMPACT_PROMPT']},
+        {t:'method', n:'renderTranscript()：历史渲染成压缩输入', b:'new', doc:'compact', kw:['renderTranscript']},
+        {t:'method', n:'clearOldToolResults()：保留最近 2 条工具观察，配对不变', b:'new', doc:'clear', kw:['clearOldToolResults','保留最近 2 条']},
+        {t:'method', n:'calc()：正则受限四则运算', b:'new', doc:'calc', kw:['calc()','除 0 抛异常']},
+        {t:'method', n:'toolSchemas() / function() / stringProperty()：4 个工具 schema', b:'new', doc:'schema', kw:['toolSchemas','function schema']},
+        {t:'method', n:'trace() / reset() / trace()：观测与重置', b:'new', doc:'util', kw:['trace() / reset()']},
+      ]},
+    ]},
+    {t:'pkg', n:'cn.xiaofuge.ai.llm（step03 复用基线）', children:[
+      {t:'class', n:'ChatModel / ChatResponse / Message / ToolCall / Json', b:'old', doc:'reuse', kw:['ChatModel','Message.tool']},
+      {t:'class', n:'Models（openAiOrNull / mock 工厂）', b:'old', doc:'reuse', kw:['Models.openAiOrNull','mock 兜底']},
+    ]},
+    {t:'pkg', n:'cn.xiaofuge.ai.agent（step03 复用基线）', children:[
+      {t:'class', n:'Agent / ReActAgent.MockWeather', b:'old', doc:'reuse', kw:['ReActAgent.MockWeather','extends Agent']},
+    ]},
+  ]},
+];
+
+/* ══════════════ 右侧说明数据 ══════════════ */
+const DOCS = [
+  {id:'iface', b:'新增', t:'FullAgent 接口 — 骨架常量即参数', f:'agent/step18/FullAgent.java · +373 行 · 全新', body: `
+    <ul>
+      <li><b>本节主题</b>：不是把前 17 个类拼起来，而是展示生产级 Agent 的公共骨架——<b>守卫 → 标准工具协议循环 → 上下文治理 → 输出守卫 → 会话记忆回写</b>。</li>
+      <li>接口只声明 <code>MAX_STEPS / MAX_INPUT_LEN / COMPACT_THRESHOLD / KEEP_RECENT / KEEP_TOOL_RESULTS</code> 五个常量，<b>所有调参点前置到接口顶部</b>，改行为不用翻实现体。</li>
+      <li><code>MAX_STEPS=5</code> 是单回合工具循环保险丝；<code>COMPACT_THRESHOLD=12 / KEEP_RECENT=4</code> 控制历史压缩；<code>KEEP_TOOL_RESULTS=2</code> 控制工具观察保留条数。</li>
+      <li>继承 <code>Agent</code>（name/chat/reset/trace 契约），与前序步骤的 Agent 保持同构。</li>
+    </ul>`},
+  {id:'chat', b:'新增', t:'chat(input) — 主入口与双守卫', f:'FullAgent.Impl#chat · 骨架五件套的编排者', body: `
+    <ul>
+      <li><b>四道门依次过</b>：空输入 → 长度 &gt; 300 → <code>SENSITIVE</code> 敏感词正则 → 组装 <code>messages = system(SYSTEM_PROMPT) + history + user</code>。</li>
+      <li><b>守卫命中不调用模型</b>：直接返回提示文案，同时写入 trace（"输入守卫"节点），既省 token 又防注入面扩大。</li>
+      <li>编排顺序固定：<code>runAgentLoop</code> → <code>outputGuard</code> → <code>rememberTurn</code> → <code>compactHistoryIfNeeded</code>——<b>先清洗再记忆</b>，脏内容不会进入历史。</li>
+      <li>坑：SYSTEM_PROMPT 明确"回答事实前先读 memory，不要凭历史猜测"，把记忆策略写进系统提示词而不是只靠工具。</li>
+    </ul>`},
+  {id:'loop', b:'新增', t:'runAgentLoop() — 标准工具协议循环', f:'FullAgent.Impl#runAgentLoop · MAX_STEPS=5 保险丝', body: `
+    <ul>
+      <li><b>生产级 ReAct 循环的最小形态</b>：每步先 <code>clearOldToolResults</code> 再 <code>model.chat(messages, toolSchemas())</code>。</li>
+      <li><b>出口二选一</b>：无 <code>toolCalls</code> → 返回最终文本；有 tool_calls → 追加 <code>assistant(tool_calls)</code>，逐个执行工具后追加 <code>Message.tool(id, observation)</code>，进入下一步。</li>
+      <li><b>协议配对是红线</b>：assistant 的 tool_calls 与 role=tool 消息必须成对存在，OpenAI 协议校验会拒绝断对的上下文。</li>
+      <li>步数耗尽不抛异常：<b>保险丝熔断返回固定文案</b>，调用方拿到的永远是字符串。</li>
+    </ul>`},
+  {id:'exec', b:'新增', t:'executeTool() — 工具分发与异常归一化', f:'FullAgent.Impl#executeTool · switch 表达式', body: `
+    <ul>
+      <li><b>switch 表达式分发</b>：<code>get_weather</code>（复用 step03 的 <code>ReActAgent.MockWeather</code>）、<code>calculator</code>、<code>get_time</code>、<code>memory</code>，未知工具返回"未知工具: name"。</li>
+      <li><b>异常就地归一化</b>：try/catch 包住全部分支，任何异常转成 <code>"工具执行失败: msg"</code> 字符串——<b>工具报错变成观察结果喂回模型</b>，让模型自己决定重试或换路，而不是整轮崩掉。</li>
+      <li>name 为 null 时用 <code>""</code> 兜底进 default 分支，防空指针。</li>
+      <li>动手验证：问"计算 12*8 等于多少"看 calculator 分支；问不存在的工具观察 default 行为。</li>
+    </ul>`},
+  {id:'mem', b:'新增', t:'executeMemory() — 跨轮持久记忆', f:'FullAgent.Impl#executeMemory · LinkedHashMap memory', body: `
+    <ul>
+      <li><b>四个命令</b>：<code>write</code>（key/value 校验非空后 <code>memory.put</code>，返回当前记忆条数）、<code>read</code>（存在则回显，不存在时<b>附上现有键列表引导模型纠偏</b>）、<code>keys</code>、<code>delete</code>。</li>
+      <li><b>跨轮生效</b>：memory 是 Impl 字段，与 history 平行存在——history 是对话流水，memory 是模型可主动读写的结构化事实。</li>
+      <li>read 未命中时返回"当前记忆键: …"而不是报错，<b>让模型拿到线索继续对话</b>，这是工具返回值设计的细节。</li>
+      <li>思考题：memory 在 <code>reset()</code> 时清空，重启进程即丢——生产里应换成什么？</li>
+    </ul>`},
+  {id:'util', b:'新增', t:'parseArguments / text / trace — 基础设施三小件', f:'FullAgent.Impl#parseArguments · asObjectMap · text · trace', body: `
+    <ul>
+      <li><b>parseArguments()</b>：空串返回 <code>Map.of()</code>；用 <code>Json.parse</code> 解析后 isinstance 判断 Map，<b>模型给的坏 JSON 不会抛异常</b>，只拿到空 Map。</li>
+      <li><b>asObjectMap()</b>：把 <code>Map&lt;?,?&gt;</code> 安全转 <code>Map&lt;String,Object&gt;</code>，键统一 <code>String.valueOf</code>。</li>
+      <li><b>text()</b>：取参防空，null → 空串——所有工具实现都基于它取参，<b>不重复写 null 判断</b>。</li>
+      <li><b>trace(type,label,detail)</b>：每步写入 lastTrace（guard/model/tool_call/tool_result/context/compact/memory/final 七类），是整条链路的可观测性出口。</li>
+    </ul>`},
+  {id:'oguard', b:'新增', t:'outputGuard() — 输出守卫', f:'FullAgent.Impl#outputGuard · 敏感词二次清洗', body: `
+    <ul>
+      <li><b>输入守卫管入口，输出守卫管出口</b>：即使输入干净，模型回答里也可能带敏感词（如复述攻击手法），出口必须再过一遍同一个 <code>SENSITIVE</code> 正则。</li>
+      <li>命中 → 替换为固定文案"该内容不宜展示"，并写 trace（"输出守卫"节点）——<b>不静默丢弃，可观测</b>。</li>
+      <li>顺带处理 null answer → 空串，保证 rememberTurn 与返回值都不见 null。</li>
+      <li>为什么输入输出共用一条正则？教学上说明守卫规则应<b>集中定义、双侧生效</b>；生产可拆成两套策略。</li>
+    </ul>`},
+  {id:'remember', b:'新增', t:'rememberTurn() — 会话记忆回写', f:'FullAgent.Impl#rememberTurn · 每轮固定 +2 条', body: `
+    <ul>
+      <li><b>每轮结束后固定写两条</b>：<code>Message.user(input)</code> + <code>Message.assistant(answer)</code>——注意写入的是<b>清洗后的最终答案</b>，不是模型原始输出。</li>
+      <li>写完立即 trace（"会话记忆"节点），报当前 history 条数，方便在 UI 上观察压缩阈值何时触发。</li>
+      <li><b>工具中间轮不写 history</b>：tool_calls 与 tool 观察只在当轮 messages 里流转，历史里只留一问一答——这是控制历史膨胀的关键取舍。</li>
+      <li>动手验证：连续对话多轮后调 <code>reset()</code>，history 与 memory 同时清空。</li>
+    </ul>`},
+  {id:'compact', b:'新增', t:'compactHistoryIfNeeded() — 上下文压缩', f:'FullAgent.Impl#compactHistoryIfNeeded · 阈值 12 / 保留 4', body: `
+    <ul>
+      <li><b>触发条件</b>：<code>history.size() > 12</code>；切分点 = 总数 - KEEP_RECENT(4)。</li>
+      <li><b>老段压缩</b>：<code>renderTranscript()</code> 把老消息渲染成 <code>[role] content</code> 文本，配 <code>COMPACT_PROMPT</code>（保留目标/决定/稳定事实/失败原因，丢弃寒暄，不确定标 UNVERIFIED）调模型生成摘要，替换为一条 user 消息 <code>[对话摘要]</code>。</li>
+      <li><b>摘要调用失败不致命</b>：catch 后退化为滑动窗口（只保留最近 4 条），写 trace 说明降级——<b>上下文治理宁可丢信息也不能断服务</b>。</li>
+      <li>坑：压缩发生在 rememberTurn 之后，所以本轮问答一定参与"最近保留"或被压缩，不会丢当轮。</li>
+    </ul>`},
+  {id:'clear', b:'新增', t:'clearOldToolResults() — 工具观察清理', f:'FullAgent.Impl#clearOldToolResults · KEEP_TOOL_RESULTS=2', body: `
+    <ul>
+      <li><b>逆向遍历</b>所有 <code>role=tool</code> 消息，最近 2 条保留，更早的替换为 <code>"[工具结果已清理，需要时重新调用]"</code> 占位符。</li>
+      <li><b>为什么用占位符而不是删消息</b>：直接删除会破坏 assistant(tool_calls) ⇄ tool 的<b>协议配对</b>，OpenAI 兼容接口会报 400。占位符保住配对结构又释放上下文。</li>
+      <li>每步循环开头都执行一次——多步循环里越早的工具观察越没价值，<b>越新越有用</b>。</li>
+      <li>这正是 Step18 标题里"上下文治理"的第三件套：历史压缩管长对话，观察清理管单轮内循环。</li>
+    </ul>`},
+  {id:'calc', b:'新增', t:'calc() — 受限四则运算器', f:'FullAgent.Impl#calc · 单次二元运算', body: `
+    <ul>
+      <li><b>正则白名单</b>：<code>\\d+(\\.\\d+)? [+-*/] \\d+(\\.\\d+)?</code>，matches() 全匹配——<b>不是通用表达式解析器，故意只支持一次二元运算</b>。</li>
+      <li>解析失败抛 <code>IllegalArgumentException</code>，除 0 抛 <code>ArithmeticException</code>——都被 executeTool 的 catch 兜住转成观察文本。</li>
+      <li><b>设计动机</b>：演示"计算交给工具而不是模型心算"，同时用受限实现说明——<b>工具能力边界越小越可控</b>，生产换 exp4j/BigDecimal 时接口不变。</li>
+    </ul>`},
+  {id:'schema', b:'新增', t:'toolSchemas() — 工具声明三件套', f:'FullAgent.Impl#toolSchemas · function() · stringProperty()', body: `
+    <ul>
+      <li><b>4 个 function schema</b>：get_weather(city)、calculator(expression)、get_time(无参)、memory(command 枚举 + key + value)。</li>
+      <li><b>memory 的 command 用 enum 约束</b>（write/read/keys/delete），把"合法用法"写进 schema，模型不会发明第四种命令。</li>
+      <li><code>function()</code> 组装 OpenAI 格式 <code>{type:"function", function:{name,description,parameters}}</code>，required 动态可变参数；<code>stringProperty()</code> 造字符串属性。</li>
+      <li><b>description 直接决定调用准确性</b>：schema 里的描述就是模型选择工具的唯一依据，要写清"何时必须调用、返回什么"。</li>
+    </ul>`},
+  {id:'entry', b:'新增', t:'main() — 装配与验收入口', f:'FullAgent#main · Models 工厂 + mock 兜底', body: `
+    <ul>
+      <li><b>两级装配</b>：先 <code>Models.openAiOrNull()</code> 尝试真实 OpenAI 兼容渠道；未配 Key → <code>Models.mock("step18")</code> 兜底，<b>没网也能跑通结构</b>。</li>
+      <li>命令行参数即输入：<code>java … FullAgent "你的问题"</code>；缺省输入为"记住我叫小傅哥，然后查北京天气并推荐穿搭"——一句话同时触发 memory 写、get_weather、推理三种能力。</li>
+      <li>只打印 <code>[输入]</code> / <code>[输出]</code> 两行；想看工具调用轨迹，把 trace() 的 lastTrace 也打出来即可（导览第 8 站）。</li>
+    </ul>`},
+  {id:'reuse', b:'复用', t:'step03 基线复用 — 本节不动的部分', f:'cn.xiaofuge.ai.llm / cn.xiaofuge.ai.agent · step03 已交付', body: `
+    <ul>
+      <li><b>ChatModel / ChatResponse / Message / ToolCall / Json</b>：LLM 抽象与协议结构全部来自 step03，本节零改动消费。</li>
+      <li><b>ReActAgent.MockWeather</b>：天气 mock 直接复用，证明前序工具可被新 Agent 原样集成。</li>
+      <li><b>Models</b>：openAiOrNull / mock 双工厂让入口在不同环境都能跑。</li>
+      <li>本节全部价值在 <b>step18 的编排层</b>：守卫、循环、治理、记忆都是在这些原语之上的新骨架。</li>
+    </ul>`},
+];
+
+/* TOUR：导览站点 */
+const TOUR = [
+  {tab:'over', tree:null, sl:'全景鸟瞰', title:'第 1 站 · 全景鸟瞰',
+   text:'这是 Step18 的地图：FullAgent 一个接口 + 一个 Impl，按职责分四个区——入口契约、双守卫、工具协议循环、上下文治理。绿色 = 本节新增，灰色 = step03 基线复用。这张图讲的是"生产级 Agent 的公共骨架"。'},
+  {tab:'over', tree:'FullAgent', sl:'契约常量', title:'第 2 站 · 接口契约：常量即参数',
+   text:'FullAgent 接口只有 5 个常量：MAX_STEPS=5（循环保险丝）、MAX_INPUT_LEN=300（输入守卫）、COMPACT_THRESHOLD=12 / KEEP_RECENT=4（历史压缩）、KEEP_TOOL_RESULTS=2（观察保留）。把所有调参点前置到接口，是骨架类的设计惯例。'},
+  {tab:'flow', tree:'chat(input)', sl:'双守卫', title:'第 3 站 · 输入守卫与主编排',
+   text:'切到流程图看 chat()：空输入 → 长度 300 → SENSITIVE 敏感词，三道门命中任何一道都<b>不调用模型直接返回</b>。通过后组装 messages（system + history + user）进入循环。注意红色分支都是"早退"路径。'},
+  {tab:'seq', tree:'runAgentLoop', sl:'一次对话', title:'第 4 站 · 一次对话的完整时序',
+   text:'切到时序图：示例输入"记住我叫小傅哥，查北京天气并推荐穿搭"会依次触发 memory(write)、get_weather 两个工具，第 2 步拿到最终回答。看左侧编号①②③的阶段划分和 loop 内每步的"清观察 → 调模型 → 执行工具"节奏。'},
+  {tab:'flow', tree:'executeTool', sl:'工具分发', title:'第 5 站 · 工具分发与跨轮记忆',
+   text:'executeTool() 用 switch 分发 4 个工具，异常全部转成观察文本喂回模型（工具报错 ≠ 整轮失败）。重点看 memory 分支：write 先校验 key/value，read 未命中时返回现有键列表引导模型纠偏——工具返回值也是提示词的一部分。'},
+  {tab:'flow', tree:'runAgentLoop()：标准工具协议循环', sl:'保险丝', title:'第 6 站 · 循环边界：保险丝熔断',
+   text:'如果模型一直要求调工具，step 耗尽 MAX_STEPS=5 后保险丝熔断，返回固定提示而不是死循环。配合第 3 站的红色早退分支，这张流程图覆盖了"失控输入"与"失控循环"两类生产事故的防线。'},
+  {tab:'flow', tree:'clearOldToolResults', sl:'观察清理', title:'第 7 站 · 上下文治理三件套',
+   text:'每步循环开头 clearOldToolResults 只保留最近 2 条工具观察——用占位符替换而不是删除，<b>保住 assistant(tool_calls) ⇄ tool 的协议配对</b>。对话级的膨胀则由 compactHistoryIfNeeded 兜底：超 12 条压摘要，摘要失败退化为滑动窗口。'},
+  {tab:'over', tree:'main()', sl:'装配验收', title:'第 8 站 · 入口与复用',
+   text:'回到全景图右下：main() 先试 Models.openAiOrNull()，没配 Key 就用 mock 兜底，保证结构随时可跑。灰色节点 ChatModel / MockWeather / Json 全部来自 step03——本节的增量全在编排层，这正是"骨架课"要传达的分工。'},
+  {tab:'over', tree:null, sl:'自由探索', title:'🎉 导览完成',
+   text:'现在自由探索：左侧树按方法展开、支持搜索；中间三张图（全景/时序/流程）可点任意节点联动；右侧 14 张说明卡覆盖 Impl 全部方法。动手验证建议：跑 main() 缺省输入，观察 memory 与 get_weather 是否都被调用。'},
+];
+
+/* ════════ MAP-DATA-END ════════ */
+
+/* ════════ 引擎固定区（一般无需改动） ════════ */
+
+/* 图源回填到"查看源码"折叠块（页签被裁剪时对应元素不存在，跳过即可） */
+const SRC_MAP = { over: OVER_SRC, seq: SEQ_SRC, flow: FLOW_SRC };
+Object.entries(SRC_MAP).forEach(([name, src]) => {
+  const el = document.getElementById('src-' + name);
+  if (el && src) el.textContent = src;
+});
+
+mermaid.initialize({
+  startOnLoad: false, securityLevel: 'loose', theme: 'base',
+  fontFamily: '"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif',
+  themeVariables: {
+    primaryColor: '#e6f6ec', primaryBorderColor: '#17a45f', primaryTextColor: '#1f2430',
+    lineColor: '#a6aebc', secondaryColor: '#f1f3f6', tertiaryColor: '#f7f8fa',
+    actorBkg: '#eaf1fe', actorBorder: '#7ea6f4', actorTextColor: '#1c3257',
+    actorLineColor: '#c9d4e6',
+    signalColor: '#3c434d', signalTextColor: '#3c434d',
+    noteBkgColor: '#fff8e1', noteBorderColor: '#eec04b', noteTextColor: '#6b4e00',
+    activationBkgColor: '#e8f1ff', activationBorderColor: '#7ea6f4',
+    labelBoxBkgColor: '#f1f3f6', labelBoxBorderColor: '#9aa3af',
+    loopTextColor: '#5c6370', sequenceNumberColor: '#ffffff',
+    clusterBkg: '#f4f8ff', clusterBorder: '#b9cdec',
+    fontSize: '14px'
+  },
+  /* 自然尺寸渲染（字号清晰），再由 JS 按容器宽度做适配缩放 */
+  flowchart: { curve: 'basis', nodeSpacing: 36, rankSpacing: 46, useMaxWidth: false, padding: 14 },
+  sequence: { useMaxWidth: false, actorMargin: 34, messageMargin: 32, noteMargin: 10,
+    mirrorActors: false, height: 44, boxMargin: 9, actorFontSize: 14,
+    messageFontSize: 13, noteFontSize: 12, actorFontWeight: 600, wrap: false }
+});
+
+/* ══════════════ 内联 SVG 图标（IDEA 风格） ══════════════ */
+const ICON_CHEV = '<svg width="8" height="8" viewBox="0 0 8 8"><path d="M1.5 1.2 L7 4 L1.5 6.8 Z" fill="currentColor" stroke="none"/></svg>';
+const ICONS = {
+  module: '<svg width="15" height="15" viewBox="0 0 16 16"><defs><linearGradient id="gm1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5b8def"/><stop offset="1" stop-color="#3574f0"/></linearGradient></defs><rect x="1.5" y="2.5" width="13" height="11" rx="2.2" fill="url(#gm1)" stroke="#2456c4" stroke-width=".8"/><rect x="1.5" y="2.5" width="13" height="4.2" rx="2.2" fill="#8fb2f6" opacity=".85"/><circle cx="8" cy="9.8" r="1.7" fill="#fff" opacity=".95"/></svg>',
+  pkg: '<svg width="15" height="15" viewBox="0 0 16 16"><path d="M1.5 4.5 Q1.5 3 3 3 H5.8 L7.3 4.8 H13 Q14.5 4.8 14.5 6.3 V12 Q14.5 13.5 13 13.5 H3 Q1.5 13.5 1.5 12 Z" fill="#f8cf7d" stroke="#d9a520" stroke-width=".9"/><path d="M1.5 7.2 H14.5" stroke="#e8b84f" stroke-width=".8"/></svg>',
+  cls: '<svg width="15" height="15" viewBox="0 0 16 16"><defs><linearGradient id="gc1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4c86f4"/><stop offset="1" stop-color="#2d63cf"/></linearGradient></defs><circle cx="8" cy="8" r="6.3" fill="url(#gc1)" stroke="#2456c4" stroke-width=".8"/><text x="8" y="10.8" text-anchor="middle" font-size="8.5" font-weight="700" fill="#fff" font-family="Georgia">C</text></svg>',
+  iface: '<svg width="15" height="15" viewBox="0 0 16 16"><defs><linearGradient id="gi1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34b377"/><stop offset="1" stop-color="#1d8f5b"/></linearGradient></defs><circle cx="8" cy="8" r="6.3" fill="url(#gi1)" stroke="#177a4d" stroke-width=".8"/><text x="8" y="10.8" text-anchor="middle" font-size="8.5" font-weight="700" fill="#fff" font-family="Georgia">I</text></svg>',
+  method: '<svg width="14" height="14" viewBox="0 0 16 16"><rect x="4.4" y="4.4" width="7.2" height="7.2" rx="1.8" transform="rotate(45 8 8)" fill="#ece5fd" stroke="#7a5af8" stroke-width="1.1"/><circle cx="8" cy="8" r="1.4" fill="#7a5af8"/></svg>',
+};
+
+/* ══════════════ 渲染左树（可折叠嵌套结构） ══════════════ */
+function countDesc(item) {
+  let n = 0;
+  (item.children || []).forEach(c => { n += 1 + countDesc(c); });
+  return n;
+}
+function buildBranch(item, depth) {
+  const branch = document.createElement('div');
+  branch.className = 'tbranch open';
+  branch.dataset.t = item.t;
+
+  const row = document.createElement('div');
+  row.className = 'tnode' + (item.b === 'old' ? ' dim' : '');
+  row.style.paddingLeft = '6px';
+  row.dataset.item = JSON.stringify({ n: item.n, doc: item.doc || null, kw: item.kw || [], t: item.t });
+  const hasKids = !!(item.children && item.children.length);
+  const chev = hasKids ? ICON_CHEV : '';
+  const icon = ICONS[item.t === 'class' ? 'cls' : item.t === 'iface' ? 'iface' : item.t];
+  const badge = (item.b && item.t !== 'method')
+    ? `<span class="badge ${item.b}">${item.b === 'new' ? '新增' : item.b === 'mod' ? '调整' : '复用'}</span>` : '';
+  const kidsN = hasKids ? `<span class="kids-n">${countDesc(item)}</span>` : '';
+  const nameCls = ['name', depth <= 1 ? 'mono' : '',
+    item.t === 'method' && item.b === 'new' ? 'm-new' : '',
+    item.t !== 'method' && item.b === 'mod' ? 'mod-name' : ''].join(' ');
+  row.innerHTML = `<span class="chev ${hasKids ? '' : 'hidden'}">${chev}</span><span class="kico">${icon}</span><span class="${nameCls}" title="${item.n}">${item.n}</span>${kidsN}${badge}`;
+  branch.appendChild(row);
+
+  /* 交互：
+     · 点箭头 → 折叠/展开（模块、包、类、接口均可）
+     · 点行（有 doc）→ 三方联动；无 doc 的分组节点 → 点行即折叠切换
+     · 双击行 → 折叠/展开 */
+  const toggle = () => {
+    branch.classList.toggle('closed');
+    requestAnimationFrame(() => { if (activeTree) drawLinks(); });
+  };
+  if (hasKids) {
+    row.querySelector('.chev').addEventListener('click', e => { e.stopPropagation(); toggle(); });
+    row.addEventListener('dblclick', e => { e.stopPropagation(); toggle(); });
+  }
+  if (item.doc) {
+    row.addEventListener('click', e => {
+      e.stopPropagation();
+      expandAncestors(row);
+      setActive(row, true);
+    });
+    row.addEventListener('mouseenter', () => setActive(row, false));
+  } else if (hasKids) {
+    row.addEventListener('click', e => { e.stopPropagation(); toggle(); });
+  }
+  branch._toggle = toggle;
+
+  if (hasKids) {
+    const wrap = document.createElement('div');
+    wrap.className = 'tkids-wrap';
+    const inner = document.createElement('div');
+    inner.className = 'tkids-inner';
+    item.children.forEach(c => inner.appendChild(buildBranch(c, depth + 1)));
+    wrap.appendChild(inner);
+    branch.appendChild(wrap);
+  }
+  return branch;
+}
+
+function renderTree() {
+  const root = document.getElementById('tree');
+  root.innerHTML = '';
+  TREE.forEach(item => root.appendChild(buildBranch(item, 0)));
+  /* 底部状态条：按树数据统计 */
+  const acc = {};
+  (function walk(list) { list.forEach(it => {
+    if (it.b) acc[it.b] = (acc[it.b] || 0) + 1;
+    if (it.children) walk(it.children);
+  }); })(TREE);
+  document.getElementById('treeFoot').innerHTML =
+    `<span class="fn"><span class="fdot" style="background:var(--green)"></span>新增 <b>${acc.new || 0}</b></span>` +
+    `<span class="fn"><span class="fdot" style="background:var(--amber)"></span>调整 <b>${acc.mod || 0}</b></span>` +
+    `<span class="fn"><span class="fdot" style="background:#b6bdc7"></span>复用 <b>${acc.old || 0}</b></span>` +
+    `<span style="margin-left:auto;color:var(--text-3)">IDEA 风格 · 双击折叠</span>`;
+}
+
+/* 展开某行的全部祖先（折叠的节点里的目标恢复可见） */
+function expandAncestors(row) {
+  let p = row.parentElement ? row.parentElement.closest('.tbranch') : null;
+  while (p) { p.classList.remove('closed'); p = p.parentElement ? p.parentElement.closest('.tbranch') : null; }
+}
+
+/* 树工具栏 */
+document.getElementById('btnExpandAll').addEventListener('click', () => {
+  document.querySelectorAll('.tbranch').forEach(b => b.classList.remove('closed'));
+});
+document.getElementById('btnCollapseAll').addEventListener('click', () => {
+  document.querySelectorAll('.tbranch').forEach(b => { if (b.dataset.t !== 'module') b.classList.add('closed'); });
+  setActive(null, false);
+});
+document.getElementById('btnCollapseMethods').addEventListener('click', () => {
+  document.querySelectorAll('.tbranch').forEach(b => {
+    b.classList.toggle('closed', b.dataset.t === 'class' || b.dataset.t === 'iface');
+  });
+});
+
+/* ══════════════ 树搜索过滤 ══════════════ */
+const searchInput = document.getElementById('treeSearch');
+const searchCount = document.getElementById('searchCount');
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.trim().toLowerCase();
+  const branches = [...document.querySelectorAll('.tbranch')];
+  const rows = [...document.querySelectorAll('.tnode')];
+  /* 先还原所有名称 */
+  rows.forEach(r => {
+    const info = JSON.parse(r.dataset.item || '{}');
+    const nameEl = r.querySelector('.name');
+    if (nameEl && nameEl.textContent !== info.n) nameEl.textContent = info.n;
+  });
+  if (!q) {
+    branches.forEach(b => b.classList.remove('fhide'));
+    searchCount.textContent = '';
+    return;
+  }
+  const matchRows = new Set();
+  rows.forEach(r => {
+    const info = JSON.parse(r.dataset.item || '{}');
+    if ((info.n || '').toLowerCase().includes(q)) matchRows.add(r);
+  });
+  /* 隐藏没有任何匹配后代的分支，并展开含匹配的分支 */
+  branches.forEach(b => {
+    const has = [...b.querySelectorAll('.tnode')].some(r => matchRows.has(r));
+    b.classList.toggle('fhide', !has);
+    if (has) b.classList.remove('closed');
+  });
+  /* 高亮命中文字 */
+  const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp('(' + esc + ')', 'ig');
+  matchRows.forEach(r => {
+    const info = JSON.parse(r.dataset.item || '{}');
+    const nameEl = r.querySelector('.name');
+    if (nameEl) nameEl.innerHTML = info.n.replace(re, '<mark>$1</mark>');
+  });
+  searchCount.textContent = matchRows.size ? matchRows.size + ' 项' : '无结果';
+});
+
+/* ══════════════ 渲染右侧说明 ══════════════ */
+function renderDocs() {
+  const root = document.getElementById('docs');
+  const meta = { '新增': ['new', 'var(--green)'], '调整': ['mod', 'var(--amber)'],
+    '测试': ['new', 'var(--purple)'], '复用': ['old', '#9aa3af'] };
+  DOCS.forEach(d => {
+    const [cls, color] = meta[d.b];
+    const el = document.createElement('div');
+    el.className = 'doc'; el.id = 'doc-' + d.id; el.dataset.b = d.b;
+    el.style.setProperty('--dc', color);
+    el.innerHTML = `<h3><span class="badge ${cls}">${d.b}</span>${d.t}<span class="pin">🔗 点击联动</span></h3><div class="file">${d.f}</div>${d.body}`;
+    /* 点击说明卡 → 反向联动：高亮树行 + 图节点，连线从左贯穿到右 */
+    el.addEventListener('click', () => {
+      const row = [...document.querySelectorAll('.tnode')]
+        .find(r => { const info = JSON.parse(r.dataset.item || '{}'); return info.doc === d.id; });
+      if (row) {
+        expandAncestors(row);
+        setActive(row, true);
+        if (row.scrollIntoView) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    });
+    root.appendChild(el);
+  });
+}
+/* 说明卡类型过滤 */
+document.querySelectorAll('.dchip').forEach(ch => ch.addEventListener('click', () => {
+  document.querySelectorAll('.dchip').forEach(c => c.classList.toggle('on', c === ch));
+  const f = ch.dataset.f;
+  document.querySelectorAll('.doc').forEach(d => {
+    d.style.display = (f === 'all' || d.dataset.b === f) ? '' : 'none';
+  });
+}));
+
+/* ══════════════ 联动核心 ══════════════ */
+let activeTree = null, pinned = false;
+const linkLayer = document.getElementById('linkLayer');
+
+function findSvgMatches(keywords, includeHidden = false) {
+  const out = [];
+  TABS.forEach(name => {
+    const box = document.getElementById('box-' + name);
+    if (!box || (!includeHidden && box.offsetParent === null)) return; // 隐藏的 tab 不参与
+    const seen = new Set();
+    box.querySelectorAll('text, tspan, foreignObject span, foreignObject div, .cline').forEach(t => {
+      const txt = (t.textContent || '').trim();
+      if (!keywords.some(k => txt.includes(k))) return;
+      let g = t.closest('g.node, g.actor, g.rootGroup, g.edgeLabel, g.cluster, .cline');
+      if (g && !seen.has(g)) {
+        seen.add(g); out.push({ el: g, box });
+      } else if (!g && !seen.has(t)) {
+        seen.add(t); out.push({ el: t, box });
+      }
+    });
+  });
+  return out;
+}
+
+function setActive(treeEl, pin) {
+  document.querySelectorAll('.tnode.active').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.doc.active').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.mermaid-box .hl, .mermaid-box .hl2').forEach(n => n.classList.remove('hl', 'hl2'));
+  if (!treeEl) { linkLayer.querySelectorAll('path.lk, circle.src-dot').forEach(n => n.remove()); activeTree = null; pinned = false; return; }
+  treeEl.classList.add('active');
+  activeTree = treeEl;
+  if (pin) pinned = true;
+
+  const info = JSON.parse(treeEl.dataset.item || '{}');
+  const docEl = document.getElementById('doc-' + info.doc);
+  if (docEl) {
+    docEl.classList.add('active');
+    if (docEl.scrollIntoView) docEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+  const matches = findSvgMatches(info.kw || []);
+  if (matches.length) {
+    /* 滚动主目标进入视野（第一个匹配） */
+    const box = matches[0].box;
+    const mRect = matches[0].el.getBoundingClientRect();
+    const bRect = box.getBoundingClientRect();
+    const wrapEl = box.parentElement;
+    if (wrapEl.scrollIntoView) wrapEl.scrollIntoView({ block: 'nearest' });
+    if (wrapEl.scrollBy) wrapEl.scrollBy({ top: (mRect.top - bRect.top) - 100, behavior: 'smooth' });
+  } else if (info.kw && info.kw.length) {
+    /* 当前标签页没有匹配节点 → 自动切到有关键词的标签页 */
+    const tabOrder = TABS;
+    const cur = document.querySelector('.tab.on').dataset.tab;
+    for (const name of tabOrder) {
+      if (name === cur) continue;
+      const found = findSvgMatches(info.kw, true).some(m => m.box.id === 'box-' + name);
+      if (found) { selectTab(name); break; }
+    }
+  }
+  /* 树折叠/展开有 0.2s 高度过渡动画，rAF 时行可能仍是 0 尺寸；
+     连续几帧重绘，直到布局稳定，保证连线不丢 */
+  for (let k = 0; k <= 6; k++) requestAnimationFrame(() => drawLinks());
+  setTimeout(() => drawLinks(), 240);
+}
+
+/* 连线：树行 → 图主目标（一条主线）→ 右侧说明卡；
+   其余匹配只加次级光圈（hl2），不画线 —— 避免多线交叉穿线 */
+function drawLinks() {
+  linkLayer.querySelectorAll('path.lk, circle.src-dot').forEach(n => n.remove());
+  if (!activeTree) return;
+  const tR = activeTree.getBoundingClientRect();
+  if (!tR.width && !tR.height) return;
+
+  const info = JSON.parse(activeTree.dataset.item || '{}');
+  const matches = findSvgMatches(info.kw || []).filter(m => {
+    const r = m.el.getBoundingClientRect();
+    return r.width || r.height;
+  });
+  if (!matches.length) return;
+
+  const stage = document.getElementById('stage');
+  const sR = stage.getBoundingClientRect();
+  const rel = r => ({ x1: r.left - sR.left, y1: r.top - sR.top,
+    x2: r.right - sR.left, y2: r.bottom - sR.top,
+    cx: r.left - sR.left + r.width / 2, cy: r.top - sR.top + r.height / 2 });
+
+  const tRel = rel(tR);
+  let main = matches[0], mainRel = rel(main.el.getBoundingClientRect()), bestD = Infinity;
+  matches.forEach(m => {
+    const mr = rel(m.el.getBoundingClientRect());
+    const d = Math.abs(mr.cy - tRel.cy);
+    if (d < bestD) { bestD = d; main = m; mainRel = mr; }
+  });
+  main.el.classList.add('hl');
+  matches.forEach(m => { if (m !== main) m.el.classList.add('hl2'); });
+
+  const mkPath = (d, withArrow) => {
+    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    p.setAttribute('d', d); p.setAttribute('class', 'lk');
+    if (withArrow) p.setAttribute('marker-end', 'url(#lkarrow)');
+    linkLayer.appendChild(p);
+  };
+  const mkDot = (x, y) => {
+    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    c.setAttribute('cx', x); c.setAttribute('cy', y); c.setAttribute('r', 4);
+    c.setAttribute('class', 'src-dot');
+    linkLayer.appendChild(c);
+  };
+  const curve = (x1, y1, x2, y2) => {
+    const dx = Math.max(56, Math.abs(x2 - x1) * 0.42);
+    return `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+  };
+
+  const s1x = tRel.x2, s1y = tRel.cy;
+  const e1x = mainRel.x1 - 6, e1y = mainRel.cy;
+  mkPath(curve(s1x + 4, s1y, e1x, e1y), true);
+  mkDot(s1x, s1y);
+
+  const docEl = document.getElementById('doc-' + info.doc);
+  if (docEl && docEl.offsetParent !== null) {
+    const dRel = rel(docEl.getBoundingClientRect());
+    mkPath(curve(mainRel.x2, mainRel.cy, dRel.x1 - 6, dRel.cy), true);
+    mkDot(mainRel.x2, mainRel.cy);
+  }
+}
+
+/* 反向联动：点击图节点 → 激活对应树节点（自动展开其祖先链） */
+function bindReverse() {
+  document.querySelectorAll('.mermaid-box g.node, .mermaid-box g.actor').forEach(g => {
+    g.style.cursor = 'pointer';
+    g.addEventListener('click', () => {
+      const txt = (g.textContent || '').trim();
+      const hit = TREE_SEARCH.find(it => it.doc && (it.kw || []).some(k => txt.includes(k)) && it.t !== 'method');
+      const fallback = TREE_SEARCH.find(it => it.doc && (it.kw || []).some(k => txt.includes(k)));
+      const target = hit || fallback;
+      if (target) {
+        const el = target._row;
+        if (el) { expandAncestors(el); setActive(el, true); }
+      }
+    });
+  });
+}
+let TREE_SEARCH = [];
+function indexRows() {
+  TREE_SEARCH = [];
+  document.querySelectorAll('.tnode').forEach(row => {
+    const info = JSON.parse(row.dataset.item || '{}');
+    if (info.doc !== null) TREE_SEARCH.push({ n: info.n, t: info.t, doc: info.doc, kw: info.kw, _row: row });
+  });
+}
+
+/* ══════════════ 图缩放：自然尺寸渲染 + 适配面板 ══════════════ */
+const zoom = Object.fromEntries(TABS.map(t => [t, { fit: true, scale: 1 }]));
+function naturalSize(tab) {
+  const svg = document.getElementById('box-' + tab).querySelector('svg');
+  if (!svg) return null;
+  let w = 0, h = 0;
+  const vba = svg.getAttribute('viewBox');
+  if (vba) {
+    const parts = vba.trim().split(/[\s,]+/).map(Number);
+    w = parts[2]; h = parts[3];
+  }
+  if (!w || !h) {
+    w = parseFloat(svg.getAttribute('width')) || svg.clientWidth;
+    h = parseFloat(svg.getAttribute('height')) || svg.clientHeight;
+    if (!w || !h) return null;
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  }
+  return { svg, w, h };
+}
+function applyZoom(tab) {
+  const ns = naturalSize(tab);
+  if (!ns) return;
+  const wrap = document.getElementById('wrap-' + tab);
+  const avail = Math.max(240, wrap.clientWidth - 74);
+  let scale;
+  if (zoom[tab].fit) scale = Math.min(1, avail / ns.w);
+  else scale = zoom[tab].scale;
+  zoom[tab].scale = scale;
+  ns.svg.setAttribute('preserveAspectRatio', 'xMidYMin meet');
+  ns.svg.style.width = (ns.w * scale) + 'px';
+  ns.svg.style.height = (ns.h * scale) + 'px';
+}
+document.querySelectorAll('.zbtn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tab = document.querySelector('.tab.on').dataset.tab;
+    const z = btn.dataset.z;
+    if (z === 'fit') zoom[tab].fit = true;
+    else {
+      zoom[tab].fit = false;
+      if (z === '100') zoom[tab].scale = 1;
+      else if (z === 'in') zoom[tab].scale = Math.min(2.5, zoom[tab].scale * 1.25);
+      else if (z === 'out') zoom[tab].scale = Math.max(0.35, zoom[tab].scale / 1.25);
+    }
+    applyZoom(tab);
+    requestAnimationFrame(() => { if (activeTree) drawLinks(); });
+  });
+});
+
+/* ══════════════ 标签切换 / 事件 ══════════════ */
+function selectTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
+  document.querySelectorAll('.diagram-wrap').forEach(w => w.classList.remove('on'));
+  document.getElementById('wrap-' + name).classList.add('on');
+  requestAnimationFrame(() => { applyZoom(name); if (activeTree) drawLinks(); });
+}
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => selectTab(tab.dataset.tab));
+});
+document.getElementById('clearBtn').addEventListener('click', () => setActive(null, false));
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { setActive(null, false); searchInput.blur(); }
+  if (tourStep >= 0) {
+    if (e.key === 'ArrowRight') goStep(tourStep + 1);
+    if (e.key === 'ArrowLeft') goStep(tourStep - 1);
+  }
+});
+window.addEventListener('resize', () => {
+  TABS.forEach(applyZoom);
+  if (activeTree) drawLinks();
+});
+document.querySelectorAll('.diagram-wrap').forEach(w => w.addEventListener('scroll', () => { if (activeTree) drawLinks(); }));
+document.getElementById('docPanel').addEventListener('scroll', () => { if (activeTree) drawLinks(); });
+document.getElementById('treePanel').addEventListener('scroll', () => { if (activeTree) drawLinks(); });
+document.getElementById('treePanel').addEventListener('mouseleave', () => { if (!pinned) setActive(null, false); });
+
+/* ══════════════ 主线导航条引擎（数据 TOUR 在文件头数据区） ══════════════ */
+
+function buildRail() {
+  const rail = document.getElementById('railSteps');
+  rail.innerHTML = TOUR.map((s, k) =>
+    `<button class="rstep" data-k="${k}" title="${s.title}"><span class="rs-n">${k === TOUR.length - 1 ? '🎉' : k + 1}</span><span>${s.sl}</span></button>`
+  ).join('');
+  rail.querySelectorAll('.rstep').forEach(b => b.addEventListener('click', () => startTourAt(+b.dataset.k)));
+}
+function updateRail(cur) {
+  document.querySelectorAll('.rstep').forEach(b => {
+    const k = +b.dataset.k;
+    b.classList.toggle('cur', k === cur);
+    b.classList.toggle('done', cur >= 0 && k < cur);
+  });
+}
+
+/* ══════════════ 导览引擎 ══════════════ */
+let tourStep = -1;
+const tourEl = document.getElementById('tour');
+function findRowByName(part) {
+  return [...document.querySelectorAll('.tnode')].find(r => {
+    const nameEl = r.querySelector('.name');
+    return nameEl && nameEl.textContent.includes(part);
+  });
+}
+function goStep(i) {
+  if (i < 0 || i >= TOUR.length) return endTour();
+  tourStep = i;
+  const s = TOUR[i];
+  document.body.classList.add('touring');
+  tourEl.classList.add('show');
+  document.getElementById('tourNum').textContent = `${i + 1} / ${TOUR.length}`;
+  document.getElementById('tourTitle').textContent = s.title;
+  document.getElementById('tourText').innerHTML = s.text;
+  document.getElementById('tourHint').textContent = s.tree ? '已联动：左树 ⇄ 图 ⇄ 右侧说明' : '看中间的全景地图';
+  document.getElementById('tourPrev').style.visibility = i === 0 ? 'hidden' : 'visible';
+  document.getElementById('tourNext').textContent = i === TOUR.length - 1 ? '完成 ✓' : '下一站 →';
+  const dots = document.getElementById('tourDots');
+  dots.innerHTML = TOUR.map((_, k) => `<i class="${k < i ? 'done' : k === i ? 'cur' : ''}" data-k="${k}"></i>`).join('');
+  dots.querySelectorAll('i').forEach(d => d.addEventListener('click', () => goStep(+d.dataset.k)));
+  updateRail(i);
+
+  selectTab(s.tab);
+  if (s.tree) {
+    const row = findRowByName(s.tree);
+    if (row) {
+      expandAncestors(row);
+      setActive(row, true);
+      if (row.scrollIntoView) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+  } else {
+    setActive(null, false);
+  }
+}
+function startTourAt(i) { goStep(Math.max(0, Math.min(i, TOUR.length - 1))); }
+function startTour() { goStep(0); }
+function endTour() {
+  tourStep = -1;
+  tourEl.classList.remove('show');
+  document.body.classList.remove('touring');
+  updateRail(-1);
+}
+document.getElementById('tourBtn').addEventListener('click', startTour);
+document.getElementById('tourClose').addEventListener('click', endTour);
+document.getElementById('tourPrev').addEventListener('click', () => goStep(tourStep - 1));
+document.getElementById('tourNext').addEventListener('click', () => goStep(tourStep + 1));
+
+/* 欢迎浮层：首次访问给一个明确起点 */
+const welcomeMask = document.getElementById('welcomeMask');
+try { if (localStorage.getItem('step18-fullagent-welcomed')) welcomeMask.classList.add('hide'); } catch (e) {}
+function dismissWelcome() {
+  welcomeMask.classList.add('hide');
+  try { localStorage.setItem('step18-fullagent-welcomed', '1'); } catch (e) {}
+}
+document.getElementById('wStart').addEventListener('click', () => { dismissWelcome(); startTour(); });
+document.getElementById('wFree').addEventListener('click', dismissWelcome);
+
+/* ══════════════ 时序图变更配色后处理 ══════════════
+   mermaid 时序图不支持按参与者上色，渲染后按 🆕 标记补色：
+   含 🆕 的 actor → 绿色（新增）；否则 → 灰色（复用/外部） */
+function styleSequence(box) {
+  box.querySelectorAll('g.actor').forEach(g => {
+    const t = g.textContent || '';
+    const rect = g.querySelector('rect');
+    if (!rect) return;
+    if (t.includes('🆕')) {
+      rect.style.fill = '#e6f6ec'; rect.style.stroke = '#17a45f'; rect.style.strokeWidth = '2px';
+    } else {
+      rect.style.fill = '#f1f3f6'; rect.style.stroke = '#9aa3af'; rect.style.strokeWidth = '1.2px';
+      rect.style.strokeDasharray = '5 3';
+    }
+  });
+  box.querySelectorAll('g.note').forEach(g => {
+    const r = g.querySelector('rect');
+    if (r) { r.style.rx = '6px'; }
+  });
+}
+
+/* ══════════════ 启动 ══════════════ */
+renderTree();
+renderDocs();
+indexRows();
+buildRail();
+try {
+  for (const name of TABS) {
+    const src = { over: OVER_SRC, seq: SEQ_SRC, flow: FLOW_SRC }[name];
+    if (!src) continue;
+    const rendered = await mermaid.render('svg-' + name, src);
+    document.getElementById('box-' + name).innerHTML = rendered.svg;
+    styleSequence(document.getElementById('box-' + name));
+  }
+  bindReverse();
+  /* 代码行反向联动 + 锚点标记 */
+  document.querySelectorAll('#box-code .cline').forEach(row => {
+    row.addEventListener('click', () => activateByText((row.querySelector('.cc').textContent || '').trim()));
+  });
+  const ANCHORS = {'FullAgent': 41, 'Impl': 61, 'name': 110, 'chat': 115, 'runAgentLoop': 150, 'executeTool': 193, 'executeMemory': 212, 'parseArguments': 236, 'asObjectMap': 245, 'text': 252, 'outputGuard': 258, 'rememberTurn': 267, 'compactHistoryIfNeeded': 278, 'renderTranscript': 304, 'clearOldToolResults': 342, 'calc': 363, 'toolSchemas': 389, 'function': 404, 'stringProperty': 420, 'trace': 438, 'reset': 431, 'main': 443};
+  Object.entries(ANCHORS).forEach(([name, ln]) => {
+    const el = document.getElementById('cl-' + ln);
+    if (el) el.classList.add('anchor');
+  });
+  document.getElementById('codeMeta').textContent = 471 行 · 23 个联动锚点;
+  TABS.forEach(applyZoom);
+} catch (err) {
+  const firstBox = document.getElementById('box-' + TABS[0]);
+  if (firstBox) firstBox.innerHTML =
+    '<div class="box-err">Mermaid 渲染失败：<br>' + String(err).replace(/</g, '&lt;') + '</div>';
+}
+</script>
+</body>
+</html>

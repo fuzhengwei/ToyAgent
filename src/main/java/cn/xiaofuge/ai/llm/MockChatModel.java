@@ -6,6 +6,8 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import java.util.ArrayList;
+
 /**
  * 教学演示用 Mock 模型：不联网、不花钱，让 12 个场景开箱即跑。
  * <p>
@@ -40,7 +42,6 @@ public final class MockChatModel implements ChatModel {
             case "step07" -> mockRag(all, last);
             case "step12" -> mockMulti(all, system);
             case "step16" -> mockWorkflow(all, last);
-            case "step18" -> mockFull(all, last);
             case "step19" -> mockAsk(all, last);
             case "step20" -> mockApproval(last);
             case "step21" -> mockSandbox(last);
@@ -79,7 +80,7 @@ public final class MockChatModel implements ChatModel {
             return mockA2aToolCall(messages);
         }
         if (("step04".equals(scenario) || "step15".equals(scenario) || "step16".equals(scenario)
-                || "step17".equals(scenario) || registryScenario)
+                || "step17".equals(scenario) || "step18".equals(scenario) || registryScenario)
                 && tools != null && !tools.isEmpty()) {
             Message last = messages.get(messages.size() - 1);
             // step17 死循环剧本优先：echo 的结果喂回后模型"仍不满足"，继续发起 echo —— 直到保险丝起跳
@@ -87,6 +88,20 @@ public final class MockChatModel implements ChatModel {
                     && last.content().startsWith("echo:")) {
                 return new ChatResponse("", List.of(new ToolCall("mock-call-" + last.toolCallId(), "echo",
                         Json.write(Map.of("text", "tick")))));
+            }
+            if ("step18".equals(scenario) && "tool".equals(last.role())) {
+                String observations = recentToolObservations(messages);
+                String answer = "已完成工具调用：" + clip(observations);
+                if (observations.contains("名字=") && observations.contains("喜好=")) {
+                    answer = "你的名字和喜好都从 memory 工具读取到了。";
+                } else if (observations.contains("已保存 名字") && observations.contains("已保存 喜好")) {
+                    answer = "名字和喜好都已写入 memory。";
+                } else if (last.content().matches("\\d+(?:\\.\\d+)?")) {
+                    answer = "计算结果是 " + last.content() + "。";
+                } else if (last.content().startsWith("已保存")) {
+                    answer = last.content() + "之后随时可以读取。";
+                }
+                return new ChatResponse(answer + " 结合工具结果和记忆，本轮链路已闭环。", List.of());
             }
             if ("tool".equals(last.role())) {
                 String tail = switch (scenario) {
@@ -104,12 +119,12 @@ public final class MockChatModel implements ChatModel {
                 return new ChatResponse("", List.of(new ToolCall("mock-call-1", "echo",
                         Json.write(Map.of("text", "tick")))));
             }
-            if (lastUser.contains("天气") || lastUser.contains("weather")) {
+            if (!"step18".equals(scenario) && (lastUser.contains("天气") || lastUser.contains("weather"))) {
                 return new ChatResponse("", List.of(new ToolCall("mock-call-1", "get_weather",
                         Json.write(Map.of("city", findCity(lastUser))))));
             }
             Matcher m = Pattern.compile("(\\d+\\s*[+\\-*/]\\s*\\d+)").matcher(lastUser);
-            if (m.find()) {
+            if (!"step18".equals(scenario) && m.find()) {
                 return new ChatResponse("", List.of(new ToolCall("mock-call-1", "calculator",
                         Json.write(Map.of("expression", m.group(1))))));
             }
@@ -118,6 +133,48 @@ public final class MockChatModel implements ChatModel {
                         Json.write(Map.of()))));
             }
             String direct = "这个问题不需要调用工具，我直接回答：「" + clip(lastUser) + "」—— 工具调用的关键在于：模型自己判断「要不要用工具、用哪个、参数是什么」。";
+            if ("step18".equals(scenario)) {
+                if (lastUser.contains("我叫什么") || lastUser.contains("我喜欢什么") || lastUser.contains("我是谁")) {
+                    List<ToolCall> reads = new ArrayList<>();
+                    if (lastUser.contains("我叫什么") || lastUser.contains("我是谁")) {
+                        reads.add(new ToolCall("mock-memory-read-name", "memory",
+                                Json.write(Map.of("command", "read", "key", "名字"))));
+                    }
+                    if (lastUser.contains("我喜欢什么")) {
+                        reads.add(new ToolCall("mock-memory-read-like", "memory",
+                                Json.write(Map.of("command", "read", "key", "喜好"))));
+                    }
+                    return new ChatResponse("", reads);
+                }
+                if (lastUser.contains("我叫") || lastUser.contains("我的名字") || lastUser.contains("记住我叫")) {
+                    String name = findName(lastUser);
+                    List<ToolCall> writes = new ArrayList<>();
+                    writes.add(new ToolCall("mock-memory-write-name", "memory",
+                            Json.write(Map.of("command", "write", "key", "名字", "value", name))));
+                    if (lastUser.contains("喜欢")) {
+                        writes.add(new ToolCall("mock-memory-write-like", "memory",
+                                Json.write(Map.of("command", "write", "key", "喜好", "value", findPreference(lastUser)))));
+                    }
+                    return new ChatResponse("", writes);
+                }
+                List<ToolCall> calls = new ArrayList<>();
+                if (lastUser.contains("天气") || lastUser.contains("weather")) {
+                    calls.add(new ToolCall("mock-weather-1", "get_weather",
+                            Json.write(Map.of("city", findCity(lastUser)))));
+                }
+                Matcher matcher = Pattern.compile("(\\d+\\s*[+\\-*/]\\s*\\d+)").matcher(lastUser);
+                if (matcher.find()) {
+                    calls.add(new ToolCall("mock-calc-1", "calculator",
+                            Json.write(Map.of("expression", matcher.group(1)))));
+                }
+                if (lastUser.contains("几点") || lastUser.contains("时间")) {
+                    calls.add(new ToolCall("mock-time-1", "get_time", Json.write(Map.of())));
+                }
+                if (!calls.isEmpty()) {
+                    return new ChatResponse("", calls);
+                }
+                direct = "结合当前上下文直接回答：「" + clip(lastUser) + "」。标准工具协议下，只有需要外部状态时才发起 tool_calls。";
+            }
             if ("step17".equals(scenario)) {
                 long turns = messages.stream().filter(msg -> "user".equals(msg.role())).count();
                 direct = "（Mock 模型）本轮带着 " + (messages.size() - 1)
@@ -168,44 +225,6 @@ public final class MockChatModel implements ChatModel {
                 + "2. 原理 —— 模型根据系统提示词中的人设与约束来组织回答，本条回复就是模板化输出的效果。\n"
                 + "3. 建议 —— 好提示词 = 明确角色 + 交代背景 + 给出任务与约束，这正是 Step02 代码里 systemPrompt 的三层结构。\n\n"
                 + "（Mock 模型按系统提示词的格式约定作答；真实模型会表现出同样的角色倾向。）";
-    }
-
-    // ------------------------------------------------------------- step18 全流程
-
-    /** 与 step03 同一套 ReAct JSON 协议，但画像信息会让回答更「有记忆」。 */
-    private String mockFull(String all, String last) {
-        String portrait = "";
-        if (all.contains("名字={")) {
-            portrait = "，" + extractAfter(all, "名字={").replaceFirst("\\}.*", "") + "同学";
-        } else if (all.contains("喜好={")) {
-            portrait = "，还记得你喜欢" + extractAfter(all, "喜好={").replaceFirst("\\}.*", "");
-        }
-        if (all.contains("Observation:")) {
-            String obs = extractAfter(all, "Observation:");
-            return Json.write(Map.of(
-                    "thought", "工具结果已返回，结合记忆与观察结果组织最终回答",
-                    "final", clip(obs) + " —— 本轮完整走过了：守卫 → 记忆 → 循环 → 工具 → 输出校验 → 回写记忆" + (portrait.isEmpty() ? "。" : "（" + portrait.replaceFirst("，", "") + "）。")));
-        }
-        if (last.matches(".*\\d+\\s*[+\\-*/]\\s*\\d+.*")) {
-            Matcher m = Pattern.compile("(\\d+\\s*[+\\-*/]\\s*\\d+)").matcher(last);
-            String expr = m.find() ? m.group(1) : "1+1";
-            return Json.write(Map.of(
-                    "thought", "有算式，调用计算器工具，不能靠心算",
-                    "action", "calculator",
-                    "action_input", expr));
-        }
-        String city = findCity(last);
-        if (!city.equals("北京") || last.contains("天气")) {
-            return Json.write(Map.of(
-                    "thought", "问题需要实时数据，先调天气工具",
-                    "action", "get_weather",
-                    "action_input", city));
-        }
-        return Json.write(Map.of(
-                "thought", "普通寒暄无需工具，直接结合记忆回答",
-                "final", "你好" + (portrait.isEmpty() ? "！" : portrait + "！")
-                        + "我是全流程智能体：守卫已放行你的输入，记忆里" + (portrait.isEmpty() ? "还没有你的档案" : "有你的画像")
-                        + "，本轮无需调用工具即可作答。"));
     }
 
     // ------------------------------------------------------------- step03 ReAct
@@ -619,6 +638,28 @@ public final class MockChatModel implements ChatModel {
             if (text.contains(city)) return city;
         }
         return "北京";
+    }
+
+    private String findName(String text) {
+        Matcher matcher = Pattern.compile("我(?:叫|的名字(?:是|叫)?)\\s*([\\u4e00-\\u9fa5A-Za-z0-9]{1,12})")
+                .matcher(text);
+        return matcher.find() ? matcher.group(1) : "用户";
+    }
+
+    private String findPreference(String text) {
+        Matcher matcher = Pattern.compile("喜欢\\s*([\\u4e00-\\u9fa5A-Za-z0-9]{1,12})")
+                .matcher(text);
+        return matcher.find() ? matcher.group(1) : "未知";
+    }
+
+    private String recentToolObservations(List<Message> messages) {
+        StringBuilder observations = new StringBuilder();
+        for (int index = messages.size() - 1; index >= 0; index--) {
+            Message message = messages.get(index);
+            if (!"tool".equals(message.role())) break;
+            observations.insert(0, message.content() + "\n");
+        }
+        return observations.toString().trim();
     }
 
     private String extractAfter(String text, String marker) {
