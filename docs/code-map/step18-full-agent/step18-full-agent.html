@@ -1882,11 +1882,11 @@ function styleSequence(box) {
 }
 
 /* ══════════════ 启动 ══════════════ */
-renderTree();
-renderDocs();
-indexRows();
-buildRail();
 try {
+  renderTree();
+  renderDocs();
+  indexRows();
+  buildRail();
   for (const name of TABS) {
     const src = { over: OVER_SRC, seq: SEQ_SRC, flow: FLOW_SRC }[name];
     if (!src) continue;
@@ -1904,7 +1904,7 @@ try {
     const el = document.getElementById('cl-' + ln);
     if (el) el.classList.add('anchor');
   });
-  document.getElementById('codeMeta').textContent = 471 行 · 23 个联动锚点;
+  document.getElementById('codeMeta').textContent = '471 行 · 23 个联动锚点';
   TABS.forEach(applyZoom);
 } catch (err) {
   const firstBox = document.getElementById('box-' + TABS[0]);

@@ -79,6 +79,10 @@ public final class MockChatModel implements ChatModel {
         if ("step14".equals(scenario) && tools != null && !tools.isEmpty()) {
             return mockA2aToolCall(messages);
         }
+        // step19：模型自主调用 ask_user_question 工具，人工答复以 role=tool 结果回填后续跑
+        if ("step19".equals(scenario) && tools != null && !tools.isEmpty()) {
+            return mockAskToolCall(messages);
+        }
         if (("step04".equals(scenario) || "step15".equals(scenario) || "step16".equals(scenario)
                 || "step17".equals(scenario) || "step18".equals(scenario) || registryScenario)
                 && tools != null && !tools.isEmpty()) {
@@ -396,6 +400,41 @@ public final class MockChatModel implements ChatModel {
         }
         return Json.write(Map.of(
                 "final", "（Mock 模型）信息完整的问题我直接回答。想看人工介入：发「帮我订一张去北京的机票」，我会停下来向你确认出发地。"));
+    }
+
+    /**
+     * tools 协议链路：模型自主发起 ask_user_question 的结构化 tool_calls；
+     * 人工答复按 tool_call_id 以 role=tool 结果回填后，模型续跑完成任务。
+     */
+    private ChatResponse mockAskToolCall(List<Message> messages) {
+        Message last = messages.get(messages.size() - 1);
+        if ("tool".equals(last.role())) {
+            // 人工答复回填：declined 记录拒绝，否则从工具结果里取出发地出票
+            if (Pattern.compile("\"declined\"\\s*:\\s*true").matcher(last.content()).find()) {
+                return new ChatResponse(
+                        "好的 —— 你没有提供出发地，我就不瞎猜了：本次预订无法完成。"
+                                + "随时补充出发城市，我会立刻继续。", List.of());
+            }
+            Matcher ans = Pattern.compile("\"answer\"\\s*:\\s*\"([^\"]*)\"").matcher(last.content());
+            String from = "未知城市";
+            if (ans.find()) {
+                String a = ans.group(1);
+                from = a.contains("上海") ? "上海" : a.contains("杭州") ? "杭州" : a.contains("广州") ? "广州" : clip(a);
+            }
+            return new ChatResponse(
+                    "已为你预订：" + from + " → 北京，明日 08:30 起飞，经济舱 ¥1,280（模拟出票）。"
+                            + "刚才缺出发地时我没有瞎猜，而是调用 ask_user_question 问了人 —— 人机协同闭环。", List.of());
+        }
+        String lastUser = lastUserText(messages);
+        if (lastUser.contains("机票") || lastUser.contains("订") || lastUser.contains("出行")) {
+            return new ChatResponse("", List.of(new ToolCall("mock-ask-1", "ask_user_question",
+                    Json.write(Map.of("questions", List.of(Map.of(
+                            "question", "预订机票需要确认出发地 —— 请问从哪个城市出发？",
+                            "options", List.of("北京", "上海", "杭州", "广州"))))))));
+        }
+        return new ChatResponse(
+                "（Mock 模型）信息完整的问题我直接回答。想看人工介入：发「帮我订一张去北京的机票」，"
+                        + "我会调用 ask_user_question 向你确认出发地。", List.of());
     }
 
     // ------------------------------------------------------------- step20 审批门禁
