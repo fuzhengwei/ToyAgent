@@ -83,6 +83,10 @@ public final class MockChatModel implements ChatModel {
         if ("step19".equals(scenario) && tools != null && !tools.isEmpty()) {
             return mockAskToolCall(messages);
         }
+        // step20：高危动作是普通工具，宿主门禁拦截审批；批准/拒绝以 role=tool 结果回填后续跑
+        if ("step20".equals(scenario) && tools != null && !tools.isEmpty()) {
+            return mockApprovalToolCall(messages);
+        }
         if (("step04".equals(scenario) || "step15".equals(scenario) || "step16".equals(scenario)
                 || "step17".equals(scenario) || "step18".equals(scenario) || registryScenario)
                 && tools != null && !tools.isEmpty()) {
@@ -439,8 +443,50 @@ public final class MockChatModel implements ChatModel {
 
     // ------------------------------------------------------------- step20 审批门禁
 
-    private String mockApproval(String last) {
-        if (last.contains("执行结果") || last.contains("审批结果")) {
+    /**
+     * tools 协议链路：高危动作（send_email / delete_file / shell_execute）是普通工具，
+     * 模型正常发起结构化 tool_calls；宿主门禁拦截审批后，
+     * 人的决策（批准 / 拒绝）以 role=tool 结果回填，模型续跑完成任务。
+     */
+    private ChatResponse mockApprovalToolCall(List<Message> messages) {
+        Message last = messages.get(messages.size() - 1);
+        if ("tool".equals(last.role())) {
+            // 审批决策回填：denied 记录拒绝（模型自行收场），否则基于执行结果收尾
+            if (Pattern.compile("\"denied\"\\s*:\\s*true").matcher(last.content()).find()) {
+                return new ChatResponse(
+                        "好的 —— 你拒绝了这次高危操作，我不会尝试绕过审批：邮件未发送。"
+                                + "如果你愿意，我可以先起草邮件内容给你过目，确认后再走审批发送。",
+                        List.of());
+            }
+            return new ChatResponse(
+                    "任务完成：高危操作已通过你的审批并执行（见工具结果）。"
+                            + "安全工具自动放行、高危操作必须过审批门禁 —— "
+                            + "这就是生产级智能体与玩具的分水岭。", List.of());
+        }
+        String lastUser = lastUserText(messages);
+        if (lastUser.contains("邮件") || lastUser.contains("发送") || lastUser.contains("发一封")) {
+            return new ChatResponse("", List.of(new ToolCall("mock-approve-1", "send_email",
+                    Json.write(Map.of("to", "team@xiaofuge.cn", "content", "本周周报：完成审批门禁案例演示")))));
+        }
+        if (lastUser.contains("删除") || lastUser.contains("清理")) {
+            return new ChatResponse("", List.of(new ToolCall("mock-approve-2", "delete_file",
+                    Json.write(Map.of("path", "workspace/tmp/old.log")))));
+        }
+        if (lastUser.contains("执行") || lastUser.contains("命令")) {
+            return new ChatResponse("", List.of(new ToolCall("mock-approve-3", "shell_execute",
+                    Json.write(Map.of("command", "ls workspace")))));
+        }
+        if (lastUser.contains("天气")) {
+            return new ChatResponse("", List.of(new ToolCall("mock-approve-4", "get_weather",
+                    Json.write(Map.of("city", findCity(lastUser))))));
+        }
+        return new ChatResponse(
+                "（Mock 模型）想看审批门禁：发「给团队发一封周报邮件」（高危，会挂起等你审批），"
+                        + "回复「批准 / 拒绝 / 批准并记住」观察三种走向；发「查北京天气」看安全工具自动放行。",
+                List.of());
+    }
+
+    private String mockApproval(String last) {        if (last.contains("执行结果") || last.contains("审批结果")) {
             return Json.write(Map.of(
                     "final", "任务完成：" + clip(last) + " —— 注意轨迹里的权限矩阵：安全工具自动放行，"
                             + "高危工具必须过审批门禁，这是生产级智能体与玩具的分水岭。"));
