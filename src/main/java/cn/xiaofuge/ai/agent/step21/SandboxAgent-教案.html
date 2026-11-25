@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Step21 · 沙箱是什么 —— 从操作系统到 AI Agent · 学生讲义</title>
+<style>
+  :root { --ink:#1c2333; --sub:#5b6472; --line:#d9dfeb; --bg:#f7f9fc; --card:#ffffff;
+          --blue:#3b5bdb; --green:#2e7d4f; --red:#c23934; --amber:#8a6d1f; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:40px 6vw; background:var(--bg); color:var(--ink);
+         font:15px/1.75 -apple-system,'PingFang SC','Microsoft YaHei',sans-serif; }
+  .wrap { max-width:960px; margin:0 auto; }
+  h1 { font-size:26px; margin:0 0 6px; }
+  h2 { font-size:19px; margin:36px 0 12px; padding-bottom:6px; border-bottom:2px solid var(--line); }
+  h3 { font-size:15.5px; margin:20px 0 8px; }
+  .meta { color:var(--sub); font-size:13px; margin-bottom:8px; }
+  .badge { display:inline-block; background:#eef2ff; color:var(--blue); border-radius:4px;
+           padding:1px 8px; margin-right:6px; font-size:12.5px; }
+  table { width:100%; border-collapse:collapse; background:var(--card); margin:10px 0 4px; font-size:13.5px; }
+  th,td { border:1px solid var(--line); padding:7px 10px; text-align:left; vertical-align:top; }
+  th { background:#f0f3f9; font-weight:600; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px 20px; margin:12px 0; }
+  .quote { border-left:4px solid var(--blue); background:var(--card); padding:10px 16px; margin:12px 0; color:var(--sub); font-size:13.5px; }
+  .key { background:#fffbe8; border:1px solid #ecd98a; }
+  pre { background:#0f1420; color:#dbe4ff; padding:14px 16px; border-radius:8px; overflow-x:auto; font-size:12.5px; line-height:1.6; }
+  code { background:#eef1f7; border-radius:4px; padding:1px 5px; font-size:12.5px; font-family:'SF Mono',Menlo,monospace; }
+  pre code { background:none; padding:0; }
+  .svgbox { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; margin:12px 0; }
+  .cap { text-align:center; color:var(--sub); font-size:12.5px; margin-top:6px; }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media print { body { background:#fff; padding:16px; } .card,.svgbox { break-inside:avoid; } }
+</style>
+</head>
+<body><div class="wrap">
+
+<h1>Step21 · 沙箱是什么 —— 从操作系统到 AI Agent</h1>
+<div class="meta">
+  <span class="badge">学生讲义 · 课前可自读</span>
+  <span class="badge">前置：Step20 审批门禁</span>
+  <span class="badge">配套代码：SandboxAgent.java ｜ 实验：seatbelt-demo.sh</span>
+</div>
+<div class="meta">对照文档：
+  <a href="https://code.claude.com/docs/en/sandboxing" target="_blank">《Configure the sandboxed Bash tool》（Claude Code sandboxing）</a> ｜
+  <a href="https://www.anthropic.com/engineering/how-we-contain-claude" target="_blank">《How we contain Claude across products》</a> ｜
+  <a href="https://www.anthropic.com/engineering/building-effective-agents" target="_blank">《Building effective agents》</a>
+</div>
+
+<h2>一、沙箱是什么：你天天都在用</h2>
+<div class="card">
+<p><b>沙箱（Sandbox）= 给不可信的代码划一块「可以活动的地方」，出了边界就被拦下。</b>
+它不是把危险代码「劝住」，而是把它关起来：在里面它爱怎么折腾怎么折腾，但碰不到外面的真实世界。</p>
+<p style="margin:10px 0 0">其实你每天都在享受沙箱的保护，只是没注意到：</p>
+<ul style="margin:6px 0 0">
+  <li><b>手机 App 沙盒</b>：iOS / Android 上每个 App 只能读写自己的目录；相册、通讯录要弹窗授权，没授权就碰不到——这就是沙箱 + 权限系统；</li>
+  <li><b>浏览器标签页</b>：Chrome 把每个网页放在独立的「沙箱渲染进程」里，网页里的恶意代码就算执行了，也读不到你的文件系统；</li>
+  <li><b>Docker 容器</b>：你跑过的容器就是一个文件系统视图被裁剪过的沙箱——容器里「看不见」宿主机的其他文件；</li>
+  <li><b>微信小程序</b>：小程序代码跑在受限的运行环境里，没有授权就调用不了摄像头、文件系统。</li>
+</ul>
+<p style="margin:10px 0 0">一句话记住它的本质：<b>沙箱不是防它做坏事，而是「做了也做不成」——把最坏结果的伤害半径封死在边界之内。</b></p>
+</div>
+
+<h2>二、Windows / macOS / Linux 分别怎么用沙箱</h2>
+<p>三家操作系统的实现机制不同，但思想一致：<b>在内核（操作系统最底层）划边界，而不是靠程序「自觉」</b>。</p>
+
+<h3>macOS —— Seatbelt（本课实验用的就是它）</h3>
+<div class="card">
+<p>macOS 内置 <b>Seatbelt</b> 机制：写一份 profile 文件声明「允许什么、拒绝什么」，再用系统自带的
+<code>sandbox-exec</code> 命令包住你要跑的程序。Claude Code 在 macOS 上的沙箱正是构建在它之上的。</p>
+<pre><code># profile 语义：默认放行，但禁写、禁网，只放行工作区写入，凭据目录禁读
+(version 1)
+(allow default)
+(deny file-write*)
+(allow file-write* (subpath "/Users/me/project/sandbox"))   ; 只有工作区可写
+(deny network*)                                             ; 网络默认禁
+(deny file-read* (subpath "/Users/me/.ssh"))                ; 凭据禁读
+
+# 用它包住命令运行（本课 seatbelt-demo.sh 干的就是这件事）
+sandbox-exec -f profile.sb /bin/sh -c "echo hi > sandbox/ok.txt"     # 放行
+sandbox-exec -f profile.sb /bin/sh -c "echo hi > /tmp/evil.txt"      # 内核拒绝：Operation not permitted</code></pre>
+<p style="margin:8px 0 0;color:var(--sub);font-size:13px">另外，从 App Store 装的 Mac 应用都带 <b>App Sandbox</b>（声明式权限），和手机上 App 沙盒是同一思想。</p>
+</div>
+
+<h3>Linux —— namespace + seccomp（容器技术的地基）</h3>
+<div class="card">
+<p>Linux 用三个「内核积木」搭沙箱，你熟悉的 Docker 就是它们的封装：</p>
+<ul style="margin:6px 0 0">
+  <li><b>namespace</b>：让进程「看见」一个被裁剪过的世界——mount namespace 里只挂载允许的目录，别的根本看不见；</li>
+  <li><b>seccomp</b>：过滤系统能发起哪些<b>系统调用</b>——危险的调用直接被内核拒绝；</li>
+  <li><b>cgroups</b>：限制 CPU / 内存用量，防止把机器拖垮。</li>
+</ul>
+<pre><code># bubblewrap：轻量命令行沙箱（Claude Code 在 Linux 上用它）
+bwrap --ro-bind / / --bind ./sandbox ./sandbox --unshare-net -- sh -c "命令"
+
+# Docker：最常见的容器沙箱 —— 只挂载工作区、断网、只读根文件系统
+docker run --rm -v "$PWD/sandbox:/ws" --network none alpine sh -c "cd /ws && 命令"</code></pre>
+</div>
+
+<h3>Windows —— AppContainer 与 Windows Sandbox</h3>
+<div class="card">
+<ul style="margin:6px 0 0">
+  <li><b>AppContainer</b>：Windows 给 UWP 应用 / Edge 浏览器进程用的低权限容器——进程被打了「低完整性」标签，默认摸不到用户文档；</li>
+  <li><b>Windows Sandbox</b>：Win10/11 专业版自带的一次性干净系统，用 <code>.wsb</code> 配置文件声明能访问宿主机的哪些目录，关掉即全部销毁——适合跑不信任的安装包；</li>
+  <li><b>Job Object</b>：老牌机制，把一组进程捆在一起做资源限制（Chrome 在 Windows 上就用它做标签页沙箱）。</li>
+</ul>
+</div>
+
+<table>
+  <tr><th style="width:90px">系统</th><th>核心机制</th><th>典型用法</th><th>你在哪见过它</th></tr>
+  <tr><td><b>macOS</b></td><td>Seatbelt（profile + sandbox-exec）、App Sandbox</td><td><code>sandbox-exec -f xx.sb 命令</code></td><td>App Store 应用、Claude Code</td></tr>
+  <tr><td><b>Linux</b></td><td>namespace + seccomp + cgroups（bubblewrap / Docker）</td><td><code>bwrap …</code> 或 <code>docker run …</code></td><td>服务器容器、CI 流水线</td></tr>
+  <tr><td><b>Windows</b></td><td>AppContainer、Windows Sandbox、Job Object</td><td><code>.wsb</code> 文件双击启动一次性系统</td><td>Edge/UWP、测试可疑软件</td></tr>
+</table>
+<div class="quote">三家殊途同归：<b>边界写在内核里，由操作系统强制执行</b>——就算程序自己想越界、被恶意代码操控想越界，越界动作在系统调用这一层就会被拒绝。这就是和「写个 if 检查一下」的本质区别。</div>
+
+<h2>三、AI Agent 为什么特别需要沙箱</h2>
+<div class="card">
+<p>Agent 会替你执行 shell 命令，而模型是<b>概率性</b>的——它可能：</p>
+<ul style="margin:6px 0 0">
+  <li><b>犯错</b>：幻觉出错误路径、理解错任务，把 <code>rm</code> 指向了不该删的地方；</li>
+  <li><b>被诱导</b>：读到网页/文件里藏的恶意指令（提示注入），真的去执行危险命令——<b>注入骗得了模型，骗不了操作系统</b>；</li>
+  <li><b>泄密</b>：把密钥文件读进上下文，随后发给外部 API。</li>
+</ul>
+<p style="margin:10px 0 0">Anthropic 官方的结论一句话：<b>审查「它做了什么」是概率性的（连人工审批都被 93% 的批准疲劳打穿），约束「它能碰什么」才是确定性边界。</b>所以 Claude Code 的做法是：默认禁写、只放行工作区、凭据目录禁读、网络代理白名单默认为空——然后把沙箱内的安全操作自动放行，只把沙箱兜不住的升级给人审。<b>沙箱不只是安全设施，还是 Agent 跑得快的前提。</b></p>
+</div>
+
+<h2>四、延展到本课：课程里怎么用沙箱</h2>
+<p>本课的 <code>SandboxAgent</code> 把上面的思想落成一个可以跑的教学版：模型通过 Function Calling 发起
+<code>shell_execute</code> 工具调用，宿主用<b>四层校验</b>决定放行还是拦截，<b>拦截结果回灌给模型让它自己修正</b>。</p>
+
+<h3>1. 四层校验管线（应用层 = 策略：决定边界划多大）</h3>
+<div class="svgbox">
+<svg viewBox="0 0 900 430" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'PingFang SC',sans-serif">
+  <defs>
+    <marker id="a1" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#5b6472"/></marker>
+    <marker id="a2" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#c23934"/></marker>
+    <marker id="a3" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#2e7d4f"/></marker>
+  </defs>
+  <rect width="900" height="430" fill="#ffffff"/>
+  <text x="450" y="26" text-anchor="middle" font-size="16" font-weight="700" fill="#1c2333">runTurn 循环内：shell_execute 的四层校验管线</text>
+
+  <rect x="30" y="60" width="130" height="52" rx="8" fill="#eef2ff" stroke="#3b5bdb"/>
+  <text x="95" y="82" text-anchor="middle" font-size="12.5" fill="#2b3f8f" font-weight="600">模型 tool_calls</text>
+  <text x="95" y="99" text-anchor="middle" font-size="11" fill="#5b6472">shell_execute(cmd)</text>
+
+  <line x1="160" y1="86" x2="205" y2="86" stroke="#5b6472" stroke-width="1.8" marker-end="url(#a1)"/>
+  <text x="182" y="78" text-anchor="middle" font-size="10" fill="#5b6472">宿主接管</text>
+
+  <g font-size="12">
+    <rect x="210" y="46" width="150" height="80" rx="8" fill="#f2f8f4" stroke="#2e7d4f"/>
+    <text x="285" y="70" text-anchor="middle" font-weight="700" fill="#2e7d4f">第 1 层 · 策略</text>
+    <text x="285" y="88" text-anchor="middle" font-size="10.5" fill="#3d5c4b">READ_ONLY → 全拒</text>
+    <text x="285" y="104" text-anchor="middle" font-size="10.5" fill="#3d5c4b">FULL 只免审批，</text>
+    <text x="285" y="118" text-anchor="middle" font-size="10.5" fill="#3d5c4b">边界照样生效</text>
+
+    <rect x="375" y="46" width="170" height="80" rx="8" fill="#fff" stroke="#2e7d4f" stroke-width="2.2"/>
+    <text x="460" y="70" text-anchor="middle" font-weight="700" fill="#2e7d4f">第 2 层 · 边界（主力）</text>
+    <text x="460" y="88" text-anchor="middle" font-size="10.5" fill="#3d5c4b">路径 token 真规范化：</text>
+    <text x="460" y="104" text-anchor="middle" font-size="10.5" fill="#3d5c4b">resolve / ~展开 / normalize</text>
+    <text x="460" y="120" text-anchor="middle" font-size="10.5" fill="#3d5c4b">startsWith(workspace)</text>
+
+    <rect x="560" y="46" width="150" height="80" rx="8" fill="#fbf6ec" stroke="#8a6d1f"/>
+    <text x="635" y="70" text-anchor="middle" font-weight="700" fill="#8a6d1f">第 3 层 · 黑名单（辅助）</text>
+    <text x="635" y="88" text-anchor="middle" font-size="10.5" fill="#6b5618">rm -rf / sudo / mkfs…</text>
+    <text x="635" y="106" text-anchor="middle" font-size="10.5" fill="#a08b4a">防呆不防绕过 · 不承诺完备</text>
+
+    <rect x="725" y="46" width="150" height="80" rx="8" fill="#f2f8f4" stroke="#2e7d4f"/>
+    <text x="800" y="70" text-anchor="middle" font-weight="700" fill="#2e7d4f">第 4 层 · 网络与凭据</text>
+    <text x="800" y="88" text-anchor="middle" font-size="10.5" fill="#3d5c4b">网络 allowlist 默认为空</text>
+    <text x="800" y="106" text-anchor="middle" font-size="10.5" fill="#3d5c4b">~/.ssh / .aws / .env → deny</text>
+  </g>
+  <line x1="360" y1="86" x2="375" y2="86" stroke="#5b6472" stroke-width="1.8" marker-end="url(#a1)"/>
+  <line x1="545" y1="86" x2="560" y2="86" stroke="#5b6472" stroke-width="1.8" marker-end="url(#a1)"/>
+  <line x1="710" y1="86" x2="725" y2="86" stroke="#5b6472" stroke-width="1.8" marker-end="url(#a1)"/>
+
+  <g font-size="11">
+    <path d="M285,126 L285,180" fill="none" stroke="#c23934" stroke-width="1.8" marker-end="url(#a2)"/>
+    <path d="M460,126 L460,180" fill="none" stroke="#c23934" stroke-width="1.8" marker-end="url(#a2)"/>
+    <path d="M635,126 L635,180" fill="none" stroke="#c23934" stroke-width="1.8" marker-end="url(#a2)"/>
+    <path d="M800,126 L800,180" fill="none" stroke="#c23934" stroke-width="1.8" marker-end="url(#a2)"/>
+  </g>
+  <rect x="330" y="184" width="420" height="44" rx="8" fill="#fdf0ef" stroke="#c23934"/>
+  <text x="540" y="202" text-anchor="middle" font-size="12" fill="#c23934" font-weight="600">DENY：verdict {"allowed":false,"layer":N,"reason":…}</text>
+  <text x="540" y="219" text-anchor="middle" font-size="10.5" fill="#8a4440">以 role=tool 回灌 → 模型修正命令 → 重新提交（拦截也是信息）</text>
+
+  <path d="M330,206 C240,206 150,150 100,112" fill="none" stroke="#c23934" stroke-width="1.6" stroke-dasharray="5,3" marker-end="url(#a2)"/>
+  <text x="180" y="238" text-anchor="middle" font-size="10.5" fill="#c23934">修正重试（受 MAX_STEPS=8 保险丝约束）</text>
+
+  <path d="M800,126 C800,250 640,268 560,276" fill="none" stroke="#2e7d4f" stroke-width="1.8" marker-end="url(#a3)"/>
+  <rect x="380" y="262" width="180" height="42" rx="8" fill="#eaf4ee" stroke="#2e7d4f"/>
+  <text x="470" y="280" text-anchor="middle" font-size="12" fill="#2e7d4f" font-weight="600">四层全过 → 执行</text>
+  <text x="470" y="296" text-anchor="middle" font-size="10" fill="#3d5c4b">真沙箱：macOS Seatbelt 内执行</text>
+
+  <path d="M470,304 C470,330 470,330 470,346" fill="none" stroke="#5b6472" stroke-width="1.8" marker-end="url(#a1)"/>
+  <rect x="380" y="350" width="180" height="42" rx="8" fill="#eef2ff" stroke="#3b5bdb"/>
+  <text x="470" y="368" text-anchor="middle" font-size="12" fill="#2b3f8f" font-weight="600">verdict 回灌 → 下一圈</text>
+  <text x="470" y="384" text-anchor="middle" font-size="10" fill="#5b6472">无 tool_calls → 收敛返回最终回答</text>
+
+  <rect x="30" y="300" width="300" height="106" rx="8" fill="#f7f9fc" stroke="#d9dfeb"/>
+  <text x="180" y="322" text-anchor="middle" font-size="11.5" fill="#1c2333" font-weight="700">三条设计原则</text>
+  <text x="180" y="342" text-anchor="middle" font-size="10.5" fill="#5b6472">① 白名单语义：默认拒绝，显式放行</text>
+  <text x="180" y="361" text-anchor="middle" font-size="10.5" fill="#5b6472">② 确定性边界是主力，黑名单只辅助</text>
+  <text x="180" y="380" text-anchor="middle" font-size="10.5" fill="#5b6472">③ verdict 回灌：人看到「拦截→修正」全过程</text>
+</svg>
+<div class="cap">图 1 · 与 step19/20 同构的单循环；唯一差别是工具结果来自「四层沙箱校验」</div>
+</div>
+
+<div class="quote"><b>注意第 3 层的定位</b>：黑名单是「不完备规则集」——<code>rm -fr</code>（参数换序）、
+<code>echo 编码 | base64 -d | sh</code>（间接执行）都能绕过它。它只能防呆；<b>防贼靠第 2 层的确定性边界，加上第 4 节的真沙箱。</b></div>
+
+<h3>2. 真沙箱执行：命令交给 macOS 内核看管</h3>
+<div class="card">
+<p>四层校验全过之后，命令<b>不是在 Java 里直接跑</b>，而是交给 macOS 自带的 Seatbelt 沙箱执行——
+这就是第一节讲的机制直接落到课程里：</p>
+<pre><code>// SandboxAgent.java · execute() 的核心逻辑（简化示意）
+private String execute(String cmd) {
+    String real = execInSeatbelt(cmd);      // ① 优先：放进真沙箱
+    if (real != null) return real;
+    return execSimulated(cmd);              // ② 回落：环境不支持时模拟（trace 会标注）
+}
+
+// execInSeatbelt()：生成 profile（第一节那份），命令由沙箱化的 /bin/sh 执行
+new ProcessBuilder("sandbox-exec", "-f", profile, "/bin/sh", "-c", cmd)</code></pre>
+<p style="margin:8px 0 0">两层分工要分清：<b>四层检查是策略层（决定边界划多大），Seatbelt 是强制层（保证边界真的有效）</b>。
+就算模型用编码、变量间接引用等手段骗过全部字符串检查，越界写的系统调用照样被内核拒绝——命令「想做」和「能做」从此分离。</p>
+</div>
+
+<h3>3. 拦截 → 修正 → 放行：完整时序</h3>
+<div class="svgbox">
+<svg viewBox="0 0 900 470" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'PingFang SC',sans-serif">
+  <defs>
+    <marker id="b1" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#5b6472"/></marker>
+    <marker id="b2" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#c23934"/></marker>
+    <marker id="b3" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#2e7d4f"/></marker>
+  </defs>
+  <rect width="900" height="470" fill="#ffffff"/>
+  <text x="450" y="26" text-anchor="middle" font-size="16" font-weight="700" fill="#1c2333">场景：用户问 /etc/passwd → L2 拦截 → verdict 回灌 → 模型修正 → 放行</text>
+
+  <g font-size="12.5" font-weight="600">
+    <rect x="60" y="42" width="130" height="34" rx="7" fill="#eef2ff" stroke="#3b5bdb"/><text x="125" y="63" text-anchor="middle" fill="#2b3f8f">用户</text>
+    <rect x="330" y="42" width="190" height="34" rx="7" fill="#eaf4ee" stroke="#2e7d4f"/><text x="425" y="63" text-anchor="middle" fill="#2e7d4f">Agent（宿主 · 沙箱管线）</text>
+    <rect x="660" y="42" width="150" height="34" rx="7" fill="#fdf0ef" stroke="#c23934"/><text x="735" y="63" text-anchor="middle" fill="#c23934">模型（LLM）</text>
+  </g>
+  <g stroke="#c9d1e0" stroke-dasharray="4,4">
+    <line x1="125" y1="76" x2="125" y2="440"/><line x1="425" y1="76" x2="425" y2="440"/><line x1="735" y1="76" x2="735" y2="440"/>
+  </g>
+
+  <g font-size="11.5" fill="#1c2333">
+    <line x1="125" y1="100" x2="425" y2="100" stroke="#5b6472" stroke-width="1.8" marker-end="url(#b1)"/>
+    <text x="275" y="94" text-anchor="middle">chat("看看 /etc/passwd 里有什么")</text>
+    <text x="425" y="122" text-anchor="middle" fill="#5b6472" font-size="10.5">history.add(user) → runTurn 第 1 圈</text>
+
+    <line x1="425" y1="140" x2="735" y2="140" stroke="#5b6472" stroke-width="1.8" marker-end="url(#b1)"/>
+    <text x="580" y="134" text-anchor="middle">chat(messages, TOOLS)（shell_execute 带 Schema）</text>
+
+    <line x1="735" y1="166" x2="425" y2="166" stroke="#5b6472" stroke-width="1.8" marker-end="url(#b1)"/>
+    <text x="580" y="160" text-anchor="middle">tool_calls: shell_execute("cat /etc/passwd")</text>
+    <text x="425" y="188" text-anchor="middle" fill="#5b6472" font-size="10.5">assistant(tool_calls) 原样入历史 → 四层管线校验</text>
+
+    <rect x="300" y="200" width="250" height="52" rx="8" fill="#fdf0ef" stroke="#c23934"/>
+    <text x="425" y="220" text-anchor="middle" fill="#c23934" font-weight="600">L2 拦截：/etc/passwd 越出工作区</text>
+    <text x="425" y="238" text-anchor="middle" fill="#8a4440" font-size="10.5">真规范化 canonicalize 后 startsWith 不通过</text>
+    <line x1="425" y1="252" x2="735" y2="252" stroke="#c23934" stroke-width="1.8" marker-end="url(#b2)"/>
+    <text x="580" y="246" text-anchor="middle" fill="#c23934">verdict 回灌 role=tool：{"allowed":false,"layer":2,"reason":…}</text>
+
+    <text x="735" y="274" text-anchor="middle" fill="#8a4440" font-size="10.5">模型读 verdict → 修正命令</text>
+    <line x1="735" y1="290" x2="425" y2="290" stroke="#5b6472" stroke-width="1.8" marker-end="url(#b1)"/>
+    <text x="580" y="284" text-anchor="middle">tool_calls: shell_execute("ls -la sandbox/")（实测：模型自动改用边界内命令）</text>
+
+    <rect x="300" y="306" width="250" height="52" rx="8" fill="#eaf4ee" stroke="#2e7d4f"/>
+    <text x="425" y="326" text-anchor="middle" fill="#2e7d4f" font-weight="600">四层全过 → 沙箱内执行</text>
+    <text x="425" y="344" text-anchor="middle" fill="#3d5c4b" font-size="10.5">ls 输出真实目录列表</text>
+    <line x1="425" y1="358" x2="735" y2="358" stroke="#2e7d4f" stroke-width="1.8" marker-end="url(#b3)"/>
+    <text x="580" y="352" text-anchor="middle" fill="#2e7d4f">verdict 回灌：{"allowed":true,"output":"hello.txt  notes.md …"}</text>
+
+    <line x1="735" y1="384" x2="425" y2="384" stroke="#5b6472" stroke-width="1.8" marker-end="url(#b1)"/>
+    <text x="580" y="378" text-anchor="middle">最终回答（无 tool_calls → 收敛）</text>
+
+    <line x1="425" y1="410" x2="125" y2="410" stroke="#5b6472" stroke-width="1.8" marker-end="url(#b1)"/>
+    <text x="275" y="404" text-anchor="middle">「沙箱只覆盖 sandbox/，无法读取系统文件 /etc/passwd」</text>
+  </g>
+
+  <rect x="30" y="430" width="840" height="30" rx="7" fill="#fffbe8" stroke="#ecd98a"/>
+  <text x="450" y="450" text-anchor="middle" font-size="11.5" fill="#8a6d1f">观察点：拦截发生在「模型输出之后、执行之前」；verdict 回灌让模型自纠——这就是「不信任模型输出」的落地</text>
+</svg>
+<div class="cap">图 2 · 与 step20 时序同形状：都是「宿主裁决 → role=tool 回填 → 回到同一循环」；差别只在裁决依据（风险矩阵 vs 四层沙箱）</div>
+</div>
+
+<h3>4. 与 step20 审批的组合关系</h3>
+<div class="card">
+<p><b>审批管「该不该做」（权力，事前人拍板），沙箱管「做的时候能碰什么」（能力，事中内核强制）</b>——两层串联缺一不可。
+官方原文："Sandboxed commands still go through the regular permission flow"（沙箱内的命令仍要走权限审批流）。</p>
+</div>
+
+<h2>五、动手实验（课上会演示，课后可重跑）</h2>
+<div class="card">
+<h3 style="margin-top:0">实验 A · Terminal 直跑沙箱（seatbelt-demo.sh，macOS）</h3>
+<pre><code>bash seatbelt-demo.sh
+
+测试 1  写工作区            → 成功（内核放行）
+测试 2  写 /tmp             → Operation not permitted（内核拒绝）
+测试 3  curl 出网           → 拒绝（allowlist 为空）
+测试 4  读 ~/.ssh           → 拒绝（denyRead）
+测试 5  echo &lt;base64&gt; | base64 -d | sh   → 拒绝 ←←← 重点！
+        这条编码命令骗过了所有字符串检查，但内核不看字符串，只看系统调用</code></pre>
+
+<h3 style="margin-top:16px">实验 B · Agent 在环（SandboxAgent.java，IDEA / Terminal）</h3>
+<pre><code>java -cp target/classes cn.xiaofuge.ai.agent.step21.SandboxAgent
+
+[脚本 1 · 放行]      「看看沙箱里有什么文件」→ 四层全过 → 沙箱内执行 → 汇报目录
+[脚本 2 · 拦截-修正]  「看看 /etc/passwd」    → L2 拦截 → verdict 回灌 → 模型自己改用 ls sandbox
+[脚本 3 · 网络禁令]   「用 curl 下载网页」    → 模型想写进沙箱绕边界，仍被 L4 拦下（纵深防御）
+[脚本 4 · 黑名单之限] 「执行 rm -fr …」      → 黑名单被参数换序绕过 → 体会「边界才是主力」</code></pre>
+<p style="margin:8px 0 0;color:var(--sub);font-size:13px">启动横幅会显示当前执行模式（真沙箱 / 模拟回落），每条命令的 trace 也会标注实际走了哪条。</p>
+</div>
+
+<h2>六、常见问题</h2>
+<table>
+  <tr><th style="width:40%">问题</th><th>答案要点</th></tr>
+  <tr><td>既然有边界层，黑名单还要不要？</td><td>要，但摆正位置：防呆 + 纵深之一，挡最常见的蠢命令；绝不能因为它存在就以为安全。</td></tr>
+  <tr><td>拦截了为什么不直接终止任务？</td><td>协议要求每个 tool_call 必须有 tool_result；假成功会骗模型报喜、丢弃会破协议。verdict 如实回灌 → 模型可修正（实测它自己改成了 ls sandbox）。</td></tr>
+  <tr><td>沙箱和审批会不会重复打扰？</td><td>串联组合：沙箱内的安全操作自动放行，出网/越界才升级审批——沙箱让审批「少而准」。</td></tr>
+  <tr><td>四层检查都在 JVM 里，那还是沙箱吗？</td><td>四层是策略层（划边界），Seatbelt 才是强制层（守边界）。真实系统两者都要：策略 + 内核强制 = 完整沙箱。</td></tr>
+  <tr><td>沙箱失效了怎么办？</td><td>官方默认 fail-open（平台不支持就裸跑），可配置 fail-closed。思考题：哪些场景必须 fail-closed？（生产库、金融、医疗）</td></tr>
+</table>
+
+<h2>七、课后练习</h2>
+<div class="card">
+<ol style="margin:6px 0 0">
+  <li><b>跑通实验 A / B</b>：记录第 5 项测试的内核回执，用自己的话解释「为什么编码绕过对内核无效」；</li>
+  <li><b>跨系统</b>：Windows 同学用 Windows Sandbox（.wsb）复现「只挂载工作区」；Linux 同学用 <code>bwrap</code> 或 Docker 复现实验 A 的五项测试；</li>
+  <li><b>补网络代理</b>：给第 4 层实现 allowlist（默认空）+ 每域名首次审批，对齐官方 network.allowedDomains；</li>
+  <li><b>串联两节</b>：给 shell_execute 加上 step20 审批门禁（高危先问人、批准后再过沙箱），画一张「审批 → 沙箱 → 执行」组合时序图；</li>
+  <li><b>读官方文档</b>：<a href="https://code.claude.com/docs/en/sandboxing" target="_blank">code.claude.com/docs/en/sandboxing</a> 与 <a href="https://www.anthropic.com/engineering/how-we-contain-claude" target="_blank">anthropic.com/engineering/how-we-contain-claude</a>，各提炼 3 条教学版没有的机制。</li>
+</ol>
+</div>
+
+<h2>八、三句话带走</h2>
+<div class="card key">
+<p style="margin:4px 0"><b>1. 沙箱不是防它做坏事，而是做了也做不成——伤害半径被封死在边界内。</b></p>
+<p style="margin:4px 0"><b>2. 门禁管该不该做（step20 权力），沙箱管能碰什么（step21 能力）——黑名单防呆，边界防贼。</b></p>
+<p style="margin:4px 0"><b>3. 拦截不是终点：verdict 回灌，模型自纠，人看全程——透明本身就是安全的一部分。</b></p>
+</div>
+
+</div></body>
+</html>

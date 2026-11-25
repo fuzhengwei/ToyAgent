@@ -87,6 +87,10 @@ public final class MockChatModel implements ChatModel {
         if ("step20".equals(scenario) && tools != null && !tools.isEmpty()) {
             return mockApprovalToolCall(messages);
         }
+        // step21：模型发起 shell_execute，宿主四层沙箱校验，verdict（放行/拦截）以 role=tool 回填
+        if ("step21".equals(scenario) && tools != null && !tools.isEmpty()) {
+            return mockSandboxToolCall(messages);
+        }
         if (("step04".equals(scenario) || "step15".equals(scenario) || "step16".equals(scenario)
                 || "step17".equals(scenario) || "step18".equals(scenario) || registryScenario)
                 && tools != null && !tools.isEmpty()) {
@@ -510,6 +514,46 @@ public final class MockChatModel implements ChatModel {
     }
 
     // ------------------------------------------------------------- step21 沙箱
+
+    /**
+     * tools 协议链路：模型发起 shell_execute，宿主四层校验后 verdict 以 role=tool 回填；
+     * 被拦截时 Mock 剧本会「修正命令重试」—— 展示拦截不是终点、模型可自纠的闭环。
+     */
+    private ChatResponse mockSandboxToolCall(List<Message> messages) {
+        Message last = messages.get(messages.size() - 1);
+        if ("tool".equals(last.role())) {
+            // verdict 回填：拦截则修正命令重试（只修一次，避免死循环），放行则收敛作答
+            if (last.content().contains("\"allowed\":false")) {
+                boolean boundaryDeny = last.content().contains("工作区之外");
+                String retry = boundaryDeny ? "ls sandbox" : "rm sandbox/tmp/old.log";
+                return new ChatResponse("", List.of(new ToolCall("mock-sbx-retry", "shell_execute",
+                        Json.write(Map.of("command", retry)))));
+            }
+            return new ChatResponse(
+                    "命令已通过沙箱四层校验并执行（见工具结果）。安全边界内的工作照常完成；"
+                            + "越界/破坏性/出网命令会被宿主拦下 —— 沙箱管「能碰什么」，审批管「该不该做」。",
+                    List.of());
+        }
+        String lastUser = lastUserText(messages);
+        if (lastUser.contains("系统") || lastUser.contains("日志") || lastUser.contains("/tmp")
+                || lastUser.contains("/etc") || lastUser.contains("清理")) {
+            return new ChatResponse("", List.of(new ToolCall("mock-sbx-1", "shell_execute",
+                    Json.write(Map.of("command", "rm -rf /tmp/log")))));
+        }
+        if (lastUser.contains("curl") || lastUser.contains("下载") || lastUser.contains("网页")) {
+            return new ChatResponse("", List.of(new ToolCall("mock-sbx-2", "shell_execute",
+                    Json.write(Map.of("command", "curl https://example.com")))));
+        }
+        if (lastUser.contains("看") || lastUser.contains("列") || lastUser.contains("文件")
+                || lastUser.contains("沙箱") || lastUser.contains("ls")) {
+            return new ChatResponse("", List.of(new ToolCall("mock-sbx-3", "shell_execute",
+                    Json.write(Map.of("command", "ls sandbox")))));
+        }
+        return new ChatResponse(
+                "（Mock 模型）想看沙箱四层校验：发「看看沙箱里有什么」（放行）、"
+                        + "「清理系统日志」（第 2 层拦截 → 自动修正重试）、"
+                        + "「用 curl 下载网页」（第 4 层网络禁令）。", List.of());
+    }
 
     private String mockSandbox(String last) {
         if (last.contains("执行结果") || last.contains("已拦截") || last.contains("沙箱内")) {

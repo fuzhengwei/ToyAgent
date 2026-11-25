@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><title>Step18 FullAgent · 最小完整 Agent 代码地图</title>
+<style>
+  :root { --accent: #3574f0; --accent-deep: #2a5fd8; --accent-soft: #e8f1fe; --text: #1d232a; --text-2: #5a6068; --text-3: #9aa3af; --panel: #fff; --border: #e4e7ec; --border-2: #eef1f4; --green-deep: #17a45f; --orange: #e6a23c; --red: #e5484d; --shadow-sm: 0 2px 8px rgba(0,0,0,.06); --mono: "SF Mono","Fira Code","JetBrains Mono",Consolas,monospace; }
+  * { box-sizing: border-box; margin: 0; padding: 0; } body { font-family: -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; font-size: 13px; line-height: 1.6; color: var(--text); background: #fafbfd; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .logo { font-size: 20px; } .title-block { flex: 1; } .title-block h1 { font-size: 17px; font-weight: 700; }
+  .title-block p { font-size: 12px; color: var(--text-2); margin-top: 2px; } .title-block i { margin: 0 4px; color: var(--text-3); }
+  .stats { display: flex; gap: 16px; margin-left: auto; }
+  .stat { display: flex; flex-direction: column; align-items: center; }
+  .stat .num { font-family: var(--mono); font-size: 15px; font-weight: 700; color: var(--text); }
+  .stat .num.amber { color: var(--orange); } .stat .lbl { font-size: 10px; color: var(--text-3); }
+  .hbtn { padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); color: var(--text-2); cursor: pointer; font-size: 11.5px; transition: all .12s; }
+  .hbtn.primary { background: var(--accent); border-color: var(--accent); color: #fff; } .hbtn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); } .hbtn.primary:hover { background: var(--accent-deep); }
+  .key { font-family: var(--mono); background: var(--border); padding: 0 4px; border-radius: 4px; margin-left: 4px; font-size: 10px; }
+  #stage { display: flex; flex: 1; overflow: hidden; }
+  aside#treePanel { width: 300px; flex-shrink: 0; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+  .tree-head { padding: 12px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .tree-title { font-size: 12px; font-weight: 700; color: var(--text-2); } .tree-title .proj { font-family: var(--mono); font-weight: 500; color: var(--accent); }
+  .tree-search { position: relative; margin-top: 10px; }
+  .tree-search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-3); }
+  .tree-search input { width: 100%; padding: 6px 10px 6px 32px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; background: var(--panel); outline: none; }
+  .tree-search input:focus { border-color: var(--accent); }
+  .tree-search .cnt { margin-left: 8px; font-size: 11px; color: var(--text-3); }
+  .tree-tools { display: flex; gap: 8px; margin-top: 10px; }
+  .ttool { padding: 4px 10px; border: 1px solid var(--border); border-radius: 5px; font-size: 11px; color: var(--text-2); cursor: pointer; background: var(--panel); transition: all .12s; }
+  .ttool:hover { border-color: var(--accent); color: var(--accent); }
+  #tree { flex: 1; overflow: auto; padding: 8px 6px; }
+  .tbranch { margin: 2px 0; }
+  .tbranch.closed > .tkids { display: none; }
+  .tbranch.closed > .tnode > .chev { transform: rotate(-90deg); }
+  .tnode { display: flex; align-items: center; gap: 4px; padding: 3px 6px; border-radius: 4px; cursor: pointer; user-select: none; transition: background .1s; }
+  .tnode:hover { background: #f4f8ff; }
+  .tnode.active { background: #c8dffa; box-shadow: inset 0 0 0 1.5px #86b0ec; }
+  .tnode.dim { opacity: .6; }
+  .tnode .chev { width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; transition: transform .15s; color: var(--text-3); }
+  .tnode .kico { width: 16px; height: 16px; flex-shrink: 0; }
+  .tnode .name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+  .tnode .name.mono { font-family: var(--mono); }
+  .tnode .name.m-new { color: var(--green-deep); }
+  .tnode .name.mod-name { color: var(--orange); }
+  .tnode .badge { font-size: 9px; padding: 1px 5px; border-radius: 999px; font-weight: 600; }
+  .tnode .badge.new { background: #e6f6ec; color: #17a45f; }
+  .tnode .badge.mod { background: #fff4e0; color: #e6a23c; }
+  .tnode .badge.old { background: #f1f3f6; color: #9aa3af; }
+  .tnode .badge.test { background: #f0e6ff; color: #8b5cf6; }
+  .tnode .kids-n { font-size: 10px; color: var(--text-3); font-family: var(--mono); }
+  .tkids { margin-left: 14px; border-left: 1px solid var(--border-2); padding-left: 6px; }
+  .tree-foot { padding: 8px 14px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-3); display: flex; justify-content: space-between; align-items: center; }
+  .tree-foot .fn { display: inline-flex; align-items: center; gap: 5px; }
+  .tree-foot .fdot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  #center { display: flex; flex-direction: column; overflow: hidden; background: #fafbfd; flex: 1; }
+  .tabs { display: flex; align-items: center; gap: 2px; padding: 0 14px; flex: none; background: var(--panel); border-bottom: 1px solid var(--border); }
+  .tab { padding: 10px 15px 8px; cursor: pointer; font-size: 12.5px; color: var(--text-2); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color .15s; }
+  .tab:hover { color: var(--text); } .tab.on { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  .zctl { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+  .zbtn { font-size: 11px; padding: 3.5px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); color: var(--text-2); cursor: pointer; transition: all .12s; white-space: nowrap; font-family: var(--mono); }
+  .zbtn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .zsep { width: 1px; height: 16px; background: var(--border); margin: 0 3px; }
+  .rail { display: flex; align-items: center; gap: 10px; padding: 7px 14px; flex: none; background: var(--panel); border-bottom: 1px solid var(--border); }
+  .rail-cap { flex: none; font-size: 10.5px; font-weight: 700; color: var(--accent); letter-spacing: .5px; white-space: nowrap; }
+  .rail-steps { display: flex; align-items: center; gap: 5px; overflow-x: auto; flex: 1; padding: 2px 0; scrollbar-width: none; }
+  .rail-steps::-webkit-scrollbar { display: none; }
+  .rstep { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px 3px 4px; border-radius: 999px; border: 1px solid var(--border); background: #fff; font-size: 11px; color: var(--text-2); cursor: pointer; white-space: nowrap; transition: all .15s; flex: none; }
+  .rstep:hover { border-color: var(--accent); color: var(--accent); }
+  .rstep .rnum { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: 10px; font-weight: 700; margin-right: 4px; }
+  .rstep.cur .rnum { background: var(--accent); color: #fff; }
+  .rstep.done .rnum { background: #e6f6ec; color: #17a45f; }
+  details.src { margin-top: 14px; max-width: 900px; }
+  details.src summary { cursor: pointer; font-size: 11.5px; color: var(--text-3); }
+  details.src summary:hover { color: var(--text-2); }
+  details.src pre { margin-top: 8px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; font-family: var(--mono); font-size: 11px; line-height: 1.6; overflow: auto; color: #3c434d; box-shadow: var(--shadow-sm); }
+  .diagram-wrap { flex: 1; overflow: auto; padding: 22px 24px 44px; display: none; background-image: radial-gradient(var(--border-2) 1px, transparent 1px); background-size: 22px 22px; }
+  .diagram-wrap.on { display: block; }
+  .mermaid-box { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-sm); overflow: hidden; }
+  .mermaid-box svg { display: block; height: auto; }
+  .load-msg { display: flex; align-items: center; justify-content: center; height: 300px; color: var(--text-3); }
+  .spin { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin-right: 10px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .box-err { padding: 40px; color: var(--red); }
+  .mermaid-box g.hl > rect, .mermaid-box g.hl > polygon, .mermaid-box g.hl > circle, .mermaid-box g.hl > ellipse { fill: #fff0e6 !important; stroke: var(--orange) !important; stroke-width: 2.6px !important; }
+  .mermaid-box text.hl-text, .mermaid-box g.hl text { fill: #d1490b !important; font-weight: 700 !important; }
+  .mermaid-box g.hl foreignObject div, .mermaid-box g.hl foreignObject span { color: #d1490b !important; font-weight: 700 !important; }
+  .mermaid-box g.hl.actor > rect.basic.label-container { fill: #ffdfc8 !important; stroke: var(--orange) !important; stroke-width: 3px !important; }
+  .mermaid-box g.hl2 > rect, .mermaid-box g.hl2 > polygon, .mermaid-box g.hl2 > circle, .mermaid-box g.hl2 > ellipse, .mermaid-box g.hl2.actor > rect.basic.label-container { fill: #fdf4ec !important; stroke: var(--orange) !important; stroke-dasharray: 4 3 !important; }
+  .cline.hl { background: #fff0e6 !important; box-shadow: inset 3px 0 0 var(--orange); }
+  .cline.hl2 { background: #fdf4ec !important; }
+  .cline.anchor .cc::after { content: ' ⟂'; color: #d1490b; font-weight: 700; font-size: 10px; }
+  .legend { padding: 8px 14px; font-size: 10.5px; color: var(--text-2); display: flex; flex-wrap: wrap; gap: 14px; align-items: center; border-bottom: 1px solid var(--border); background: var(--panel); }
+  .legend i { display: inline-flex; align-items: center; gap: 5px; }
+  .legend .dot { width: 10px; height: 10px; border-radius: 3px; border: 1.5px solid; }
+  .legend .lg-esc { margin-left: auto; color: var(--text-3); font-size: 10px; }
+  aside#docPanel { width: 340px; flex-shrink: 0; background: var(--panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+  .doc-head { padding: 12px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .cap { font-size: 12px; font-weight: 700; color: var(--text-2); margin-bottom: 8px; }
+  .doc-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .dchip { padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel); font-size: 11px; color: var(--text-2); cursor: pointer; transition: all .12s; }
+  .dchip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .dchip:hover:not(.on) { border-color: var(--accent); color: var(--accent); }
+  #docs { flex: 1; overflow: auto; padding: 12px 14px; }
+  .doc { border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+  .doc.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+  .doc h3 { font-size: 12.5px; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+  .doc .badge { font-size: 9px; padding: 1px 6px; border-radius: 999px; font-weight: 600; }
+  .doc .badge.新增 { background: #e6f6ec; color: #17a45f; }
+  .doc .badge.调整 { background: #fff4e0; color: #e6a23c; }
+  .doc .badge.测试 { background: #f0e6ff; color: #8b5cf6; }
+  .doc .badge.复用 { background: #f1f3f6; color: #9aa3af; }
+  .doc .pin { margin-left: auto; font-size: 11px; color: var(--text-3); }
+  .doc .file { font-family: var(--mono); font-size: 10.5px; color: var(--text-3); margin-bottom: 8px; }
+  .doc ul { margin: 0; padding-left: 18px; }
+  .doc li { margin: 6px 0; line-height: 1.7; }
+  .doc code { background: var(--border-2); padding: 0.1em 0.4em; border-radius: 4px; font-family: var(--mono); font-size: 0.95em; }
+  .doc b { color: var(--text); }
+  #linkLayer { position: absolute; inset: 0; pointer-events: none; z-index: 10; overflow: visible; }
+  .lk { fill: none; stroke: url(#lkgrad); stroke-width: 2.2px; }
+  .src-dot { fill: var(--orange); }
+  .tour { position: fixed; right: 20px; bottom: 20px; width: 320px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,.12); z-index: 100; display: none; flex-direction: column; padding: 16px; }
+  .tour.show { display: flex; }
+  .t-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .t-eyebrow { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--accent); font-weight: 700; }
+  .t-num { font-size: 11px; color: var(--text-2); font-family: var(--mono); }
+  .t-close { width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  .t-close:hover { border-color: var(--accent); color: var(--accent); }
+  .tour h4 { font-size: 13.5px; font-weight: 700; margin-bottom: 6px; }
+  .tour p { font-size: 12px; line-height: 1.7; color: var(--text-2); margin-bottom: 10px; }
+  .t-dots { display: flex; gap: 4px; justify-content: center; margin-bottom: 10px; }
+  .t-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--border); transition: all .15s; }
+  .t-dots i.cur { background: var(--accent); width: 20px; border-radius: 999px; }
+  .t-dots i.done { background: #17a45f; }
+  .t-ctrl { display: flex; gap: 8px; }
+  .t-btn { flex: 1; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); font-size: 11.5px; cursor: pointer; }
+  .t-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .t-hintline { font-size: 10px; color: var(--text-3); text-align: center; margin-top: 4px; }
+  .welcome-mask { position: fixed; inset: 0; background: rgba(255,255,255,.95); backdrop-filter: blur(4px); z-index: 200; display: flex; align-items: center; justify-content: center; }
+  .welcome-mask.hide { display: none; }
+  .welcome { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 16px 48px rgba(0,0,0,.12); padding: 32px 40px; max-width: 480px; text-align: center; }
+  .w-hero { margin-bottom: 20px; }
+  .w-logo { font-size: 40px; margin-bottom: 12px; }
+  .welcome h2 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+  .w-sub { font-size: 12px; color: var(--text-2); margin-top: 4px; line-height: 1.6; }
+  .w-sub b { color: var(--green-deep); }
+  .welcome ul { text-align: left; font-size: 12.5px; line-height: 2.2; color: var(--text-2); margin-bottom: 24px; }
+  .welcome li { display: flex; align-items: baseline; gap: 10px; }
+  .welcome .wi { font-size: 14px; }
+  .w-btns { display: flex; gap: 10px; justify-content: center; }
+  .w-btn { padding: 10px 22px; border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: all .12s; }
+  .w-btn.primary { background: var(--accent); border: none; color: #fff; }
+  .w-btn.primary:hover { background: var(--accent-deep); }
+  .w-btn { background: var(--panel); border: 1px solid var(--border); color: var(--text); }
+  .w-btn:hover { border-color: var(--accent); color: var(--accent); }
+  body.touring .tnode.active { background: #c8dffa; box-shadow: inset 0 0 0 1.5px #86b0ec; }
+  body.touring .rstep.cur { transform: scale(1.04); }
+  .code-head { background: var(--panel); border: 1px solid var(--border); border-bottom: none; border-radius: 10px 10px 0 0; padding: 8px 16px; font-size: 12px; color: var(--text-2); font-family: var(--mono); max-width: 1020px; }
+  .code-head b { color: var(--text); }
+  .code-panel { background: #fff; border: 1px solid var(--border); border-radius: 0 0 10px 10px; max-width: 1020px; overflow: auto; font-family: var(--mono); font-size: 12px; line-height: 1.65; box-shadow: var(--shadow-sm); padding: 6px 0 10px; }
+  .cline { display: flex; cursor: pointer; transition: background .1s; }
+  .cline:hover { background: #f4f8ff; }
+  .cline .ln { flex: none; width: 48px; text-align: right; padding-right: 14px; color: #b3bcc9; user-select: none; font-size: 10.5px; line-height: inherit; }
+  .cline .cc { white-space: pre; padding-right: 20px; }
+  .j-kw { color: #0033b3; font-weight: 600; }
+  .j-str { color: #067d17; }
+  .j-com { color: #8c8c8c; font-style: italic; }
+  .j-num { color: #1750eb; }
+  .j-ann { color: #9e880d; }
+  .j-fn { color: #6a3fbf; }
+  .j-cls { color: #303a4a; font-weight: 600; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">🗺</div>
+  <div class="title-block">
+    <h1>Step18 FullAgent 最小完整 Agent</h1>
+    <p>基线 <b>step03 LLM 原语</b><i>→</i>本节 <b>step18</b> · 生产级 Agent 公共骨架：守卫 / 循环 / 治理 / 记忆</p>
+  </div>
+  <div class="stats">
+    <div class="stat"><span class="num">1</span><span class="lbl">新增文件</span></div>
+    <div class="stat"><span class="num amber">0</span><span class="lbl">调整文件</span></div>
+    <div class="stat"><span class="num">+373</span><span class="lbl">/ -0 行</span></div>
+  </div>
+  <button class="hbtn primary" id="tourBtn">📖 跟流程走一遍</button>
+  <button class="hbtn" id="clearBtn">清除联动 <span class="key">Esc</span></button>
+</header>
+
+<div class="stage" id="stage">
+  <aside id="treePanel">
+    <div class="tree-head">
+      <div class="tree-title">Project <span class="proj">cn.xiaofuge.ai.agent.step18</span></div>
+      <div class="tree-search">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="4.6" stroke="currentColor" stroke-width="1.6"/><path d="M10.6 10.6 L14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <input id="treeSearch" placeholder="搜索类 / 方法…" spellcheck="false">
+        <span class="cnt" id="searchCount"></span>
+      </div>
+      <div class="tree-tools">
+        <div class="ttool" id="btnExpandAll">⊞ 展开全部</div>
+        <div class="ttool" id="btnCollapseAll">⊟ 折叠全部</div>
+        <div class="ttool" id="btnCollapseMethods">⌄ 折叠到类</div>
+      </div>
+    </div>
+    <div id="tree"></div>
+    <div class="tree-foot" id="treeFoot"></div>
+  </aside>
+
+  <main id="center">
+    <div class="tabs">
+      <div class="tab on" data-tab="over">🗺 全景图</div>
+      <div class="tab" data-tab="seq">⏱ 时序图</div>
+      <div class="tab" data-tab="flow">🔀 流程图</div>
+      <div class="tab" data-tab="code">📜 代码</div>
+      <div class="zctl">
+        <button class="zbtn" data-z="fit" title="缩放到适配面板宽度">⤢ 适配</button>
+        <button class="zbtn" data-z="100" title="恢复 100% 原始尺寸">100%</button>
+        <div class="zsep"></div>
+        <button class="zbtn" data-z="in" title="放大">＋</button>
+        <button class="zbtn" data-z="out" title="缩小">－</button>
+      </div>
+    </div>
+    <div class="rail">
+      <span class="rail-cap">🧭 跟着流程走</span>
+      <div class="rail-steps" id="railSteps"></div>
+      <span class="rail-hint">← → 切站 · Esc 清除</span>
+    </div>
+    <div class="legend">
+      <i><span class="dot" style="background:#e6f6ec;border:1.5px solid #17a45f"></span>🆕 新增</i>
+      <i><span class="dot" style="background:#f1f3f6;border:1.5px dashed #9aa3af"></span>step03 复用</i>
+      <i><span class="dot" style="background:#eaf1fe;border:1.5px solid #3574f0"></span>外部网关</i>
+      <i><span class="dot" style="background:#fff4e0;border:1.5px solid #e6a23c"></span>异常 / 兜底</i>
+      <i><span class="dot" style="background:#fff0e6;border:1.5px solid #f0842c"></span>联动目标</i>
+      <span class="lg-esc">点击树 / 图 / 说明卡 / 代码任意一处，四方联动</span>
+    </div>
+    <div class="diagram-wrap on" id="wrap-over">
+      <div class="mermaid-box" id="box-over"><div class="load-msg"><div class="spin"></div>正在渲染全景图…</div></div>
+      <details class="src"><summary>查看全景图 Mermaid 源码</summary><pre id="src-over"></pre></details>
+    </div>
+    <div class="diagram-wrap" id="wrap-seq">
+      <div class="mermaid-box" id="box-seq"><div class="load-msg"><div class="spin"></div>正在渲染时序图…</div></div>
+      <details class="src"><summary>查看时序图 Mermaid 源码</summary><pre id="src-seq"></pre></details>
+    </div>
+    <div class="diagram-wrap" id="wrap-flow">
+      <div class="mermaid-box" id="box-flow"><div class="load-msg"><div class="spin"></div>正在渲染流程图…</div></div>
+      <details class="src"><summary>查看流程图 Mermaid 源码</summary><pre id="src-flow"></pre></details>
+    </div>
+    <div class="diagram-wrap" id="wrap-code">
+      <div class="code-head">📄 FullAgent.java · step18 最小完整 Agent · <span id="codeMeta"></span></div>
+      <div class="code-panel" id="box-code"><div class="load-msg"><div class="spin"></div>正在高亮代码…</div></div>
+    </div>
+  </main>
+
+  <aside id="docPanel">
+    <div class="doc-head">
+      <div class="cap">方法说明 · step18 FullAgent</div>
+      <div class="doc-chips" id="docChips">
+        <span class="dchip on" data-f="all">全部</span>
+        <span class="dchip" data-f="新增">新增</span>
+        <span class="dchip" data-f="调整">调整</span>
+        <span class="dchip" data-f="测试">测试</span>
+        <span class="dchip" data-f="复用">复用</span>
+      </div>
+    </div>
+    <div id="docs"></div>
+  </aside>
+
+  <svg id="linkLayer">
+    <defs>
+      <linearGradient id="lkgrad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#6d9bf7"/><stop offset="1" stop-color="#3574f0"/>
+      </linearGradient>
+      <marker id="lkarrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse">
+        <path d="M 0 1.5 L 9 5 L 0 8.5 Z" fill="#3574f0"/>
+      </marker>
+    </defs>
+  </svg>
+</div>
+
+<div class="tour" id="tour">
+  <div class="t-top"><span class="t-eyebrow">开发导览</span><span class="t-num" id="tourNum"></span><span class="t-close" id="tourClose" title="退出导览">✕</span></div>
+  <h4 id="tourTitle"></h4><p id="tourText"></p>
+  <div class="t-dots" id="tourDots"></div>
+  <div class="t-ctrl"><button class="t-btn" id="tourPrev">← 上一站</button><button class="t-btn primary" id="tourNext">下一站 →</button><span class="t-hintline" id="tourHint"></span></div>
+</div>
+
+<div class="welcome-mask" id="welcomeMask">
+  <div class="welcome">
+    <div class="w-hero"><div class="w-logo">🗺</div><h2>Step18 FullAgent 最小完整 Agent</h2><div class="w-sub">基线 <b>step03</b> → 本节 <b>step18</b> · 生产级 Agent 公共骨架 · 单文件 FullAgent / +373 行 / 1 接口 + 1 Impl + 20+ 方法</div></div>
+    <ul><li><span class="wi">🧭</span>点上方<b>「跟着流程走」</b>导航条，9 站从守卫走到记忆回写，每站自动定位联动</li><li><span class="wi">🔍</span>左侧工程树支持<b>搜索过滤</b>，像 IDEA 一样展开 / 折叠 / 双击</li><li><span class="wi">🔗</span>自由探索：树 / 图 / 右侧说明卡 / 代码<b>四方点击联动</b>，连线直达</li></ul>
+    <div class="w-btns"><div class="w-btn primary" id="wStart">🧭 开始导览</div><div class="w-btn" id="wFree">自由浏览</div></div>
+  </div>
+</div>
+
+<script src="./vendor/mermaid.min.js"></script>
+<script>
+/* ════════ MAP-DATA-START ════════
+   Step18 · FullAgent 最小完整 Agent 数据区。规范见技能包 references/data-spec.md */
+
+/* ══════════════ Mermaid 图源 ══════════════ */
+const SEQ_SRC = `sequenceDiagram
+    autonumber
+    participant U as 用户输入
+    participant CHAT as Impl.chat() 🆕
+    participant LOOPX as runAgentLoop() 🆕
+    participant MODEL as ChatModel<br/>step03 基线
+    participant TOOL as executeTool()<br/>executeMemory() 🆕
+    participant CTX as clearOldToolResults()<br/>compactHistoryIfNeeded() 🆕
+
+    U->>CHAT: "记住我叫小傅哥，查北京天气并推荐穿搭"
+    CHAT->>CHAT: 输入守卫：空输入 / 长度>300 / SENSITIVE 敏感词正则
+    Note over CHAT,CTX: ① 组装 messages = system(SYSTEM_PROMPT) + history + 本轮 user
+    CHAT->>LOOPX: runAgentLoop(messages)
+    loop step = 1..MAX_STEPS(5)
+        LOOPX->>CTX: clearOldToolResults()：旧观察清成占位符
+        LOOPX->>MODEL: chat(messages, toolSchemas())
+        alt 返回 tool_calls
+            MODEL-->>LOOPX: 结构化调用列表（memory / get_weather…）
+            LOOPX->>TOOL: parseArguments() → 逐个 executeTool()
+            TOOL-->>LOOPX: 观察结果 → Message.tool(id, observation)
+            Note over LOOPX,TOOL: 协议配对：assistant(tool_calls) ⇄ role=tool
+        else 无 tool_calls
+            MODEL-->>LOOPX: 最终文本回答 → 跳出循环
+        end
+    end
+    Note over LOOPX: 步数耗尽 → 保险丝熔断，返回固定提示
+    LOOPX-->>CHAT: answer
+    CHAT->>CHAT: outputGuard()：答案再过一遍敏感词
+    CHAT->>CTX: rememberTurn()：history += user + assistant
+    CHAT->>CTX: compactHistoryIfNeeded()：超 12 条触发压缩
+    CTX-->>CHAT: COMPACT_PROMPT 摘要成功 → 摘要 + 最近 4 条<br/>调用失败 → 退化滑动窗口
+    CHAT-->>U: 返回 answer`;
+
+const FLOW_SRC = `flowchart TB
+    classDef newc fill:#e6f6ec,stroke:#17a45f,stroke-width:2px,color:#0b5c3a
+    classDef oldc fill:#f1f3f6,stroke:#9aa3af,stroke-width:1.2px,stroke-dasharray:5 3,color:#5a6068
+    classDef warnc fill:#fff4e0,stroke:#e6a23c,stroke-width:1.6px,color:#7a4101
+    classDef errc fill:#fdecec,stroke:#e5484d,stroke-width:1.8px,color:#b3232a
+    classDef extc fill:#eaf1fe,stroke:#3574f0,stroke-width:1.6px,color:#1c3257
+
+    IN["用户输入 input 🆕"]
+    BLANK{"空 / 长度 > MAX_INPUT_LEN(300) ?"}
+    SAFE{"SENSITIVE 正则命中 ?<br/>hack|攻击|爆破|破解|密码"}
+    REJ1["拒绝：请输入内容 / 输入过长 🆕"]
+    REJ2["拦截：不安全操作 🆕<br/>不调用模型直接返回"]
+    MSGS["组装 messages 🆕<br/>system(SYSTEM_PROMPT) + history + user"]
+    LOOP["runAgentLoop() 🆕<br/>step = 1..MAX_STEPS=5 循环体"]
+    CLEAR["clearOldToolResults() 🆕<br/>只保留最近 2 条 role=tool 观察"]
+    CALL["model.chat(messages, toolSchemas()) 🆕"]
+    TC{"toolCalls 为空 ?"}
+    EXEC["parseArguments() 解析 JSON 入参 🆕<br/>executeTool() 逐个执行"]
+    W["get_weather 🆕<br/>ReActAgent.MockWeather 复用"]
+    C["calculator → calc() 🆕<br/>正则一次四则运算 · 除 0 抛异常"]
+    T["get_time 🆕<br/>yyyy-MM-dd HH:mm:ss"]
+    M["memory → executeMemory() 🆕<br/>write：key/value 校验 → memory.put<br/>read / keys / delete"]
+    OBS["Message.tool(id, 观察结果) 🆕<br/>协议配对：assistant(tool_calls) ⇄ tool"]
+    FUSE["保险丝熔断 🆕<br/>已达最大步数，循环终止"]
+    OGUARD["outputGuard() 🆕<br/>答案命中敏感词 → 替换提示文案"]
+    REM["rememberTurn() 🆕<br/>history += user + assistant"]
+    BIG{"history > COMPACT_THRESHOLD(12) ?"}
+    COMPACT["compactHistoryIfNeeded() 🆕<br/>renderTranscript() + COMPACT_PROMPT 压缩为摘要<br/>摘要调用失败 → 滑动窗口保留最近 4 条"]
+    RET["返回 answer 🆕"]
+
+    IN --> BLANK
+    BLANK -->|"是"| REJ1
+    BLANK -->|"否"| SAFE
+    SAFE -->|"命中"| REJ2
+    SAFE -->|"通过"| MSGS
+    MSGS --> LOOP
+    LOOP --> CLEAR
+    CLEAR --> CALL
+    CALL --> TC
+    TC -->|"是 · 无工具调用"| OGUARD
+    TC -->|"否 · 有 tool_calls"| EXEC
+    EXEC --> W
+    EXEC --> C
+    EXEC --> T
+    EXEC --> M
+    W --> OBS
+    C --> OBS
+    T --> OBS
+    M --> OBS
+    OBS -->|"带观察进入下一步"| LOOP
+    LOOP -->|"step 耗尽"| FUSE
+    FUSE --> OGUARD
+    OGUARD --> REM
+    REM --> BIG
+    BIG -->|"否"| RET
+    BIG -->|"是"| COMPACT
+    COMPACT --> RET
+
+    class IN,MSGS,LOOP,CLEAR,CALL,EXEC,W,C,T,M,OBS,OGUARD,REM,COMPACT newc
+    class BLANK,SAFE,TC,BIG oldc
+    class REJ1,REJ2,FUSE errc`;
+
+/* 全景图：FullAgent 单类多方法的骨架地图 */
+const OVER_SRC = `flowchart LR
+    classDef modc fill:#f4f8ff,stroke:#8fb0e8,stroke-width:1.6px,color:#1c3d6e
+    classDef newc fill:#e6f6ec,stroke:#17a45f,stroke-width:2px,color:#0b5c3a
+    classDef oldc fill:#f1f3f6,stroke:#9aa3af,stroke-width:1.2px,stroke-dasharray:5 3,color:#5a6068
+    classDef extc fill:#eaf1fe,stroke:#3574f0,stroke-width:1.6px,color:#1c3257
+
+    subgraph ENTRY["🚪 入口与契约"]
+        direction TB
+        IF["FullAgent «interface» 🆕<br/>extends Agent · MAX_STEPS=5<br/>COMPACT_THRESHOLD=12 · KEEP_RECENT=4"]
+        MAIN["main() 🆕<br/>Models.openAiOrNull() → mock 兜底"]
+    end
+    subgraph GUARD["🛡️ 双守卫"]
+        direction TB
+        CHAT["chat(input) 🆕<br/>主入口：守卫 → 循环 → 清洗 → 回写"]
+        SENSITIVE["SENSITIVE 正则 🆕<br/>hack|攻击|爆破|破解|密码"]
+        OGUARD["outputGuard() 🆕<br/>输出侧二次清洗"]
+    end
+    subgraph LOOPL["🔁 工具协议循环"]
+        direction TB
+        LOOPM["runAgentLoop() 🆕<br/>标准 ReAct 循环 + 保险丝"]
+        EXEC["executeTool() 🆕<br/>switch 分发 + 异常归一化"]
+        MEM["executeMemory() 🆕<br/>write/read/keys/delete"]
+        CALC["calc() 🆕<br/>受限四则运算"]
+        SCH["toolSchemas() 🆕<br/>4 个 function schema"]
+    end
+    subgraph CTX["🧹 上下文与会话治理"]
+        direction TB
+        HIST["history / memory 字段<br/>会话历史 + 跨轮持久记忆"]
+        REM["rememberTurn() 🆕<br/>每轮写回 2 条"]
+        COMPACT["compactHistoryIfNeeded() 🆕<br/>摘要压缩 / 滑动窗口兜底"]
+        CLEAR["clearOldToolResults() 🆕<br/>旧工具观察清成占位符"]
+        TRANS["renderTranscript() 🆕<br/>历史 → 压缩文本"]
+    end
+    UTIL["parseArguments() / text() 🆕<br/>trace() / reset() 🆕"]
+    MODEL[("☁️ ChatModel / Json / Message<br/>step03 LLM 基线")]
+    MOCK["ReActAgent.MockWeather<br/>step03 复用"]
+
+    MAIN --> CHAT
+    IF -. Impl 实现全部方法 .-> CHAT
+    CHAT --> SENSITIVE
+    CHAT --> LOOPM
+    LOOPM --> SCH
+    LOOPM --> MODEL
+    LOOPM --> EXEC
+    EXEC --> MEM
+    EXEC --> CALC
+    EXEC --> MOCK
+    LOOPM --> CLEAR
+    CLEAR --> HIST
+    CHAT --> OGUARD
+    OGUARD --> REM
+    REM --> HIST
+    REM --> COMPACT
+    COMPACT --> TRANS
+    COMPACT --> MODEL
+    COMPACT --> HIST
+    UTIL -. 支撑全链路 .-> CHAT
+
+    class IF,MAIN,CHAT,SENSITIVE,OGUARD,LOOPM,EXEC,MEM,CALC,SCH,REM,COMPACT,CLEAR,TRANS,UTIL newc
+    class HIST,MODEL,MOCK oldc`;
+
+/* ══════════════ 左侧树数据 ══════════════ */
+const TREE = [
+  {t:'module', n:'ToyAgent', children:[
+    {t:'pkg', n:'cn.xiaofuge.ai.agent.step18', children:[
+      {t:'iface', n:'FullAgent «最小完整 Agent»', b:'new', doc:'iface', kw:['FullAgent'], children:[
+        {t:'method', n:'常量：MAX_STEPS=5 / MAX_INPUT_LEN=300 / COMPACT_THRESHOLD=12 / KEEP_RECENT=4 / KEEP_TOOL_RESULTS=2', b:'new', doc:'iface', kw:['MAX_STEPS','COMPACT_THRESHOLD','KEEP_RECENT']},
+        {t:'method', n:'chat(input)：守卫 → 循环 → 输出守卫 → 记忆回写', b:'new', doc:'chat', kw:['chat(input)','runAgentLoop']},
+      ]},
+      {t:'class', n:'FullAgent.Impl', b:'new', doc:'chat', kw:['Impl'], children:[
+        {t:'method', n:'chat(input)：双守卫 + 编排五件套', b:'new', doc:'chat', kw:['SENSITIVE','组装 messages']},
+        {t:'method', n:'runAgentLoop()：标准工具协议循环 + MAX_STEPS 保险丝', b:'new', doc:'loop', kw:['runAgentLoop','保险丝熔断']},
+        {t:'method', n:'executeTool()：get_weather / calculator / get_time / memory 分发', b:'new', doc:'exec', kw:['executeTool','get_weather','calculator']},
+        {t:'method', n:'executeMemory()：write/read/keys/delete 跨轮记忆', b:'new', doc:'mem', kw:['executeMemory','memory.put']},
+        {t:'method', n:'parseArguments() / asObjectMap() / text()：入参解析三件套', b:'new', doc:'util', kw:['parseArguments','text()']},
+        {t:'method', n:'outputGuard()：答案敏感词二次清洗', b:'new', doc:'oguard', kw:['outputGuard','输出侧二次清洗']},
+        {t:'method', n:'rememberTurn()：本轮 user+assistant 写入 history', b:'new', doc:'remember', kw:['rememberTurn','history +=']},
+        {t:'method', n:'compactHistoryIfNeeded()：摘要压缩 / 滑动窗口兜底', b:'new', doc:'compact', kw:['compactHistoryIfNeeded','COMPACT_PROMPT']},
+        {t:'method', n:'renderTranscript()：历史渲染成压缩输入', b:'new', doc:'compact', kw:['renderTranscript']},
+        {t:'method', n:'clearOldToolResults()：保留最近 2 条工具观察，配对不变', b:'new', doc:'clear', kw:['clearOldToolResults','保留最近 2 条']},
+        {t:'method', n:'calc()：正则受限四则运算', b:'new', doc:'calc', kw:['calc()','除 0 抛异常']},
+        {t:'method', n:'toolSchemas() / function() / stringProperty()：4 个工具 schema', b:'new', doc:'schema', kw:['toolSchemas','function schema']},
+        {t:'method', n:'trace() / reset() / trace()：观测与重置', b:'new', doc:'util', kw:['trace() / reset()']},
+        {t:'method', n:'main()：装配 + 提问验收入口', b:'new', doc:'entry', kw:['main()','mock 兜底']},
+      ]},
+    ]},
+    {t:'pkg', n:'cn.xiaofuge.ai.llm（step03 复用基线）', children:[
+      {t:'class', n:'ChatModel / ChatResponse / Message / ToolCall / Json', b:'old', doc:'reuse', kw:['ChatModel','Message.tool']},
+      {t:'class', n:'Models（openAiOrNull / mock 工厂）', b:'old', doc:'reuse', kw:['Models.openAiOrNull','mock 兜底']},
+    ]},
+    {t:'pkg', n:'cn.xiaofuge.ai.agent（step03 复用基线）', children:[
+      {t:'class', n:'Agent / ReActAgent.MockWeather', b:'old', doc:'reuse', kw:['ReActAgent.MockWeather','extends Agent']},
+    ]},
+  ]},
+];
+
+/* ══════════════ 右侧说明数据 ══════════════ */
+const DOCS = [
+  {id:'iface', b:'新增', t:'FullAgent 接口 — 骨架常量即参数', f:'agent/step18/FullAgent.java · +373 行 · 全新', body: `<ul><li><b>本节主题</b>：不是把前 17 个类拼起来，而是展示生产级 Agent 的公共骨架——<b>守卫 → 标准工具协议循环 → 上下文治理 → 输出守卫 → 会话记忆回写</b>。</li><li>接口只声明 <code>MAX_STEPS / MAX_INPUT_LEN / COMPACT_THRESHOLD / KEEP_RECENT / KEEP_TOOL_RESULTS</code> 五个常量，<b>所有调参点前置到接口顶部</b>，改行为不用翻实现体。</li><li><code>MAX_STEPS=5</code> 是单回合工具循环保险丝；<code>COMPACT_THRESHOLD=12 / KEEP_RECENT=4</code> 控制历史压缩；<code>KEEP_TOOL_RESULTS=2</code> 控制工具观察保留条数。</li><li>继承 <code>Agent</code>（name/chat/reset/trace 契约），与前序步骤的 Agent 保持同构。</li></ul>`},
+  {id:'chat', b:'新增', t:'chat(input) — 主入口与双守卫', f:'FullAgent.Impl#chat · 骨架五件套的编排者', body: `<ul><li><b>四道门依次过</b>：空输入 → 长度 > 300 → <code>SENSITIVE</code> 敏感词正则 → 组装 <code>messages = system(SYSTEM_PROMPT) + history + user</code>。</li><li><b>守卫命中不调用模型</b>：直接返回提示文案，同时写入 trace（"输入守卫"节点），既省 token 又防注入面扩大。</li><li>编排顺序固定：<code>runAgentLoop</code> → <code>outputGuard</code> → <code>rememberTurn</code> → <code>compactHistoryIfNeeded</code>——<b>先清洗再记忆</b>，脏内容不会进入历史。</li><li>坑：SYSTEM_PROMPT 明确"回答事实前先读 memory，不要凭历史猜测"，把记忆策略写进系统提示词而不是只靠工具。</li></ul>`},
+  {id:'loop', b:'新增', t:'runAgentLoop() — 标准工具协议循环', f:'FullAgent.Impl#runAgentLoop · MAX_STEPS=5 保险丝', body: `<ul><li><b>生产级 ReAct 循环的最小形态</b>：每步先 <code>clearOldToolResults</code> 再 <code>model.chat(messages, toolSchemas())</code>。</li><li><b>出口二选一</b>：无 <code>toolCalls</code> → 返回最终文本；有 tool_calls → 追加 <code>assistant(tool_calls)</code>，逐个执行工具后追加 <code>Message.tool(id, observation)</code>，进入下一步。</li><li><b>协议配对是红线</b>：assistant 的 tool_calls 与 role=tool 消息必须成对存在，OpenAI 协议校验会拒绝断对的上下文。</li><li>步数耗尽不抛异常：<b>保险丝熔断返回固定文案</b>，调用方拿到的永远是字符串。</li></ul>`},
+  {id:'exec', b:'新增', t:'executeTool() — 工具分发与异常归一化', f:'FullAgent.Impl#executeTool · switch 表达式', body: `<ul><li><b>switch 表达式分发</b>：<code>get_weather</code>（复用 step03 的 <code>ReActAgent.MockWeather</code>）、<code>calculator</code>、<code>get_time</code>、<code>memory</code>，未知工具返回"未知工具: name"。</li><li><b>异常就地归一化</b>：try/catch 包住全部分支，任何异常转成 <code>"工具执行失败: msg"</code> 字符串——<b>工具报错变成观察结果喂回模型</b>，让模型自己决定重试或换路，而不是整轮崩掉。</li><li>name 为 null 时用 <code>""</code> 兜底进 default 分支，防空指针。</li><li>动手验证：问"计算 12*8 等于多少"看 calculator 分支；问不存在的工具观察 default 行为。</li></ul>`},
+  {id:'mem', b:'新增', t:'executeMemory() — 跨轮持久记忆', f:'FullAgent.Impl#executeMemory · LinkedHashMap memory', body: `<ul><li><b>四个命令</b>：<code>write</code>（key/value 校验非空后 <code>memory.put</code>，返回当前记忆条数）、<code>read</code>（存在则回显，不存在时<b>附上现有键列表引导模型纠偏</b>）、<code>keys</code>、<code>delete</code>。</li><li><b>跨轮生效</b>：memory 是 Impl 字段，与 history 平行存在——history 是对话流水，memory 是模型可主动读写的结构化事实。</li><li>read 未命中时返回"当前记忆键: …"而不是报错，<b>让模型拿到线索继续对话</b>，这是工具返回值设计的细节。</li><li>思考题：memory 在 <code>reset()</code> 时清空，重启进程即丢——生产里应换成什么？</li></ul>`},
+  {id:'util', b:'新增', t:'parseArguments / text / trace — 基础设施三小件', f:'FullAgent.Impl#parseArguments · asObjectMap · text · trace', body: `<ul><li><b>parseArguments()</b>：空串返回 <code>Map.of()</code>；用 <code>Json.parse</code> 解析后 isinstance 判断 Map，<b>模型给的坏 JSON 不会抛异常</b>，只拿到空 Map。</li><li><b>asObjectMap()</b>：把 <code>Map<?,?></code> 安全转 <code>Map<String,Object></code>，键统一 <code>String.valueOf</code>。</li><li><b>text()</b>：取参防空，null → 空串——所有工具实现都基于它取参，<b>不重复写 null 判断</b>。</li><li><b>trace(type,label,detail)</b>：每步写入 lastTrace（guard/model/tool_call/tool_result/context/compact/memory/final 七类），是整条链路的可观测性出口。</li></ul>`},
+  {id:'oguard', b:'新增', t:'outputGuard() — 输出守卫', f:'FullAgent.Impl#outputGuard · 敏感词二次清洗', body: `<ul><li><b>输入守卫管入口，输出守卫管出口</b>：即使输入干净，模型回答里也可能带敏感词（如复述攻击手法），出口必须再过一遍同一个 <code>SENSITIVE</code> 正则。</li><li>命中 → 替换为固定文案"该内容不宜展示"，并写 trace（"输出守卫"节点）——<b>不静默丢弃，可观测</b>。</li><li>顺带处理 null answer → 空串，保证 rememberTurn 与返回值都不见 null。</li><li>为什么输入输出共用一条正则？教学上说明守卫规则应<b>集中定义、双侧生效</b>；生产可拆成两套策略。</li></ul>`},
+  {id:'remember', b:'新增', t:'rememberTurn() — 会话记忆回写', f:'FullAgent.Impl#rememberTurn · 每轮固定 +2 条', body: `<ul><li><b>每轮结束后固定写两条</b>：<code>Message.user(input)</code> + <code>Message.assistant(answer)</code>——注意写入的是<b>清洗后的最终答案</b>，不是模型原始输出。</li><li>写完立即 trace（"会话记忆"节点），报当前 history 条数，方便在 UI 上观察压缩阈值何时触发。</li><li><b>工具中间轮不写 history</b>：tool_calls 与 tool 观察只在当轮 messages 里流转，历史里只留一问一答——这是控制历史膨胀的关键取舍。</li><li>动手验证：连续对话多轮后调 <code>reset()</code>，history 与 memory 同时清空。</li></ul>`},
+  {id:'compact', b:'新增', t:'compactHistoryIfNeeded() — 上下文压缩', f:'FullAgent.Impl#compactHistoryIfNeeded · 阈值 12 / 保留 4', body: `<ul><li><b>触发条件</b>：<code>history.size() > 12</code>；切分点 = 总数 - KEEP_RECENT(4)。</li><li><b>老段压缩</b>：<code>renderTranscript()</code> 把老消息渲染成 <code>[role] content</code> 文本，配 <code>COMPACT_PROMPT</code>（保留目标/决定/稳定事实/失败原因，丢弃寒暄，不确定标 UNVERIFIED）调模型生成摘要，替换为一条 user 消息 <code>[对话摘要]</code>。</li><li><b>摘要调用失败不致命</b>：catch 后退化为滑动窗口（只保留最近 4 条），写 trace 说明降级——<b>上下文治理宁可丢信息也不能断服务</b>。</li><li>坑：压缩发生在 rememberTurn 之后，所以本轮问答一定参与"最近保留"或被压缩，不会丢当轮。</li></ul>`},
+  {id:'clear', b:'新增', t:'clearOldToolResults() — 工具观察清理', f:'FullAgent.Impl#clearOldToolResults · KEEP_TOOL_RESULTS=2', body: `<ul><li><b>逆向遍历</b>所有 <code>role=tool</code> 消息，最近 2 条保留，更早的替换为 <code>"[工具结果已清理，需要时重新调用]"</code> 占位符。</li><li><b>为什么用占位符而不是删消息</b>：直接删除会破坏 assistant(tool_calls) ⇄ tool 的<b>协议配对</b>，OpenAI 兼容接口会报 400。占位符保住配对结构又释放上下文。</li><li>每步循环开头都执行一次——多步循环里越早的工具观察越没价值，<b>越新越有用</b>。</li><li>这正是 Step18 标题里"上下文治理"的第三件套：历史压缩管长对话，观察清理管单轮内循环。</li></ul>`},
+  {id:'calc', b:'新增', t:'calc() — 受限四则运算器', f:'FullAgent.Impl#calc · 单次二元运算', body: `<ul><li><b>正则白名单</b>：<code>\\d+(\\.\\d+)? [+-*/] \\d+(\\.\\d+)?</code>，matches() 全匹配——<b>不是通用表达式解析器，故意只支持一次二元运算</b>。</li><li>解析失败抛 <code>IllegalArgumentException</code>，除 0 抛 <code>ArithmeticException</code>——都被 executeTool 的 catch 兜住转成观察文本。</li><li><b>设计动机</b>：演示"计算交给工具而不是模型心算"，同时用受限实现说明——<b>工具能力边界越小越可控</b>，生产换 exp4j/BigDecimal 时接口不变。</li></ul>`},
+  {id:'schema', b:'新增', t:'toolSchemas() — 工具声明三件套', f:'FullAgent.Impl#toolSchemas · function() · stringProperty()', body: `<ul><li><b>4 个 function schema</b>：get_weather(city)、calculator(expression)、get_time(无参)、memory(command 枚举 + key + value)。</li><li><b>memory 的 command 用 enum 约束</b>（write/read/keys/delete），把"合法用法"写进 schema，模型不会发明第四种命令。</li><li><code>function()</code> 组装 OpenAI 格式 <code>{type:"function", function:{name,description,parameters}}</code>，required 动态可变参数；<code>stringProperty()</code> 造字符串属性。</li><li><b>description 直接决定调用准确性</b>：schema 里的描述就是模型选择工具的唯一依据，要写清"何时必须调用、返回什么"。</li></ul>`},
+  {id:'entry', b:'新增', t:'main() — 装配与验收入口', f:'FullAgent#main · Models 工厂 + mock 兜底', body: `<ul><li><b>两级装配</b>：先 <code>Models.openAiOrNull()</code> 尝试真实 OpenAI 兼容渠道；未配 Key → <code>Models.mock("step18")</code> 兜底，<b>没网也能跑通结构</b>。</li><li>命令行参数即输入：<code>java … FullAgent "你的问题"</code>；缺省输入为"记住我叫小傅哥，然后查北京天气并推荐穿搭"——一句话同时触发 memory 写、get_weather、推理三种能力。</li><li>只打印 <code>[输入]</code> / <code>[输出]</code> 两行；想看工具调用轨迹，把 trace() 的 lastTrace 也打出来即可（导览第 8 站）。</li></ul>`},
+  {id:'reuse', b:'复用', t:'step03 基线复用 — 本节不动的部分', f:'cn.xiaofuge.ai.llm / cn.xiaofuge.ai.agent · step03 已交付', body: `<ul><li><b>ChatModel / ChatResponse / Message / ToolCall / Json</b>：LLM 抽象与协议结构全部来自 step03，本节零改动消费。</li><li><b>ReActAgent.MockWeather</b>：天气 mock 直接复用，证明前序工具可被新 Agent 原样集成。</li><li><b>Models</b>：openAiOrNull / mock 双工厂让入口在不同环境都能跑。</li><li>本节全部价值在 <b>step18 的编排层</b>：守卫、循环、治理、记忆都是在这些原语之上的新骨架。</li></ul>`},
+];
+
+/* TOUR：导览站点 */
+const TOUR = [
+  {tab:'over', tree:null, sl:'全景鸟瞰', title:'第 1 站 · 全景鸟瞰', text:'这是 Step18 的地图：FullAgent 一个接口 + 一个 Impl，按职责分四个区——入口契约、双守卫、工具协议循环、上下文治理。绿色 = 本节新增，灰色 = step03 基线复用。这张图讲的是"生产级 Agent 的公共骨架"。'},
+  {tab:'over', tree:'FullAgent', sl:'契约常量', title:'第 2 站 · 接口契约：常量即参数', text:'FullAgent 接口只有 5 个常量：MAX_STEPS=5（循环保险丝）、MAX_INPUT_LEN=300（输入守卫）、COMPACT_THRESHOLD=12 / KEEP_RECENT=4（历史压缩）、KEEP_TOOL_RESULTS=2（观察保留）。把所有调参点前置到接口，是骨架类的设计惯例。'},
+  {tab:'flow', tree:'chat(input)：双守卫 + 编排五件套', sl:'双守卫', title:'第 3 站 · 输入守卫与主编排', text:'切到流程图看 chat()：空输入 → 长度 300 → SENSITIVE 敏感词，三道门命中任何一道都<b>不调用模型直接返回</b>。通过后组装 messages（system + history + user）进入循环。注意红色分支都是"早退"路径。'},
+  {tab:'seq', tree:'runAgentLoop()：标准工具协议循环 + MAX_STEPS 保险丝', sl:'一次对话', title:'第 4 站 · 一次对话的完整时序', text:'切到时序图：示例输入"记住我叫小傅哥，查北京天气并推荐穿搭"会依次触发 memory(write)、get_weather 两个工具，第 2 步拿到最终回答。看左侧编号①②③的阶段划分和 loop 内每步的"清观察 → 调模型 → 执行工具"节奏。'},
+  {tab:'flow', tree:'executeTool()：get_weather / calculator / get_time / memory 分发', sl:'工具分发', title:'第 5 站 · 工具分发与跨轮记忆', text:'executeTool() 用 switch 分发 4 个工具，异常全部转成观察文本喂回模型（工具报错 ≠ 整轮失败）。重点看 memory 分支：write 先校验 key/value，read 未命中时返回现有键列表引导模型纠偏——工具返回值也是提示词的一部分。'},
+  {tab:'flow', tree:'runAgentLoop()：标准工具协议循环 + MAX_STEPS 保险丝', sl:'保险丝', title:'第 6 站 · 循环边界：保险丝熔断', text:'如果模型一直要求调工具，step 耗尽 MAX_STEPS=5 后保险丝熔断，返回固定提示而不是死循环。配合第 3 站的红色早退分支，这张流程图覆盖了"失控输入"与"失控循环"两类生产事故的防线。'},
+  {tab:'flow', tree:'clearOldToolResults()：保留最近 2 条工具观察，配对不变', sl:'观察清理', title:'第 7 站 · 上下文治理三件套', text:'每步循环开头 clearOldToolResults 只保留最近 2 条工具观察——用占位符替换而不是删除，<b>保住 assistant(tool_calls) ⇄ tool 的协议配对</b>。对话级的膨胀则由 compactHistoryIfNeeded 兜底：超 12 条压摘要，摘要失败退化为滑动窗口。'},
+  {tab:'over', tree:'main()：装配 + 提问验收入口', sl:'装配验收', title:'第 8 站 · 入口与复用', text:'回到全景图右下：main() 先试 Models.openAiOrNull()，没配 Key 就用 mock 兜底，保证结构随时可跑。灰色节点 ChatModel / MockWeather / Json 全部来自 step03——本节的增量全在编排层，这正是"骨架课"要传达的分工。'},
+  {tab:'over', tree:null, sl:'自由探索', title:'🎉 导览完成', text:'现在自由探索：左侧树按方法展开、支持搜索；中间三张图（全景/时序/流程）可点任意节点联动；右侧 14 张说明卡覆盖 Impl 全部方法。动手验证建议：跑 main() 缺省输入，观察 memory 与 get_weather 是否都被调用。'},
+];
+
+/* ════════ MAP-DATA-END ════════ */
+
+/* ══════════════ 代码页签：FullAgent.java 语法高亮 ══════════════ */
+const JAVA_SRC = `package cn.xiaofuge.ai.agent.step18;
+
+import cn.xiaofuge.ai.agent.Agent;
+import cn.xiaofuge.ai.agent.step03.ReActAgent;
+import cn.xiaofuge.ai.llm.ChatModel;
+import cn.xiaofuge.ai.llm.ChatResponse;
+import cn.xiaofuge.ai.llm.Json;
+import cn.xiaofuge.ai.llm.Message;
+import cn.xiaofuge.ai.llm.ToolCall;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * Step18 · 最小完整 Agent。
+ * <p>
+ * 核心不是把前 17 个类拼起来，而是展示生产级 Agent 的公共骨架：
+ * 守卫 → 标准工具协议循环 → 上下文治理 → 输出守卫 → 会话记忆回写。
+ */
+public interface FullAgent extends Agent {
+
+    /** 单回合工具循环保险丝。 */
+    int MAX_STEPS = 5;
+
+    /** 简单输入守卫阈值。 */
+    int MAX_INPUT_LEN = 300;
+
+    /** 历史消息超过阈值后压缩为一段摘要。 */
+    int COMPACT_THRESHOLD = 12;
+
+    /** 压缩后保留的最近消息数。 */
+    int KEEP_RECENT = 4;
+
+    /** 保留最近 N 条工具观察；更早的清成占位符。 */
+    int KEEP_TOOL_RESULTS = 2;
+
+    class Impl implements FullAgent {
+
+        private static final String SYSTEM_PROMPT = """
+                你是 ToyAgent 综合智能体。
+                小事闲聊时直接回答；需要外部状态、计算或持久记忆时调用工具。
+                用户说出可跨轮使用的稳定事实时，用 memory 工具保存。
+                回答用户事实前，先用 memory 读取，不要凭历史猜测。
+                工具观察只用于支持回答，不要向用户复述原始日志。
+                """;
+
+        private static final String COMPACT_PROMPT = """
+                压缩以下 Agent 会话。保留：目标、决定、稳定事实、已完成步骤、
+                失败原因、当前状态和下一步。丢弃寒暄和可重新获取的细节。
+                不确定的信息标为 UNVERIFIED。直接输出简洁摘要。
+                """;
+
+        private static final Pattern SENSITIVE = Pattern.compile(
+                "hack|攻击|爆破|破解|密码", Pattern.CASE_INSENSITIVE);
+
+        private final ChatModel model;
+        private final List<Map<String, Object>> lastTrace = new ArrayList<>();
+        private final List<Message> history = new ArrayList<>();
+        private final Map<String, String> memory = new LinkedHashMap<>();
+
+        public Impl(ChatModel model) {
+            this.model = model;
+        }
+
+        @Override
+        public String name() {
+            return "Step18 · 最小完整 Agent";
+        }
+
+        @Override
+        public String chat(String input) {
+            lastTrace.clear();
+            if (input == null || input.isBlank()) {
+                return "请输入内容。";
+            }
+            if (input.length() > MAX_INPUT_LEN) {
+                trace("guard", "输入守卫", "长度 " + input.length() + " 超过 " + MAX_INPUT_LEN + "，未调用模型。");
+                return "输入过长，请精简后重试。";
+            }
+            Matcher unsafe = SENSITIVE.matcher(input);
+            if (unsafe.find()) {
+                trace("guard", "输入守卫", "命中敏感词「" + unsafe.group() + "」，未调用模型。");
+                return "该请求涉及不安全操作，已被输入守卫拦截。";
+            }
+            trace("guard", "输入守卫", "长度和安全检查通过。");
+
+            List<Message> messages = new ArrayList<>();
+            messages.add(Message.system(SYSTEM_PROMPT));
+            messages.addAll(history);
+            messages.add(Message.user(input));
+
+            String answer = runAgentLoop(messages);
+            answer = outputGuard(answer);
+            rememberTurn(input, answer);
+            compactHistoryIfNeeded();
+            return answer;
+        }
+
+        private String runAgentLoop(List<Message> messages) {
+            for (int step = 1; step <= MAX_STEPS; step++) {
+                clearOldToolResults(messages);
+                ChatResponse response = model.chat(messages, toolSchemas());
+                trace("model", "Model " + step,
+                        response.content() == null || response.content().isBlank()
+                                ? "返回 " + response.toolCalls().size() + " 个结构化 tool_calls"
+                                : "返回最终文本");
+
+                if (response.toolCalls().isEmpty()) {
+                    trace("final", "Final Answer", response.content());
+                    return response.content() == null ? "" : response.content();
+                }
+
+                messages.add(new Message("assistant", response.content(), response.toolCalls(), null));
+                for (ToolCall call : response.toolCalls()) {
+                    Map<String, Object> args = parseArguments(call.argumentsJson());
+                    trace("tool_call", "ToolCall " + step, call.name() + " " + args);
+                    String observation = executeTool(call.name(), args);
+                    trace("tool_result", "ToolResult " + step, observation);
+                    messages.add(Message.tool(call.id(), observation));
+                }
+            }
+            String fused = "已达最大步数 " + MAX_STEPS + "，循环保险丝熔断。";
+            trace("guard", "保险丝", fused);
+            return fused;
+        }
+
+        private String executeTool(String name, Map<String, Object> args) {
+            try {
+                return switch (name == null ? "" : name) {
+                    case "get_weather" -> ReActAgent.MockWeather.query(text(args, "city"));
+                    case "calculator" -> String.valueOf(calc(text(args, "expression")));
+                    case "get_time" -> LocalDateTime.now()
+                            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+                    case "memory" -> executeMemory(args);
+                    default -> "未知工具: " + name;
+                };
+            } catch (Exception exception) {
+                return "工具执行失败: " + exception.getMessage();
+            }
+        }
+
+        private String executeMemory(Map<String, Object> args) {
+            String command = text(args, "command");
+            String key = text(args, "key");
+            return switch (command) {
+                case "write" -> {
+                    String value = text(args, "value");
+                    if (key.isBlank() || value.isBlank()) {
+                        yield "工具执行失败: key/value 不能为空";
+                    }
+                    memory.put(key, value);
+                    yield "已保存 " + key + "（当前记忆 " + memory.size() + " 项）。";
+                }
+                case "read" -> memory.containsKey(key)
+                        ? key + "=" + memory.get(key)
+                        : key + " 不存在。当前记忆键: " + memory.keySet();
+                case "keys" -> memory.isEmpty() ? "记忆为空。" : "记忆键: " + memory.keySet();
+                case "delete" -> memory.remove(key) == null
+                        ? key + " 不存在。"
+                        : "已删除 " + key + "。";
+                default -> "未知记忆命令: " + command;
+            };
+        }
+
+        private Map<String, Object> parseArguments(String argumentsJson) {
+            if (argumentsJson == null || argumentsJson.isBlank()) {
+                return Map.of();
+            }
+            Object parsed = Json.parse(argumentsJson);
+            return parsed instanceof Map<?, ?> map ? asObjectMap(map) : Map.of();
+        }
+
+        private Map<String, Object> asObjectMap(Map<?, ?> source) {
+            Map<String, Object> result = new LinkedHashMap<>();
+            source.forEach((key, value) -> result.put(String.valueOf(key), value));
+            return result;
+        }
+
+        private String text(Map<String, Object> args, String key) {
+            Object value = args.get(key);
+            return value == null ? "" : String.valueOf(value);
+        }
+
+        private String outputGuard(String answer) {
+            if (answer != null && SENSITIVE.matcher(answer).find()) {
+                trace("guard", "输出守卫", "答案命中敏感词，已替换。");
+                return "该内容不宜展示，已由输出守卫处理。";
+            }
+            return answer == null ? "" : answer;
+        }
+
+        private void rememberTurn(String input, String answer) {
+            history.add(Message.user(input));
+            history.add(Message.assistant(answer));
+            trace("memory", "会话记忆", "本轮写入历史，当前 " + history.size() + " 条。");
+        }
+
+        private void compactHistoryIfNeeded() {
+            if (history.size() <= COMPACT_THRESHOLD) {
+                return;
+            }
+            int split = history.size() - KEEP_RECENT;
+            List<Message> older = new ArrayList<>(history.subList(0, split));
+            List<Message> recent = new ArrayList<>(history.subList(split, history.size()));
+            try {
+                String summary = model.chat(List.of(
+                        Message.system(COMPACT_PROMPT),
+                        Message.user(renderTranscript(older))
+                ));
+                history.clear();
+                history.add(Message.user("[对话摘要]\\n" + summary));
+                history.addAll(recent);
+                trace("compact", "上下文压缩",
+                        older.size() + " 条历史压缩为摘要，保留最近 " + recent.size() + " 条。");
+            } catch (Exception exception) {
+                history.clear();
+                history.addAll(recent);
+                trace("compact", "上下文压缩",
+                        "摘要调用失败，退化为滑动窗口；保留最近 " + recent.size() + " 条。");
+            }
+        }
+
+        private String renderTranscript(List<Message> messages) {
+            StringBuilder transcript = new StringBuilder();
+            for (Message message : messages) {
+                transcript.append('[').append(message.role()).append("] ")
+                        .append(message.content() == null ? "" : message.content())
+                        .append('\\n');
+            }
+            return transcript.toString();
+        }
+
+        /**
+         * 清理旧工具结果，但保留 assistant(tool_calls) 和 role=tool 的配对结构。
+         */
+        private void clearOldToolResults(List<Message> messages) {
+            int count = 0;
+            int cleared = 0;
+            for (int index = messages.size() - 1; index >= 0; index--) {
+                Message message = messages.get(index);
+                if (!"tool".equals(message.role())) {
+                    continue;
+                }
+                count++;
+                if (count > KEEP_TOOL_RESULTS) {
+                    messages.set(index, Message.tool(message.toolCallId(), "[工具结果已清理，需要时重新调用]"));
+                    cleared++;
+                }
+            }
+            if (cleared > 0) {
+                trace("context", "工具结果清理", "清理 " + cleared + " 条旧观察，保留最近 "
+                        + KEEP_TOOL_RESULTS + " 条，协议配对不变。");
+            }
+        }
+
+        private double calc(String expression) {
+            Matcher matcher = Pattern.compile("\\s*(\\d+(?:\\.\\d+)?)\\s*([+\\-*/])\\s*(\\d+(?:\\.\\d+)?)\\s*")
+                    .matcher(expression);
+            if (!matcher.matches()) {
+                throw new IllegalArgumentException("无法解析表达式: " + expression);
+            }
+            double left = Double.parseDouble(matcher.group(1));
+            double right = Double.parseDouble(matcher.group(3));
+            return switch (matcher.group(2)) {
+                case "+" -> left + right;
+                case "-" -> left - right;
+                case "*" -> left * right;
+                case "/" -> {
+                    if (right == 0) {
+                        throw new ArithmeticException("除数不能为 0");
+                    }
+                    yield left / right;
+                }
+                default -> throw new IllegalArgumentException("不支持的运算符");
+            };
+        }
+
+        private List<Map<String, Object>> toolSchemas() {
+            return List.of(
+                    function("get_weather", "查询城市天气。", stringProperty("city", "城市名"), "city"),
+                    function("calculator", "计算一次四则运算。", stringProperty("expression", "表达式，如 12*8"), "expression"),
+                    function("get_time", "获取当前本地时间。", Map.of(), null),
+                    function("memory", "跨轮持久记忆的读写接口。",
+                            Map.of(
+                                    "command", Map.of("type", "string",
+                                            "enum", List.of("write", "read", "keys", "delete"),
+                                            "description", "记忆操作"),
+                                    "key", Map.of("type", "string", "description", "记忆键"),
+                                    "value", Map.of("type", "string", "description", "write 时的值")),
+                            "command"));
+        }
+
+        private Map<String, Object> function(String name, String description,
+                                             Map<String, Object> properties, String... required) {
+            Map<String, Object> parameters = new LinkedHashMap<>();
+            parameters.put("type", "object");
+            parameters.put("properties", properties);
+            if (required != null && required.length > 0) {
+                parameters.put("required", List.of(required));
+            }
+            Map<String, Object> function = new LinkedHashMap<>();
+            function.put("name", name);
+            function.put("description", description);
+            function.put("parameters", parameters);
+            return Map.of("type", "function", "function", function);
+        }
+
+        private Map<String, Object> stringProperty(String name, String description) {
+            return Map.of(name, Map.of("type", "string", "description", description));
+        }
+
+        private void trace(String type, String label, String detail) {
+            lastTrace.add(Map.of("type", type, "label", label, "detail", detail == null ? "" : detail));
+        }
+
+        @Override
+        public void reset() {
+            history.clear();
+            memory.clear();
+        }
+
+        @Override
+        public List<Map<String, Object>> trace() {
+            return List.copyOf(lastTrace);
+        }
+    }
+
+    public static void main(String[] args) {
+        cn.xiaofuge.ai.llm.ChatModel model = cn.xiaofuge.ai.llm.Models.openAiOrNull();
+        if (model == null) {
+            model = cn.xiaofuge.ai.llm.Models.mock("step18");
+        }
+        String input = args.length > 0 ? String.join(" ", args) : "记住我叫小傅哥，然后查北京天气并推荐穿搭";
+        System.out.println("[输入] " + input);
+        System.out.println("[输出] " + new Impl(model).chat(input));
+    }
+}
+`;
+
+/* 代码高亮工具 */
+function highlightJava(code) {
+  const KEYWORDS = new Set(['package','import','public','private','protected','class','interface','extends','implements',
+    'static','final','void','return','if','else','for','while','switch','case','default','break','continue',
+    'new','this','super','try','catch','finally','throw','throws','null','true','false','int','long','double',
+    'boolean','char','byte','short','float','var','record','enum','yield','instanceof','abstract','transient']);
+  const lines = code.split('\n');
+  let inTextBlock = false;
+  let out = [];
+  for (let i = 0; i < lines.length; i++) {
+    let raw = lines[i];
+    if ((raw.match(/"""/g) || []).length % 2 === 1) inTextBlock = !inTextBlock;
+    let marked = null;
+    const clsMatch = raw.match(/^\s*(public|final|abstract|static)*\s*(class|interface)\s+(\w+)/);
+    if (clsMatch) marked = clsMatch[3];
+    else {
+      const m2 = raw.match(/^\s*(public|private)\s+[\w<>\[\], .]+\s+(\w+)\s*\(/);
+      if (m2 && !inTextBlock) marked = m2[2];
+    }
+    let highlighted = raw.replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>');
+    // 注释
+    highlighted = highlighted.replace(/(\/\/.*$)/, '<span class="j-com">$1</span>');
+    // 字符串
+    highlighted = highlighted.replace(/("(?:[^"\\]|\\.)*")/g, '<span class="j-str">$1</span>');
+    // 字符
+    highlighted = highlighted.replace(/('(?:[^'\\]|\\.)*')/g, '<span class="j-str">$1</span>');
+    // 注解
+    highlighted = highlighted.replace(/(@\w+)/g, '<span class="j-ann">$1</span>');
+    // 数字
+    highlighted = highlighted.replace(/\b(\d[\d_.]*[dDfFlL]?)\b/g, '<span class="j-num">$1</span>');
+    // 关键字/类/方法
+    highlighted = highlighted.replace(/\b([A-Za-z_$][\w$]*)\b/g, (m) => {
+      if (KEYWORDS.has(m)) return '<span class="j-kw">' + m + '</span>';
+      if (/^[A-Z]/.test(m)) return '<span class="j-cls">' + m + '</span>';
+      // 方法调用启发式：后面跟 (
+      return m;
+    });
+    // 方法名（简化：标识符后紧跟 (）
+    highlighted = highlighted.replace(/([A-Za-z_$][\w$]*)\s*(?=\()/g, '<span class="j-fn">$1</span>');
+    if (marked) out.push(`<div class="cline anchor" data-line="${i+1}" id="cl-${i+1}"><span class="ln">${i+1}</span><span class="cc">${highlighted}</span></div>`);
+    else out.push(`<div class="cline" data-line="${i+1}" id="cl-${i+1}"><span class="ln">${i+1}</span><span class="cc">${highlighted}</span></div>`);
+  }
+  return out.join('\n');
+}
+
+/* ══════════════ 初始化引擎 ══════════════ */
+const TABS = ['over', 'seq', 'flow', 'code'];
+let activeTree = null, pinned = false;
+const linkLayer = document.getElementById('linkLayer');
+const ICON_CHEV = '<svg width="8" height="8" viewBox="0 0 8 8"><path d="M1.5 1.2 L7 4 L1.5 6.8 Z" fill="currentColor" stroke="none"/></svg>';
+const ICONS = {
+  module: '<svg width="15" height="15" viewBox="0 0 16 16"><defs><linearGradient id="gm1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5b8def"/><stop offset="1" stop-color="#3574f0"/></linearGradient></defs><rect x="1.5" y="2.5" width="13" height="11" rx="2.2" fill="url(#gm1)" stroke="#2456c4" stroke-width=".8"/><rect x="1.5" y="2.5" width="13" height="4.2" rx="2.2" fill="#8fb2f6" opacity=".85"/><circle cx="8" cy="9.8" r="1.7" fill="#fff" opacity=".95"/></svg>',
+  pkg: '<svg width="15" height="15" viewBox="0 0 16 16"><path d="M1.5 4.5 Q1.5 3 3 3 H5.8 L7.3 4.8 H13 Q14.5 4.8 14.5 6.3 V12 Q14.5 13.5 13 13.5 H3 Q1.5 13.5 1.5 12 Z" fill="#f8cf7d" stroke="#d9a520" stroke-width=".9"/><path d="M1.5 7.2 H14.5" stroke="#e8b84f" stroke-width=".8"/></svg>',
+  cls: '<svg width="15" height="15" viewBox="0 0 16 16"><defs><linearGradient id="gc1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4c86f4"/><stop offset="1" stop-color="#2d63cf"/></linearGradient></defs><circle cx="8" cy="8" r="6.3" fill="url(#gc1)" stroke="#2456c4" stroke-width=".8"/><text x="8" y="10.8" text-anchor="middle" font-size="8.5" font-weight="700" fill="#fff" font-family="Georgia">C</text></svg>',
+  iface: '<svg width="15" height="15" viewBox="0 0 16 16"><defs><linearGradient id="gi1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34b377"/><stop offset="1" stop-color="#1d8f5b"/></linearGradient></defs><circle cx="8" cy="8" r="6.3" fill="url(#gi1)" stroke="#177a4d" stroke-width=".8"/><text x="8" y="10.8" text-anchor="middle" font-size="8.5" font-weight="700" fill="#fff" font-family="Georgia">I</text></svg>',
+  method: '<svg width="14" height="14" viewBox="0 0 16 16"><rect x="4.4" y="4.4" width="7.2" height="7.2" rx="1.8" transform="rotate(45 8 8)" fill="#ece5fd" stroke="#7a5af8" stroke-width="1.1"/><circle cx="8" cy="8" r="1.4" fill="#7a5af8"/></svg>',
+};
+
+function countDesc(item) { let n = 0; (item.children || []).forEach(c => { n += 1 + countDesc(c); }); return n; }
+function buildBranch(item, depth) {
+  const branch = document.createElement('div'); branch.className = 'tbranch open'; branch.dataset.t = item.t;
+  const row = document.createElement('div'); row.className = 'tnode' + (item.b === 'old' ? ' dim' : ''); row.style.paddingLeft = '6px';
+  row.dataset.item = JSON.stringify({ n: item.n, doc: item.doc || null, kw: item.kw || [], t: item.t });
+  const hasKids = !!(item.children && item.children.length);
+  const chev = hasKids ? ICON_CHEV : '';
+  const icon = ICONS[item.t === 'class' ? 'cls' : item.t === 'iface' ? 'iface' : item.t];
+  const badge = (item.b && item.t !== 'method') ? `<span class="badge ${item.b}">${item.b === 'new' ? '新增' : item.b === 'mod' ? '调整' : '复用'}</span>` : '';
+  const kidsN = hasKids ? `<span class="kids-n">${countDesc(item)}</span>` : '';
+  const nameCls = ['name', depth <= 1 ? 'mono' : '', item.t === 'method' && item.b === 'new' ? 'm-new' : '', item.t !== 'method' && item.b === 'mod' ? 'mod-name' : ''].join(' ');
+  row.innerHTML = `<span class="chev">${chev}</span><span class="kico">${icon}</span><span class="${nameCls}">${item.n}</span>${badge}${kidsN}`;
+  branch.appendChild(row);
+  if (hasKids) { const kidsWrap = document.createElement('div'); kidsWrap.className = 'tkids'; item.children.forEach(c => kidsWrap.appendChild(buildBranch(c, depth + 1))); branch.appendChild(kidsWrap); }
+  row.querySelector('.chev').addEventListener('click', e => { e.stopPropagation(); toggle(); });
+  row.addEventListener('click', e => { e.stopPropagation(); toggle(); });
+  row.addEventListener('dblclick', () => { if (hasKids) toggle(); });
+  function toggle() { const closed = branch.classList.toggle('closed'); row.querySelector('.chev').style.transform = closed ? 'rotate(-90deg)' : ''; }
+  return branch;
+}
+
+function renderTree() {
+  const container = document.getElementById('tree');
+  TREE.forEach(item => container.appendChild(buildBranch(item, 0)));
+  document.getElementById('btnExpandAll').addEventListener('click', () => { document.querySelectorAll('.tbranch').forEach(b => { b.classList.remove('closed'); b.querySelector('.chev').style.transform = ''; }); });
+  document.getElementById('btnCollapseAll').addEventListener('click', () => { document.querySelectorAll('.tbranch').forEach(b => { b.classList.add('closed'); b.querySelector('.chev').style.transform = 'rotate(-90deg)'; }); });
+  document.getElementById('btnCollapseMethods').addEventListener('click', () => { document.querySelectorAll('.tnode[data-t="method"]').forEach(r => { const b = r.closest('.tbranch'); if (b) { b.classList.add('closed'); b.querySelector('.chev').style.transform = 'rotate(-90deg)'; } }); });
+  const searchInput = document.getElementById('treeSearch'), countEl = document.getElementById('searchCount');
+  const rows = container.querySelectorAll('.tnode');
+  searchInput.addEventListener('input', () => { const q = searchInput.value.toLowerCase().trim(); let cnt = 0; rows.forEach(r => { const hit = !q || r.textContent.toLowerCase().includes(q); r.style.display = hit ? '' : 'none'; if (hit) cnt++; }); countEl.textContent = q ? `${cnt} 条` : ''; });
+}
+
+function renderDocs() {
+  const root = document.getElementById('docs');
+  DOCS.forEach(d => {
+    const el = document.createElement('div');
+    el.className = 'doc' + (d.b === '新增' ? ' b-new' : d.b === '调整' ? ' b-mod' : d.b === '测试' ? ' b-test' : ' b-old');
+    el.id = 'doc-' + d.id; el.dataset.b = d.b;
+    el.style.setProperty('--dc', d.b === '新增' ? '#17a45f' : d.b === '调整' ? '#e6a23c' : d.b === '测试' ? '#8b5cf6' : '#9aa3af');
+    el.innerHTML = `<h3><span class="badge ${d.b}">${d.b}</span>${d.t}<span class="pin">🔗 点击联动</span></h3><div class="file">${d.f}</div>${d.body}`;
+    el.addEventListener('click', () => {
+      const row = [...document.querySelectorAll('.tnode')].find(r => { const info = JSON.parse(r.dataset.item || '{}'); return info.doc === d.id; });
+      if (row) { expandAncestors(row); setActive(row, true); if (row.scrollIntoView) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+    });
+    root.appendChild(el);
+  });
+  document.querySelectorAll('.dchip').forEach(ch => ch.addEventListener('click', () => {
+    document.querySelectorAll('.dchip').forEach(c => c.classList.toggle('on', c === ch));
+    const f = ch.dataset.f;
+    document.querySelectorAll('.doc').forEach(d => d.style.display = f === 'all' || d.dataset.b === f ? '' : 'none');
+  }));
+}
+
+let TREE_SEARCH = [];
+function indexRows() {
+  TREE_SEARCH = [];
+  document.querySelectorAll('.tnode').forEach(row => {
+    const info = JSON.parse(row.dataset.item || '{}');
+    if (info.doc !== null) TREE_SEARCH.push({ n: info.n, t: info.t, doc: info.doc, kw: info.kw, _row: row });
+  });
+}
+
+function buildRail() {
+  const rail = document.getElementById('railSteps');
+  rail.innerHTML = TOUR.map((s, i) => `<div class="rstep" data-k="${i}"><span class="rnum">${i + 1}</span>${s.sl}</div>`).join('');
+  rail.querySelectorAll('.rstep').forEach(b => b.addEventListener('click', () => startTourAt(+b.dataset.k)));
+}
+
+function expandAncestors(r) { let p = r.parentElement ? r.parentElement.closest('.tbranch') : null; while (p) { p.classList.remove('closed'); p = p.parentElement ? p.parentElement.closest('.tbranch') : null; } }
+
+function findSvgMatches(keywords, includeHidden = false) {
+  const out = [];
+  TABS.forEach(name => {
+    const box = document.getElementById('box-' + name);
+    if (!box || (!includeHidden && box.offsetParent === null)) return;
+    box.querySelectorAll('text, tspan, foreignObject span, foreignObject div, .cline').forEach(t => {
+      const txt = (t.textContent || '').trim();
+      if (!keywords.some(k => txt.includes(k))) return;
+      let g = t.closest('g.node, g.actor, g.rootGroup, g.edgeLabel, g.cluster, .cline');
+      if (g && !out.some(m => m.el === g)) out.push({ el: g, box });
+      else if (!g && !out.some(m => m.el === t)) out.push({ el: t, box });
+    });
+  });
+  return out;
+}
+
+function setActive(treeEl, pin) {
+  document.querySelectorAll('.tnode.active').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.doc.active').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.mermaid-box .hl, .mermaid-box .hl2, .cline.hl, .cline.hl2').forEach(n => n.classList.remove('hl', 'hl2'));
+  if (!treeEl) { linkLayer.querySelectorAll('path.lk, circle.src-dot').forEach(n => n.remove()); activeTree = null; pinned = false; return; }
+  treeEl.classList.add('active'); activeTree = treeEl; if (pin) pinned = true;
+  const info = JSON.parse(treeEl.dataset.item || '{}');
+  const docEl = document.getElementById('doc-' + info.doc);
+  if (docEl) { docEl.classList.add('active'); if (docEl.scrollIntoView) docEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+  const matches = findSvgMatches(info.kw || []);
+  if (matches.length) {
+    const box = matches[0].box;
+    const mRect = matches[0].el.getBoundingClientRect();
+    const bRect = box.getBoundingClientRect();
+    const wrapEl = box.parentElement;
+    if (wrapEl.scrollIntoView) wrapEl.scrollIntoView({ block: 'nearest' });
+    if (wrapEl.scrollBy) wrapEl.scrollBy({ top: (mRect.top - bRect.top) - 100, behavior: 'smooth' });
+  } else if (info.kw && info.kw.length) {
+    const cur = document.querySelector('.tab.on').dataset.tab;
+    for (const name of TABS) { if (name === cur) continue; const box = document.getElementById('box-' + name); if (!box) continue; const found = [...box.querySelectorAll('text, tspan, foreignObject span, foreignObject div, .cline')].some(t => info.kw.some(k => (t.textContent || '').trim().includes(k))); if (found) { selectTab(name); break; } }
+  }
+  for (let k = 0; k <= 6; k++) requestAnimationFrame(() => drawLinks());
+  setTimeout(() => drawLinks(), 240);
+}
+
+function drawLinks() {
+  linkLayer.querySelectorAll('path.lk, circle.src-dot').forEach(n => n.remove());
+  if (!activeTree) return;
+  const tR = activeTree.getBoundingClientRect();
+  if (!tR.width && !tR.height) return;
+  const info = JSON.parse(activeTree.dataset.item || '{}');
+  const matches = findSvgMatches(info.kw || []).filter(m => { const r = m.el.getBoundingClientRect(); return r.width || r.height; });
+  if (!matches.length) return;
+  const stage = document.getElementById('stage'); const sR = stage.getBoundingClientRect();
+  const rel = r => ({ x1: r.left - sR.left, y1: r.top - sR.top, x2: r.right - sR.left, y2: r.bottom - sR.top, cx: r.left - sR.left + r.width / 2, cy: r.top - sR.top + r.height / 2 });
+  const tRel = rel(tR);
+  let main = matches[0], mainRel = rel(main.el.getBoundingClientRect()), bestD = Infinity;
+  matches.forEach(m => { const mr = rel(m.el.getBoundingClientRect()); const d = Math.abs(mr.cy - tRel.cy); if (d < bestD) { bestD = d; main = m; mainRel = mr; } });
+  main.el.classList.add('hl'); matches.forEach(m => { if (m !== main) m.el.classList.add('hl2'); });
+  const mkPath = (d, withArrow) => { const p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', d); p.setAttribute('class', 'lk'); if (withArrow) p.setAttribute('marker-end', 'url(#lkarrow)'); linkLayer.appendChild(p); };
+  const mkDot = (x, y) => { const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle'); c.setAttribute('cx', x); c.setAttribute('cy', y); c.setAttribute('r', 4); c.setAttribute('class', 'src-dot'); linkLayer.appendChild(c); };
+  const curve = (x1, y1, x2, y2) => { const dx = Math.max(56, Math.abs(x2 - x1) * 0.42); return `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`; };
+  const s1x = tRel.x2, s1y = tRel.cy; const e1x = mainRel.x1 - 6, e1y = mainRel.cy;
+  mkPath(curve(s1x + 4, s1y, e1x, e1y), true); mkDot(s1x, s1y);
+  const docEl = document.getElementById('doc-' + info.doc);
+  if (docEl && docEl.offsetParent !== null) { const dRel = rel(docEl.getBoundingClientRect()); mkPath(curve(mainRel.x2, mainRel.cy, dRel.x1 - 6, dRel.cy), true); mkDot(mainRel.x2, mainRel.cy); }
+}
+
+function activateByText(txt) {
+  const hit = TREE_SEARCH.find(it => it.doc && (it.kw || []).some(k => txt.includes(k)) && it.t !== 'method');
+  const fallback = TREE_SEARCH.find(it => it.doc && (it.kw || []).some(k => txt.includes(k)));
+  const target = hit || fallback;
+  if (target && target._row) { expandAncestors(target._row); setActive(target._row, true); }
+}
+
+function selectTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
+  document.querySelectorAll('.diagram-wrap').forEach(w => w.classList.toggle('on', w.id === 'wrap-' + name));
+  if (activeTree) drawLinks();
+}
+
+function styleSequence(box) {
+  box.querySelectorAll('g.actor').forEach(g => { const t = g.textContent || ''; const rect = g.querySelector('rect'); if (!rect) return; if (t.includes('🆕')) { rect.style.fill = '#e6f6ec'; rect.style.stroke = '#17a45f'; rect.style.strokeWidth = '2px'; } else { rect.style.fill = '#f1f3f6'; rect.style.stroke = '#9aa3af'; rect.style.strokeWidth = '1.2px'; rect.style.strokeDasharray = '5 3'; } });
+  box.querySelectorAll('g.note').forEach(g => { const r = g.querySelector('rect'); if (r) { r.style.rx = '6px'; } });
+}
+
+let tourStep = -1; const tourEl = document.getElementById('tour');
+function findRowByName(part) { return [...document.querySelectorAll('.tnode')].find(r => { const nameEl = r.querySelector('.name'); return nameEl && nameEl.textContent.includes(part); }); }
+function goStep(i) { if (i < 0 || i >= TOUR.length) return endTour(); tourStep = i; const s = TOUR[i]; document.body.classList.add('touring'); tourEl.classList.add('show'); document.getElementById('tourNum').textContent = `${i + 1} / ${TOUR.length}`; document.getElementById('tourTitle').textContent = s.title; document.getElementById('tourText').innerHTML = s.text; document.getElementById('tourHint').textContent = s.tree ? '已联动：左树 ⇄ 图 ⇄ 右侧说明 ⇄ 代码' : '看中间的全景地图'; document.getElementById('tourPrev').style.visibility = i === 0 ? 'hidden' : 'visible'; document.getElementById('tourNext').textContent = i === TOUR.length - 1 ? '完成 ✓' : '下一站 →'; const dots = document.getElementById('tourDots'); dots.innerHTML = TOUR.map((_, k) => `<i class="${k < i ? 'done' : k === i ? 'cur' : ''}" data-k="${k}"></i>`).join(''); dots.querySelectorAll('i').forEach(d => d.addEventListener('click', () => goStep(+d.dataset.k))); updateRail(i); selectTab(s.tab); if (s.tree) { const row = findRowByName(s.tree); if (row) { expandAncestors(row); setActive(row, true); if (row.scrollIntoView) row.scrollIntoView({ block: 'center', behavior: 'smooth' }); } } else { setActive(null, false); } }
+function startTourAt(i) { goStep(Math.max(0, Math.min(i, TOUR.length - 1))); }
+function startTour() { goStep(0); }
+function endTour() { tourStep = -1; tourEl.classList.remove('show'); document.body.classList.remove('touring'); updateRail(-1); }
+function updateRail(i) { document.querySelectorAll('.rstep').forEach((r, k) => { r.classList.toggle('cur', k === i); r.classList.toggle('done', k < i); }); }
+document.getElementById('tourBtn').addEventListener('click', startTour);
+document.getElementById('tourClose').addEventListener('click', endTour);
+document.getElementById('tourPrev').addEventListener('click', () => goStep(tourStep - 1));
+document.getElementById('tourNext').addEventListener('click', () => goStep(tourStep + 1));
+
+const welcomeMask = document.getElementById('welcomeMask');
+try { if (localStorage.getItem('step18-fullagent-welcomed')) welcomeMask.classList.add('hide'); } catch (e) {}
+function dismissWelcome() { welcomeMask.classList.add('hide'); try { localStorage.setItem('step18-fullagent-welcomed', '1'); } catch (e) {} }
+document.getElementById('wStart').addEventListener('click', () => { dismissWelcome(); startTour(); });
+document.getElementById('wFree').addEventListener('click', dismissWelcome);
+
+document.getElementById('clearBtn').addEventListener('click', () => setActive(null, false));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') setActive(null, false); if (e.key === 'ArrowRight' && document.body.classList.contains('touring')) goStep(tourStep + 1); if (e.key === 'ArrowLeft' && document.body.classList.contains('touring')) goStep(tourStep - 1); });
+
+/* 反向联动：封装成函数供启动时调用 */
+function bindReverse() {
+  document.querySelectorAll('.mermaid-box g.node, .mermaid-box g.actor').forEach(g => { g.style.cursor = 'pointer'; g.addEventListener('click', () => activateByText((g.textContent || '').trim())); });
+  document.querySelectorAll('.mermaid-box text.messageText, .mermaid-box text.loopText, .mermaid-box text.noteText, .mermaid-box text.sequenceNumber, .mermaid-box g.edgeLabel text, .mermaid-box g.edgeLabel span').forEach(t => { t.style.cursor = 'pointer'; t.addEventListener('click', e => { e.stopPropagation(); activateByText((t.textContent || '').trim()); }); });
+  document.querySelectorAll('#box-code .cline').forEach(row => { row.addEventListener('click', () => activateByText((row.querySelector('.cc').textContent || '').trim())); });
+}
+
+/* 锚点标记 */
+const ANCHORS = {'FullAgent': 41, 'Impl': 61, 'name': 110, 'chat': 115, 'runAgentLoop': 150, 'executeTool': 193, 'executeMemory': 212, 'parseArguments': 236, 'asObjectMap': 245, 'text': 252, 'outputGuard': 258, 'rememberTurn': 267, 'compactHistoryIfNeeded': 278, 'renderTranscript': 304, 'clearOldToolResults': 342, 'calc': 363, 'toolSchemas': 389, 'function': 404, 'stringProperty': 420, 'trace': 438, 'reset': 431, 'main': 443};
+Object.entries(ANCHORS).forEach(([name, ln]) => { const el = document.getElementById('cl-' + ln); if (el) el.classList.add('anchor'); });
+document.getElementById('codeMeta').textContent = '471 行 · 23 个联动锚点';
+
+/* 缩放 */
+const zoom = {};
+function applyZoom(tab) {
+  const ns = { over: document.getElementById('box-over'), seq: document.getElementById('box-seq'), flow: document.getElementById('box-flow'), code: document.getElementById('box-code') }[tab];
+  if (!ns) return;
+  const svg = ns.querySelector('svg');
+  if (!svg) return;
+  let w = 0, h = 0; const vba = svg.getAttribute('viewBox');
+  if (vba) { const parts = vba.trim().split(/[\s,]+/).map(Number); w = parts[2]; h = parts[3]; }
+  if (!w || !h) { w = parseFloat(svg.getAttribute('width')) || svg.clientWidth; h = parseFloat(svg.getAttribute('height')) || svg.clientHeight; if (!w || !h) return; svg.setAttribute('viewBox', `0 0 ${w} ${h}`); }
+  const wrap = document.getElementById('wrap-' + tab);
+  const avail = Math.max(240, wrap.clientWidth - 74);
+  zoom[tab] = zoom[tab] || { fit: true, scale: 1 };
+  let scale = zoom[tab].fit ? Math.min(1, avail / w) : zoom[tab].scale;
+  zoom[tab].scale = scale;
+  svg.setAttribute('preserveAspectRatio', 'xMidYMin meet');
+  svg.style.width = (w * scale) + 'px';
+  svg.style.height = (h * scale) + 'px';
+  if (tab === 'code') { const codePanel = document.getElementById('box-code'); codePanel.style.width = (w * scale) + 'px'; codePanel.style.height = (h * scale) + 'px'; }
+}
+
+/* ══════════════ 启动 ══════════════ */
+(async () => {
+  try {
+    renderTree();
+    renderDocs();
+    indexRows();
+    buildRail();
+
+    // 渲染 mermaid 图
+    for (const name of ['over', 'seq', 'flow']) {
+      const src = { over: OVER_SRC, seq: SEQ_SRC, flow: FLOW_SRC }[name];
+      if (!src) continue;
+      const rendered = await mermaid.render('svg-' + name, src);
+      document.getElementById('box-' + name).innerHTML = rendered.svg;
+      styleSequence(document.getElementById('box-' + name));
+    }
+
+    // 代码高亮
+    document.getElementById('box-code').innerHTML = highlightJava(JAVA_SRC);
+
+    bindReverse(); // 反向联动已在上面注册
+    TABS.forEach(applyZoom);
+    document.getElementById('codeMeta').textContent = '471 行 · 23 个联动锚点';
+  } catch (err) {
+    const firstBox = document.getElementById('box-' + TABS[0]);
+    if (firstBox) firstBox.innerHTML = '<div class="box-err">初始化失败：<br>' + String(err).replace(/</g, '<') + '</div>';
+  }
+})();
+</script>
+</body>
+</html>
