@@ -62,24 +62,28 @@ public interface EventSourcedAgent extends Agent {
                                 + (log.isEmpty() ? "（空日志 → 新会话）" : "")));
 
                 // ===== 2. 追加本轮事件 =====
-                if (log.isEmpty()) append(EV_SESSION, Map.of("scenario", "step22"));
+                boolean firstTurn = log.isEmpty();
+                if (firstTurn) append(EV_SESSION, Map.of("scenario", "step22"));
                 append(EV_USER, Map.of("content", input));
 
                 // ===== 3. 上下文 = 投影结果（不是内存 List！）=====
                 List<Message> context = project(replay());
                 List<Message> req = new ArrayList<>();
                 req.add(Message.system(SYSTEM_PROMPT + "（当前事件日志共 " + log.size() + " 条）"));
-                context.forEach(m -> req.add(m));
+                req.addAll(context);
 
                 String raw = model.chat(req).trim();
                 Object parsed = tryParse(raw);
                 String answer = parsed instanceof Map<?, ?> m ? orRaw(Json.str(m, "final"), raw) : raw;
 
                 append(EV_AGENT, Map.of("content", answer));
-                append(EV_TURN, Map.of("events", log.size() + 3));
+                // 本轮追加条数：首轮含会话首条 SESSION_STARTED 共 4 条，后续每轮 3 条
+                int appended = firstTurn ? 4 : 3;
+                append(EV_TURN, Map.of("events", log.size() + appended));
                 lastTrace.add(Map.of("type", "final", "label", "本轮事件已落盘",
-                        "detail", "追加 4 条事件（含会话首条）：USER → AGENT_REPLY → TURN_COMPLETED。"
-                                + "日志 append-only 永不改写，历史即事件流"));
+                        "detail", "本轮追加 " + appended + " 条事件"
+                                + (firstTurn ? "（含会话首条 SESSION_STARTED）" : "")
+                                + "：USER → AGENT_REPLY → TURN_COMPLETED。日志 append-only 永不改写，历史即事件流"));
                 return answer;
             } catch (IOException e) {
                 return "事件日志读写失败：" + e.getMessage();
@@ -169,12 +173,50 @@ public interface EventSourcedAgent extends Agent {
         }
     }
 
-    /** 本地直接测试入口：java -cp target/classes cn.xiaofuge.ai.agent.step22.EventSourcedAgent [你的问题] */
+    /** 本地直接测试入口：java -cp target/classes cn.xiaofuge.ai.agent.step22.EventSourcedAgent [第1轮输入 第2轮输入 ...] */
     public static void main(String[] args) {
         cn.xiaofuge.ai.llm.ChatModel model = cn.xiaofuge.ai.llm.Models.openAiOrNull();
-        if (model == null) model = cn.xiaofuge.ai.llm.Models.mock("demo");
-        String input = args.length > 0 ? String.join(" ", args) : "记录事件：用户登录，然后回放事件";
-        System.out.println("[输入] " + input);
-        System.out.println("[输出] " + new Impl(model).chat(input));
+        if (model == null) {
+            model = cn.xiaofuge.ai.llm.Models.mock("step22");
+            System.out.println("[模型] 未配置真实模型，使用 Mock 演示。");
+        }
+        EventSourcedAgent agent = new Impl(model);
+
+        System.out.println("=== Step22 · 事件溯源（JSONL 事件日志 + 回放投影重建会话）===");
+        System.out.println("记忆不在内存里：每轮先 replay 日志重建上下文，对话作为事件 append 落盘。\n");
+
+        // 固定演示剧本：两轮对话验证「跨轮记忆」——第二轮的回答完全来自日志回放（可被命令行参数覆盖）
+        String[] demos = args.length > 0 ? args : new String[]{
+                "记住我叫小傅",   // 第 1 轮：空日志 → 新会话，本轮事实落盘
+                "我叫什么？"      // 第 2 轮：从日志重放重建上下文 → 模型「记得」你
+        };
+
+        for (int i = 0; i < demos.length; i++) {
+            String task = demos[i];
+            System.out.println("──────────────────────────────────────── 第 " + (i + 1) + "/" + demos.length + " 轮");
+            System.out.println("[你] " + task);
+            String output = agent.chat(task);
+            for (Map<String, Object> step : agent.trace()) {
+                System.out.println("  ┈ [" + step.get("type") + "] " + step.get("label") + " —— " + step.get("detail"));
+            }
+            System.out.println("[Agent] " + output);
+            printLogTail();
+            System.out.println();
+        }
+        System.out.println("=== 演示结束：重启本程序再问「我叫什么」，记忆仍在 —— 状态即日志 ===");
     }
+
+    /** 打印事件日志末尾几条，直观展示「本轮发生的事实已 append 落盘」。 */
+    private static void printLogTail() {
+        try {
+            java.util.List<String> lines = java.nio.file.Files.readAllLines(Path.of("events", "step22-events.jsonl"));
+            System.out.println("[日志] events/step22-events.jsonl 共 " + lines.size() + " 条事件，末尾 3 条：");
+            for (int i = Math.max(0, lines.size() - 3); i < lines.size(); i++) {
+                System.out.println("    " + lines.get(i));
+            }
+        } catch (IOException ignored) {
+            System.out.println("[日志] events/step22-events.jsonl 尚未生成");
+        }
+    }
+
 }
